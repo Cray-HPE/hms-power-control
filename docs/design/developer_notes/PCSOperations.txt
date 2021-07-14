@@ -1,0 +1,352 @@
+========================
+TRANSITIONS
+========================
+
+POST /transitions
+
+ o Vet all xnames syntactically (done by API, regex, etc. results in immediate
+   failure return) 
+
+ o Vet all other info in the request payload (operation).  Immediate fail if
+   bad.
+
+ o Create a transition task record and fills in the initial info.
+
+ o Write the initial transition task record to ETCD.
+
+ o Spin goroutine to do the task work.
+
+ o Return the task ID info to the caller.
+
+ o Goroutine begins executing the task.
+
+   o Vet XNames with HSM (should come for free with HSM calls).
+
+   o Make sure we aren't already operating on any of the targets!  If so,
+     those targets need to be marked as invalid with an error msg stating so
+     for the task record data.  THIS IS PROBABLY A RESERVATION CHECK.
+
+   o If reservation deputy keys are given, check reservations for the targets.
+     If there are any conflicting reservations we can't operate on those targs, 
+     mark them so in the return data.
+
+   o Create reservations for targs that need them.  Go lib keeps these alive.
+     Reservations are best-effort -- not "all or nothing".
+
+   o Get the HW state of the targets.  Use ETCD HW state records, or
+     go to the HW and ask (TBD).  If any targets are already at the destination
+     state, remove these from the list and mark the return data for that target
+     as 'compete', or maybe 'already there' in taskStateDescription.
+
+   o Fetch BMC creds for all target BMCs. (need to mod the pkg to do in 
+     parallel - need JIRA)
+
+   o Create TRS task lists.  This will involve fetching data from HSM like
+     FQDNs and RF endpoints for the intended RF operations.
+     (/Components/Inventory)
+
+   o Call tloc.Launch()
+
+   o As results of Launch() come in, update the task record in ETCD via
+     R/M/W, or just update the in-memory copy and write to ETCD (won't 
+     survive an instance crash though).  (Maybe memcached?  This would allow
+     the in-memory record to be persistent unless all instances die.)
+
+     NOTE: for an INIT transition, rather than just do a single HW operation,
+     we have to do the following:
+
+     1. Check the current HW state
+     2. If the node is off, turn it on
+     3. If the node is on, turn if off, THEN turn it on (2 TRS operations)
+
+     ALSO: we need to figure out ordering.  If we say e.g. turn off r0,e0,
+     we need to do the e0 first.  Or node/blade, do nodes first.  This will
+     require multiple TRS Launch() calls.  Do all HSN boards, then nodes,
+     then slots, then chassis, etc.  Can overlap nodes/HSN boards at the same
+     time, etc.
+
+     AND: If caller wants to turn off anything that includes a switch blade,
+     we have to make sure to turn off HSN boards -- we have to figure out
+     which ones to turn off!
+
+     OR: if we find that the components specified have HSN boards under them,
+     fail the operation with an error msg stating why.
+
+     (During this time, anybody can call the API's /transitions endpoint to 
+     query a task by ID.  This results only in reads of ETCD task records.
+     Thus, there is always only one instance writer and potentially many
+     readers.  This *should* preclude the need for any record locking...)
+
+ o When Launch() completes, release any reservations PCS obtained for targets.
+
+ o Once the service inst is done executing its task, "close out" the ETCD task
+   record.  The reaper takes care of the rest.
+
+
+NOTES:
+
+ o Should be no need to shard work across instances.  Any API request for
+   anything like /transitions can be done with one instance using TRS
+   remote mode, which will fan out the work nicely.
+
+ o Part of the work process could be updating the ETCD record with the
+   current status of the work, so it could be resumed on instance crash.
+   (future work).  But in any case, the record should be updated with things
+   like number completed, number of errors, when finished, etc.  Is that enough
+   to support crash/resume?
+
+GET /transitions
+
+ o All that is needed is to retrieve all ETCD task records and return the 
+   data to the caller.
+
+GET /transitions/{transitionID}
+
+ o All that is needed is to retrieve the ETCD task record keyed by the given
+   task ID and return the data to the caller.
+
+DELETE /transitions/{transitionID}
+
+ o Verify that the record referenced by the ID is valid, and delete it from
+   ETCD.   DELETE of an active task is an abort.
+
+   If the task is active:
+
+   o Goroutine that is executing the task has to have a chan to signal an 
+     abort.  Write the kill value into that chan.
+
+     o Update the ETCD task record to show it is "aborted".  DO NOT DELETE
+       the record -- the reaper will do this.
+
+====================
+POWER-STATUS
+====================
+
+GET /power-status?xname=name&xname=name&xname=name&powerStateFilter=On&managementStateFilter=available
+
+ o Get XNames, power state filter, and mgmt state filter from URI
+
+ o Verify XNames syntactically, etc.
+
+ o Get HW states from the ETCD HW state records.
+
+ o Formulate API response data and return to caller.
+
+NOTES/QUESTIONS:
+ o Are we just querying the ETCD HW state record, or going to the HW?
+   The above flow goes to the HW but that doesn't make sense if asking for
+   managementStateFilter=unavailable.
+
+
+NOTES:
+
+ o No reservations are need for these operations, as nothing is "changed".
+
+
+====================
+POWERCAP
+====================
+
+POST /power-cap/snapshot
+
+ o Get array of xname targets
+
+ o Verify syntactically, and with HSM.
+
+ o Create a task record with initial data.
+
+ o Write task record to ETCD.
+
+ o Spin goroutine to do the work
+
+ o Return the task ID to caller in return data.
+
+ Goroutine:
+
+ o Get configured info ("limits") from configmap (e.g. staticPower)
+
+ o Get RF URL and FQDN from HSN for each target.
+
+ * Have to make sure nodes are in READY state!!!
+
+ * Have to do an operation to ask BMC what limits are.
+
+ o Formulate a TRS tasklist.
+
+ o Execute Launch() to get the power-cap info for each target.
+
+ o Gather the response data and update the ETCD task record.
+
+ o When complete, "close out" the ETCD task record.
+
+PATCH /power-cap
+
+ o Get xnames and values from request
+
+ o Verify XNames syntactically and with HSM; verify 'controls' data.
+
+ o Create a task record with initial data.
+
+ o Write task record to ETCD.
+
+ o Spin goroutine to do the work.
+
+ o Return the task ID to caller in return data.
+
+ Goroutine:
+
+ o Get RF URL and FQDN from HSN for each target.
+
+ o Formulate a TRS tasklist with URLs and target POST payloads.
+
+ o Execute Launch() to set relevant power-cap info for each target.
+
+ o Gather the response data and update the ETCD task record.
+
+ o When complete, "close out" the ETCD task record.
+ 
+GET /power-cap
+
+ o Read the ETCD records for all power-cap tasks
+
+ o Formulate response data and return to caller.
+
+GET /power-cap/{taskID}
+
+ o Read the ETCD records for specified power-cap task
+
+ o Formulate response data and return to caller.
+
+GET /power-cap/xnames/{xname}
+
+ o Validate XName
+
+ o Get RF endpoint URL and FQDN from HSM.
+
+ o Get configured info ("limits") from configmap (e.g. staticPower)
+
+ o Make RF call directly to BMC.
+
+ o Formulate response data and return to caller.
+
+NOTES:
+
+ o No reservations are need for these operations, as nothing is "changed".
+ o Apollo HW has to go through a power-capping calibration step (one-time).
+   Hopefully this is done in MFG or if a blade is drop-shipped to customer.
+
+=========================================================================
+
+GENERAL PIECES NEEDED
+
+ o Goroutine that reaps task records.  This will run in all PCS instances, so 
+   may need a distributed lock to keep > 1 copy from doing it at the same time.
+   (easy)
+
+ o Functions to interface with HSM to get:
+   o Component state?
+   o RF endpoint URLs and FQDNs
+   o Get, set, and check reservations
+   (easy)
+
+ o Function(s) to get configmap data (power cap limits, static power stuff)
+   (easy)
+
+ o Function to get state of HW from BMCs directly.
+   (med)
+
+ o Function to do the grunt work of calling TRS Launch() and getting the
+   responses.
+   (difficult)
+
+ o ETCD or memcached record scheme to keep track of  HW states.  It can be 
+   updated either when we read the HW during an operation, or we have a 
+   polling loop to periodically check on the HW state.  (GB badness?).  
+   Perhaps a record for each BMC.  How would we prune/cull these?  Maybe we 
+   don't?  States would be Off, On, Unreachable.
+   (med)
+
+   Poll every 10 sec (?).  Also subscribe to RF event service events.  Restart
+   timer AFTER you get responses.
+
+   Eventually HSM should stop subscribing to RF events and instead rely on
+   PCS setting HW state.  HSM likely needs new logic to be sure that any
+   state PCS tries to set is not conflicting in any way (like it does today
+   withy RF events).
+
+   Poll event will have a TRS timestamp.  When we get the response, check
+   if the state in the cache is newer than the poll response.  State cache
+   will have a flag stating where the most recent state update came from
+   to compare event vs poll.
+
+   Piggyback cred check.  If cred fails (401) then we re-fetch creds.
+   This takes the burden off of the main line API tasks.  
+
+   OR: if we parallelize vault access and it's nice and fast, this is not
+   needed.
+
+   Periodic hw state and cred check is done like HBTD does HB checks --
+   dist'd lock grab, do the check, release the lock.   TRS will shard the
+   work so PCS doesn't have to.
+ 
+ o Function to R/M/W ETCD HW state and API task records.  This probably needs
+   to be done atomically.  Could use TAS funcs for this with a lock key/record
+   for each data record.  Would SQL work better for this?
+   (easy/med)
+
+ o Function to get BMC creds for a list of targets.
+   (easy)
+
+ o Helm chart, Dockerfiles.
+   (easy/med)
+
+ o Unit tests.
+   (pain)
+
+ o Integration tests, with docker-compose, fake RF endpionts, etc?
+   (big pain)
+
+/Inventory/ComponentEndpoints -- need a POST version of this since the GET
+version requires huge long URL which has limits.  JIRA exists?
+
+Task record -- task executor needs to update a "hb" so that if it dies,
+a RR/distlock routine can check all active task records to see if any have
+died, and take action on its behalf (to close out the task record and indicate
+the failure 'executor died')
+
+First should be /power and maybe /power-cap?  /transitions last due to huge
+complexity.
+
+
+==============================
+LAYERS/PACKAGES
+==============================
+
+ o domain (does the real work)
+
+ o creds (exists but needs additional funcs for parallellism)
+
+ o storage (persist/retrieve data from etcd/memcached/etc.)
+
+ o model (structs for various things)
+
+ o HSM package (accesses inventory component endpoints, etc.)
+   Easy to mock.
+
+ o API layer (in its own 'internal' pkg)
+
+
+==============================
+CLI
+==============================
+
+ o Ancestor/Descendent
+
+ o Expansion of wildcards
+
+
+
+
+
+
+

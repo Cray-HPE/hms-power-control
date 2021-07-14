@@ -1,0 +1,44 @@
+{
+	"info": {
+		"_postman_id": "4d15d49f-0aad-44a9-bb45-bb6878933860",
+		"name": "Power Control Service",
+		"description": "Rapid development & testing structures for Power Control Service",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Transitions",
+			"item": [],
+			"description": "Endpoints that perform power operations to a set of xnames",
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "Power-Statius",
+			"item": [
+				{
+					"name": "GET all power-status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:29495/power-status",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "29495",
+							"path": [
+								"power-status"
+							]
+						},
+						"description": "empty request to get all power-status"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints that retreive power status of xnames",
+			"protocolProfileBehavior": {}
+		}
+	],
+	"protocolProfileBehavior": {}
+}
