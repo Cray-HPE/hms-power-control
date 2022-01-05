@@ -30,7 +30,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/sirupsen/logrus"
-	tkafka "stash.us.cray.com/HMS/hms-trs-kafkalib/pkg/trs-kafkalib"
+	tkafka "github.com/Cray-HPE/hms-trs-kafkalib/pkg/trs-kafkalib"
 	"sync"
 	"time"
 )

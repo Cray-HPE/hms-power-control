@@ -31,8 +31,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"os"
-	"stash.us.cray.com/HMS/hms-base"
-	tkafka "stash.us.cray.com/HMS/hms-trs-kafkalib/pkg/trs-kafkalib"
+	"github.com/Cray-HPE/hms-base"
+	tkafka "github.com/Cray-HPE/hms-trs-kafkalib/pkg/trs-kafkalib"
 	"strings"
 	"time"
 )

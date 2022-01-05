@@ -20,24 +20,26 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-# Dockerfile for building HMS securestorage code. Note that this
-# image can't be run as these are just packages in this repo.
+# Dockerfile for building HMS base. Note that this image
+# can't be run as these are just packages in this repo.
 
 # Build base just has the packages installed we need.
-FROM dtr.dev.cray.com/baseos/golang:1.14-alpine3.12 AS build-base
+FROM arti.dev.cray.com/baseos-docker-master-local/golang:1.16-alpine3.13 AS build-base
 
 RUN set -ex \
-    && apk update \
+    && apk -U upgrade \
     && apk add build-base
 
 # Copy the files in for the next stages to use.
 FROM build-base AS base
 
-COPY *.go $GOPATH/src/stash.us.cray.com/HMS/hms-securestorage/
-COPY vendor $GOPATH/src/stash.us.cray.com/HMS/hms-securestorage/vendor
+RUN go env -w GO111MODULE=auto
+
+COPY *.go $GOPATH/src/github.com/Cray-HPE/hms-base/
+COPY vendor $GOPATH/src/github.com/Cray-HPE/hms-base/vendor
 
 # Now we can build.
 FROM base
 
 RUN set -ex \
-    && go build -v stash.us.cray.com/HMS/hms-securestorage/...
+    && go build -v github.com/Cray-HPE/hms-base/...

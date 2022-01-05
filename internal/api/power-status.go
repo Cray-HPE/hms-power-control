@@ -26,11 +26,11 @@ package api
 
 import (
 	"errors"
+	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/domain"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/sirupsen/logrus"
 	"net/http"
-	base "stash.us.cray.com/HMS/hms-base"
 )
 
 // GetPowerStatus - Returns hte power status of the hardware

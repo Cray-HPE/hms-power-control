@@ -41,8 +41,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 
-	"stash.us.cray.com/HMS/hms-base"
-	sstorage "stash.us.cray.com/HMS/hms-securestorage"
+	"github.com/Cray-HPE/hms-base"
+	sstorage "github.com/Cray-HPE/hms-securestorage"
 	"github.com/sirupsen/logrus"
 	"github.com/hashicorp/go-retryablehttp"
 )

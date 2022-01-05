@@ -20,10 +20,10 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-# Dockerfile for running testing coverage on securestorage HMS code.
+# Dockerfile for running testing coverage on base HMS code.
 
-FROM cray/hms-securestorage-build-base
+FROM cray/hms-base-build-base
 
 # Run coverage.
 RUN set -ex \
-    && go test -cover -v stash.us.cray.com/HMS/hms-securestorage/...
+    && go test -cover -v github.com/Cray-HPE/hms-base/...

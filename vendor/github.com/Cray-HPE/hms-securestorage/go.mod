@@ -1,6 +1,6 @@
-module stash.us.cray.com/HMS/hms-securestorage
+module github.com/Cray-HPE/hms-securestorage
 
-go 1.12
+go 1.16
 
 require (
 	github.com/hashicorp/vault/api v1.0.4

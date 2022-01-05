@@ -5,19 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.1] - 2021-08-09
+
+### Changed
+
+- Added GitHub configuration files and fixed snyk warning.
+
+## [1.15.0] - 2021-07-16
+
+### Changed
+
+- Replaced Stash Go module name with GitHub version.
+
+## [1.14.0] - 2021-07-01
+
+### Changed
+
+- Bumped version to represent migration to GitHub.
+
+## [1.13.0] - 2021-06-28
+
+### Security
+
+- CASMHMS-4898 - Updated base container images for security updates.
+
+## [1.12.2] - 2021-05-03
+
+### Changed
+
+- Allow valid nodeAccel type xnames for more than 8 GPUs
+
+## [1.12.1] - 2021-04-02
+
+### Changed
+
+- Updated Dockerfiles to pull base images from Artifactory instead of DTR.
+
+## [1.12.0] - 2021-01-26
+
+### Added
+
+- Update Licence info in source files.
+
+## [1.11.1] - 2021-01-19
+
+### Added
+
+- Added a function to add a User-Agent header to an http request.
 
 ## [1.11.0] - 2021-01-14
 
 ### Changed
 
-- Update copyright/licensing info in source files.
-
-## [1.10.0] - 2021-01-14
-
-### Changed
-
-- fixed versioning; made sure license file was present.
-
+- fix versions..
 
 ## [1.9.0] - 2021-01-14
 
@@ -25,30 +65,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Updated license file.
 
+## [1.8.5] - 2020-12-18
 
-## [1.8.0] - 2020-10-16
+### Changed
+
+- CASMHMS-4295 - Changed the regex for the partition hmstype to accept p# and p#.#
+
+## [1.8.4] - 2020-12-2
+
+### Added
+
+- CASMHMS-4246 - Added CDUMgmtSwitch to HMS types.
+
+## [1.8.3] - 2020-11-24
+
+### Added
+
+- CASMHMS-4239 - Added MgmtHLSwitch to HMS types.
+
+## [1.8.2] - 2020-11-16
+
+### Added 
+
+- CASMHMS-4087 - Added NodeAccelRiser to HMS types.
+
+## [1.8.1] - 2020-10-16
 
 ### Security
 
 - CASMHMS-4105 - Updated base Golang Alpine image to resolve libcrypto vulnerability.
 
-## [1.7.0] - 2020-05-11
+## [1.8.0] - 2020-09-02
 
 ### Changed
 
-- CASMHMS-3434 changed file structure of this repo to match what all users expect and use in their import paths.  No functional changes.
+- CASMHMS-3922 - Updated components to include reservation disabled and locked status.
 
-## [1.6.2] - 2020-04-27
+## [1.7.3] - 2020-05-01
 
 ### Changed
 
-- CASMHMS-2978 - Updated hms-securestorage to use trusted baseOS.
+- CASMHMS-3403 - Updated regex used for cmmrectifiers to allow more than 3 xnames to be validated per chassis
 
-## [1.6.1] - 2019-12-17
+## [1.7.2] - 2020-04-27
 
-### Fixed
+### Changed
 
-- Added condition to Vault library to fetch new token if it is missing.
+- CASMHMS-2968 - Updated hms-base to use trusted baseOS.
+
+## [1.7.1] - 2020-04-09
+
+### Added
+
+- The NodeEnclosurePowerSupply type to HMS types
+
+## [1.7.0] - 2020-03-18
+
+### Changed
+
+- Changed the valid component role and subrole values to be extendable via configfile.
+
+### Added
+
+- A config file watcher to pick up any new roles/subroles defined in the config file.
+
+## [1.6.4] - 2020-03-13
+
+### Changed
+
+- Changed the component state transition Ready->On to be invalid
+
+## [1.6.3] - 2020-03-06
+
+### Added
+
+- Definitions for HMS hardware Class (River/Mountian/Hill)
+
+## [1.6.2] - 2020-02-13
+
+### Added
+
+- Added functions for listing out all valid values for the enums defined in hms-base (HMS Type, State, Role, etc).
+
+## [1.6.1] - 2020-01-29
+
+### Added
+
+- The Drive and StorageGroup types to HMS types
 
 ## [1.6.0] - 2019-12-11
 

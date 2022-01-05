@@ -1,3 +1,16 @@
+# github.com/Cray-HPE/hms-base v1.15.1
+## explicit
+github.com/Cray-HPE/hms-base
+# github.com/Cray-HPE/hms-certs v1.3.3
+## explicit
+github.com/Cray-HPE/hms-certs/pkg/hms_certs
+# github.com/Cray-HPE/hms-securestorage v1.12.2
+github.com/Cray-HPE/hms-securestorage
+# github.com/Cray-HPE/hms-trs-app-api v1.6.3
+## explicit
+github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api
+# github.com/Cray-HPE/hms-trs-kafkalib v1.5.2
+github.com/Cray-HPE/hms-trs-kafkalib/pkg/trs-kafkalib
 # github.com/Shopify/sarama v1.24.1
 github.com/Shopify/sarama
 # github.com/davecgh/go-spew v1.1.1
@@ -8,10 +21,14 @@ github.com/eapache/go-resiliency/breaker
 github.com/eapache/go-xerial-snappy
 # github.com/eapache/queue v1.1.0
 github.com/eapache/queue
+# github.com/frankban/quicktest v1.7.3
+## explicit
 # github.com/fsnotify/fsnotify v1.4.9
 github.com/fsnotify/fsnotify
 # github.com/golang/snappy v0.0.1
 github.com/golang/snappy
+# github.com/google/go-cmp v0.5.1
+## explicit
 # github.com/google/uuid v1.2.0
 ## explicit
 github.com/google/uuid
@@ -22,7 +39,10 @@ github.com/gorilla/mux
 github.com/hashicorp/errwrap
 # github.com/hashicorp/go-cleanhttp v0.5.1
 github.com/hashicorp/go-cleanhttp
+# github.com/hashicorp/go-hclog v0.14.1
+## explicit
 # github.com/hashicorp/go-multierror v1.1.0
+## explicit
 github.com/hashicorp/go-multierror
 # github.com/hashicorp/go-retryablehttp v0.7.0
 ## explicit
@@ -69,6 +89,7 @@ github.com/mitchellh/mapstructure
 ## explicit
 github.com/namsral/flag
 # github.com/pierrec/lz4 v2.4.1+incompatible
+## explicit
 github.com/pierrec/lz4
 github.com/pierrec/lz4/internal/xxh32
 # github.com/pmezard/go-difflib v1.0.0
@@ -85,14 +106,14 @@ github.com/sirupsen/logrus
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
 github.com/stretchr/testify/suite
-# go.uber.org/zap v1.10.0
-## explicit
 # golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899
+## explicit
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
 golang.org/x/crypto/md4
 golang.org/x/crypto/pbkdf2
 # golang.org/x/net v0.0.0-20200813134508-3edf25e44fcc
+## explicit
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
@@ -100,16 +121,23 @@ golang.org/x/net/idna
 golang.org/x/net/internal/socks
 golang.org/x/net/proxy
 # golang.org/x/sys v0.0.0-20200817155316-9781c653f443
+## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/text v0.3.3
+## explicit
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
 # golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
+## explicit
 golang.org/x/time/rate
+# golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+## explicit
+# gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
+## explicit
 # gopkg.in/jcmturner/aescts.v1 v1.0.1
 gopkg.in/jcmturner/aescts.v1
 # gopkg.in/jcmturner/dnsutils.v1 v1.0.1
@@ -155,18 +183,3 @@ gopkg.in/square/go-jose.v2/json
 gopkg.in/square/go-jose.v2/jwt
 # gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 gopkg.in/yaml.v3
-# stash.us.cray.com/HMS/hms-base v1.13.0
-## explicit
-stash.us.cray.com/HMS/hms-base
-# stash.us.cray.com/HMS/hms-certs v1.2.2
-## explicit
-stash.us.cray.com/HMS/hms-certs/pkg/hms_certs
-# stash.us.cray.com/HMS/hms-firmware-action v0.0.0-20210607212652-a6d507061ac7
-## explicit
-# stash.us.cray.com/HMS/hms-securestorage v1.11.0
-stash.us.cray.com/HMS/hms-securestorage
-# stash.us.cray.com/HMS/hms-trs-app-api v1.5.1
-## explicit
-stash.us.cray.com/HMS/hms-trs-app-api/pkg/trs_http_api
-# stash.us.cray.com/HMS/hms-trs-kafkalib v1.4.0
-stash.us.cray.com/HMS/hms-trs-kafkalib/pkg/trs-kafkalib

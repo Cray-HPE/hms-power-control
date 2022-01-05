@@ -20,26 +20,11 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-# Dockerfile for building HMS base. Note that this image
-# can't be run as these are just packages in this repo.
 
-# Build base just has the packages installed we need.
-FROM arti.dev.cray.com/baseos-docker-master-local/golang:1.16-alpine3.13 AS build-base
+# Dockerfile for testing HMS base code.
 
+FROM cray/hms-base-build-base
+
+# Run any tests that might be present.
 RUN set -ex \
-    && apk update \
-    && apk add build-base
-
-# Copy the files in for the next stages to use.
-FROM build-base AS base
-
-RUN go env -w GO111MODULE=auto
-
-COPY *.go $GOPATH/src/stash.us.cray.com/HMS/hms-base/
-COPY vendor $GOPATH/src/stash.us.cray.com/HMS/hms-base/vendor
-
-# Now we can build.
-FROM base
-
-RUN set -ex \
-    && go build -v stash.us.cray.com/HMS/hms-base/...
+    && go test -v github.com/Cray-HPE/hms-base
