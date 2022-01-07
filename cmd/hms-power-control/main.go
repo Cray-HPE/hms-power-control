@@ -26,16 +26,16 @@ package main
 
 import (
 	"context"
+	"github.com/Cray-HPE/hms-base"
+	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
 	"github.com/Cray-HPE/hms-power-control/internal/api"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
+	trsapi "github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api"
 	"github.com/namsral/flag"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"os/signal"
-	"github.com/Cray-HPE/hms-base"
-	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
-	trsapi "github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api"
 	"strconv"
 	"sync"
 	"syscall"
@@ -43,7 +43,7 @@ import (
 )
 
 // Default Port to use
-const defaultPORT = "29495"
+const defaultPORT = "28007"
 
 const defaultSMSServer = "https://api-gw-service-nmn/apis/smd"
 
