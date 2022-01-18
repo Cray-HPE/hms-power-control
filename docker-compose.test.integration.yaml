@@ -1,4 +1,4 @@
-version: '3.7'
+version: '3.3'
 #THIS environment sets up all of PCS
 #  All dependencies -> HSM (vault, hm-collector, kafka), RTS (red fish sims) are all setup and active.
 #  The PCS binary is active
