@@ -27,6 +27,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"io/ioutil"
 	"net/http"
@@ -37,6 +38,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
+
+// The API layer is responsible for Json Unmarshaling and Marshaling,
+// creating the correct parameter types, validating the parameters by schema
+// and calling the domain layer.   Validation in the API layer does not include 'domain level validation'.
+// e.g. Check to see if an Operation is valid type, not check if this transition can be completed.
+// That is the responsibility of the domain layer.
 
 // CreateTransition - creates a transition and will trigger a 'transition' flow
 func CreateTransition(w http.ResponseWriter, req *http.Request) {
@@ -53,6 +60,7 @@ func CreateTransition(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
+		//This will validate that the uuid is valid
 		err = json.Unmarshal(body, &parameters)
 		if err != nil {
 			pb = model.BuildErrorPassback(http.StatusBadRequest, err)
@@ -68,7 +76,36 @@ func CreateTransition(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	pb = domain.TriggerTransition(parameters)
+	//Validate the transition (specifically the Operation type)
+	transition, err := model.ToTransition(parameters)
+	if err != nil {
+		pb = model.BuildErrorPassback(http.StatusBadRequest, err)
+		logrus.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Invalid PowerStateFilter")
+		WriteHeaders(w, pb)
+		return
+	}
+
+	//validates the schema of the xname, not that the xname actually exists; that requires a HSM call.
+	var xnamesReq []string
+	for _, locations := range transition.Location {
+		xnamesReq = append(xnamesReq, locations.Xname)
+	}
+	_, badXnames := base.ValidateCompIDs(xnamesReq, true)
+	if len(badXnames) > 0 {
+
+		errormsg := "invalid xnames detected "
+		for _, badxname := range badXnames {
+			errormsg += badxname + " "
+		}
+		err := errors.New(errormsg)
+		pb = model.BuildErrorPassback(http.StatusBadRequest, err)
+		logrus.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode, "xnames": badXnames}).Error("Invalid xnames detected")
+		WriteHeaders(w, pb)
+		return
+	}
+
+	//Call the domain logic to do something!
+	pb = domain.TriggerTransition(transition)
 
 	if pb.IsError == false {
 		location := "../transitions/" + (pb.Obj.(model.TransitionCreation).TransitionID.String())
@@ -87,7 +124,7 @@ func GetTransitions(w http.ResponseWriter, req *http.Request) {
 
 	//If actionID is not in the params, then do ALL
 	if _, ok := params["transitionID"]; ok {
-		//parse uuid and if its good then call getUpdates
+		//parse uuid and if its good then call GetTransition
 		pb = GetUUIDFromVars("transitionID", req)
 		if pb.IsError {
 			WriteHeaders(w, pb)
@@ -103,7 +140,6 @@ func GetTransitions(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
-
 // AbortTransitionID - abort transition by transitionID
 func AbortTransitionID(w http.ResponseWriter, req *http.Request) {
 	pb := GetUUIDFromVars("transitionID", req)
@@ -116,5 +152,3 @@ func AbortTransitionID(w http.ResponseWriter, req *http.Request) {
 	WriteHeaders(w, pb)
 	return
 }
-
-

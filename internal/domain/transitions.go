@@ -31,25 +31,25 @@ import (
 
 func GetTransition(transitionID uuid.UUID) (pb model.Passback) {
 	//TODO stuff here!
+	pb = model.BuildSuccessPassback(501, "GetTransition")
 	return pb
 }
 
 func GetTransitionStatuses() (pb model.Passback) {
 	//TODO stuff here!
+	pb = model.BuildSuccessPassback(501, "GetTransitionStatuses")
 	return pb
 }
 
 func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
 	//TODO stuff here!
+	pb = model.BuildSuccessPassback(501, "AbortTransitionID")
 	return pb
 }
 
-
-func TriggerTransition(model.TransitionParameter) (pb model.Passback) {
+func TriggerTransition(transition model.Transition) (pb model.Passback) {
 	//TODO stuff here!
 	//TODO need to make sure you return the model.TransitionCreation!
+	pb = model.BuildSuccessPassback(501, "TriggerTransition")
 	return pb
 }
-
-
-

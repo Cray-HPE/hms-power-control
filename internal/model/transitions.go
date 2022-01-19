@@ -24,18 +24,32 @@
 
 package model
 
-import "github.com/google/uuid"
-
+import (
+	"errors"
+	"github.com/google/uuid"
+	"strings"
+)
 
 //INPUT
 type TransitionParameter struct {
-	Operation string `json:"operation"`
-	Location  []LocationParameter
+	Operation string              `json:"operation"`
+	Location  []LocationParameter `json:"location"`
+}
+
+type Transition struct {
+	Operation Operation           `json:"operation"`
+	Location  []LocationParameter `json:"location"`
 }
 
 type LocationParameter struct {
 	Xname     string    `json:"xname"`
 	DeputyKey uuid.UUID `json:"deputyKey,omitempty"`
+}
+
+func ToTransition(parameter TransitionParameter) (TR Transition, err error) {
+	TR.Location = parameter.Location
+	TR.Operation, err = ToOperationFilter(parameter.Operation)
+	return
 }
 
 //OUTPUT
@@ -45,17 +59,50 @@ type TransitionCreation struct {
 	Operation    string    `json:"operation"`
 }
 
+// ToOperationFilter - Will return a valid Operation from string
+func ToOperationFilter(op string) (OP Operation, err error) {
+	if len(op) == 0 {
+		err = errors.New("invalid Operation type " + op)
+		OP = Operation_Nil
+		return
+	}
+	if strings.ToLower(op) == "on" {
+		OP = Operation_On
+		err = nil
+	} else if strings.ToLower(op) == "off" {
+		OP = Operation_Off
+		err = nil
+	} else if strings.ToLower(op) == "softrestart" {
+		OP = Operation_SoftRestart
+		err = nil
+	} else if strings.ToLower(op) == "hardrestart" {
+		OP = Operation_HardRestart
+		err = nil
+	} else if strings.ToLower(op) == "init" {
+		OP = Operation_Init
+		err = nil
+	} else if strings.ToLower(op) == "forceoff" {
+		OP = Operation_ForceOff
+		err = nil
+	} else {
+		err = errors.New("invalid Operation type " + op)
+		OP = Operation_Nil
+	}
+	return
+}
+
 //This pattern is from : https://yourbasic.org/golang/iota/
 //I think the only think we ever have to really worry about is ever changing the order of this (add/remove/re-order)
 type Operation int
 
 const (
-	Operation_On          Operation = iota // On = 0
-	Operation_Off                          //  1
-	Operation_SoftRestart                  // 2
-	Operation_HardRestart                  //  3
-	Operation_Init                         // 4
-	Operation_ForceOff                     // 5
+	Operation_Nil         Operation = iota - 1
+	Operation_On                    // On = 0
+	Operation_Off                   //  1
+	Operation_SoftRestart           // 2
+	Operation_HardRestart           //  3
+	Operation_Init                  // 4
+	Operation_ForceOff              // 5
 )
 
 func (op Operation) String() string {
@@ -65,6 +112,3 @@ func (op Operation) String() string {
 func (op Operation) EnumIndex() int {
 	return int(op)
 }
-
-
-

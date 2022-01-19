@@ -28,9 +28,8 @@ import (
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 )
 
-func GetPowerStatus(xnames []string,  psf model.PowerStateFilter , msf model.ManagementStateFilter ) (pb model.Passback) {
+func GetPowerStatus(xnames []string, psf model.PowerStateFilter, msf model.ManagementStateFilter) (pb model.Passback) {
 	//TODO stuff here!
-	pb = model.BuildSuccessPassback(200, "Success!")
+	pb = model.BuildSuccessPassback(501, "GetPowerStatus")
 	return pb
 }
-

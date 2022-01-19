@@ -46,7 +46,7 @@ const (
 func ToPowerStateFilter(psf string) (PSF PowerStateFilter, err error) {
 
 	if len(psf) == 0 {
-		err = nil
+		err = errors.New("invalid PowerStateFilter type " + psf)
 		PSF = PowerStateFilter_Nil
 		return
 	}

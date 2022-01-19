@@ -33,7 +33,13 @@ import (
 	"net/http"
 )
 
-// GetPowerStatus - Returns hte power status of the hardware
+// The API layer is responsible for Json Unmarshaling and Marshaling,
+// creating the correct parameter types, validating the parameters by schema
+// and calling the domain layer.   Validation in the API layer does not include 'domain level validation'.
+// e.g. Check to see if an PowerStatus filter (like xname) is valid type, not check if this xname is available in the system.
+// That is the responsibility of the domain layer.
+
+// GetPowerStatus - Returns the power status of the hardware
 func GetPowerStatus(w http.ResponseWriter, req *http.Request) {
 	var pb model.Passback
 
@@ -71,7 +77,7 @@ func GetPowerStatus(w http.ResponseWriter, req *http.Request) {
 		WriteHeaders(w, pb)
 		return
 	}
-
+	//validates the schema of the xname, not that the xname actually exists; that requires a HSM call.
 	xnames, badXnames := base.ValidateCompIDs(xnamesReq, true)
 	if len(badXnames) > 0 {
 

@@ -113,12 +113,36 @@ var routes = Routes{
 		"/transitions/{transitionID}",
 		AbortTransitionID,
 	},
-
+	// Power Status
 	Route{
 		"GetPowerStatus",
 		strings.ToUpper("get"),
 		"/power-status",
 		GetPowerStatus,
 	},
-
+	// Power Cap
+	Route{
+		"SnapshotPowerCap",
+		strings.ToUpper("post"),
+		"/power-cap/snapshot",
+		SnapshotPowerCap,
+	},
+	Route{
+		"PatchPowerCap",
+		strings.ToUpper("patch"),
+		"/power-cap",
+		PatchPowerCap,
+	},
+	Route{
+		"GetPowerCap",
+		strings.ToUpper("get"),
+		"/power-cap",
+		GetPowerCap,
+	},
+	Route{
+		"GetPowerCapQuery",
+		strings.ToUpper("get"),
+		"/power-cap/{taskID}",
+		GetPowerCapQuery,
+	},
 }
