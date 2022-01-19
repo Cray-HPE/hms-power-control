@@ -181,22 +181,23 @@ func TestPowerStatusStorage(t *testing.T) {
 	//For distributed timed locks, the memory-based implementation does nothing
 	//for locking, so all we can exercise is the function calls.
 
-	err = ds.DistributedTimedLock(10)
+	lockDur := 10 * time.Second
+	err = ds.DistributedTimedLock(lockDur)
 	if (err != nil) {
 		t.Errorf("DistributedTimedLock() failed: %v",err)
 	}
 	time.Sleep(1 * time.Second)
-	if (ds.GetDuration() != 10) {
-		t.Errorf("Lock duration readout failed, expecting 10, got %d",
-			ds.GetDuration())
+	if (ds.GetDuration() != lockDur) {
+		t.Errorf("Lock duration readout failed, expecting %s, got %s",
+			lockDur.String(),ds.GetDuration().String())
 	}
 	err = ds.Unlock()
 	if (err != nil) {
 		t.Errorf("Error releasing timed lock (outer): %v",err)
 	}
 	if (ds.GetDuration() != 0) {
-		t.Errorf("Lock duration readout failed, expecting 0, got %d",
-			ds.GetDuration())
+		t.Errorf("Lock duration readout failed, expecting 0s, got %s",
+			ds.GetDuration().String())
 	}
 }
 

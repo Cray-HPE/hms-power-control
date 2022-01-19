@@ -25,6 +25,7 @@ package storage
 import (
 	"fmt"
 	"sync"
+	"time"
 	"github.com/sirupsen/logrus"
 	hmetcd "github.com/Cray-HPE/hms-hmetcd"
 )
@@ -38,7 +39,7 @@ import (
 
 type MEMLockProvider struct {
 	Logger *logrus.Logger
-	Duration int
+	Duration time.Duration
 	mutex *sync.Mutex
 	kvHandle hmetcd.Kvi
 }
@@ -82,14 +83,14 @@ func (d *MEMLockProvider) Ping() error {
 	return e.Ping()
 }
 
-func (d *MEMLockProvider) DistributedTimedLock(maxSeconds int) error {
-	if (maxSeconds < 1) {
-		return fmt.Errorf("Error: lock duration request invalid (%d seconds) -- must be >= 1.",
-					maxSeconds)
+func (d *MEMLockProvider) DistributedTimedLock(maxLockTime time.Duration) error {
+	if (maxLockTime < 1) {
+		return fmt.Errorf("Error: lock duration request invalid (%s seconds) -- must be >= 1.",
+					maxLockTime.String())
 	}
-	d.Duration = maxSeconds
+	d.Duration = maxLockTime
 	e := toDistLockETCD(d)
-	return e.DistributedTimedLock(maxSeconds)
+	return e.DistributedTimedLock(maxLockTime)
 }
 
 func (d *MEMLockProvider) Unlock() error {
@@ -99,7 +100,7 @@ func (d *MEMLockProvider) Unlock() error {
 	return err
 }
 
-func (d *MEMLockProvider) GetDuration() int {
+func (d *MEMLockProvider) GetDuration() time.Duration {
 	return d.Duration
 }
 
