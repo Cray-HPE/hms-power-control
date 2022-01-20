@@ -1,12 +1,15 @@
 module github.com/Cray-HPE/hms-power-control
 
 go 1.16
-	//todo hms-base needs to be converted to hms-xname as soon as that package is available.
+
+//todo hms-base needs to be converted to hms-xname as soon as that package is available.
 
 require (
 	github.com/Cray-HPE/hms-base v1.15.1
 	github.com/Cray-HPE/hms-certs v1.3.3
+	github.com/Cray-HPE/hms-hmetcd v1.10.3
 	github.com/Cray-HPE/hms-trs-app-api v1.6.3
+	github.com/Cray-HPE/hms-xname v1.0.0
 	github.com/frankban/quicktest v1.7.3 // indirect
 	github.com/google/go-cmp v0.5.1 // indirect
 	github.com/google/uuid v1.2.0
@@ -23,5 +26,4 @@ require (
 	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
-	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 )
