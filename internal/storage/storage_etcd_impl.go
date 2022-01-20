@@ -1,17 +1,17 @@
 // MIT License
-// 
+//
 // (C) Copyright [2022] Hewlett Packard Enterprise Development LP
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
 // to deal in the Software without restriction, including without limitation
 // the rights to use, copy, modify, merge, publish, distribute, sublicense,
 // and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included
 // in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
@@ -25,26 +25,27 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	hmetcd "github.com/Cray-HPE/hms-hmetcd"
+	"github.com/Cray-HPE/hms-power-control/internal/model"
+	"github.com/Cray-HPE/hms-xname/xnametypes"
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"os"
 	"strings"
 	"sync"
-	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
-	hmetcd "github.com/Cray-HPE/hms-hmetcd"
-	"github.com/Cray-HPE/hms-xname/xnametypes"
 )
 
-// This file contains interface functions for the ETCD implementation of PCS 
+// This file contains interface functions for the ETCD implementation of PCS
 // storage.   It will also be used for the in-memory implementation, indirectly,
-// since the HMS ETCD package already provides both ETCD and in-memory 
+// since the HMS ETCD package already provides both ETCD and in-memory
 // implementations.
 
 const (
 	kvUrlMemDefault  = "mem:"
-	kvUrlDefault     = kvUrlMemDefault	//Default to in-memory implementation
+	kvUrlDefault     = kvUrlMemDefault //Default to in-memory implementation
 	kvRetriesDefault = 5
 	keyPrefix        = "/pcs/"
-	keySegPowerState    = "/powerstate"
+	keySegPowerState = "/powerstate"
 	keyMin           = " "
 	keyMax           = "~"
 )
@@ -108,7 +109,7 @@ func (e *ETCDStorage) kvDelete(key string) error {
 func (e *ETCDStorage) Init(Logger *logrus.Logger) error {
 	var kverr error
 
-	if (Logger == nil) {
+	if Logger == nil {
 		e.Logger = logrus.New()
 	} else {
 		e.Logger = Logger
@@ -158,11 +159,11 @@ func (e *ETCDStorage) Ping() error {
 	return err
 }
 
-func (e *ETCDStorage) StorePowerStatus(p PowerStatusComponent) error {
+func (e *ETCDStorage) StorePowerStatus(p model.PowerStatusComponent) error {
 	if !(xnametypes.IsHMSCompIDValid(p.XName)) {
-		return fmt.Errorf("Error parsing '%s': invalid xname format.",p.XName)
+		return fmt.Errorf("Error parsing '%s': invalid xname format.", p.XName)
 	}
-	key := fmt.Sprintf("%s/%s", keySegPowerState,p.XName)
+	key := fmt.Sprintf("%s/%s", keySegPowerState, p.XName)
 	err := e.kvStore(key, p)
 	if err != nil {
 		e.Logger.Error(err)
@@ -172,9 +173,9 @@ func (e *ETCDStorage) StorePowerStatus(p PowerStatusComponent) error {
 
 func (e *ETCDStorage) DeletePowerStatus(xname string) error {
 	if !(xnametypes.IsHMSCompIDValid(xname)) {
-		return fmt.Errorf("Error parsing '%s': invalid xname format.",xname)
+		return fmt.Errorf("Error parsing '%s': invalid xname format.", xname)
 	}
-	key := fmt.Sprintf("%s/%s", keySegPowerState,xname)
+	key := fmt.Sprintf("%s/%s", keySegPowerState, xname)
 	err := e.kvDelete(key)
 	if err != nil {
 		e.Logger.Error(err)
@@ -182,12 +183,12 @@ func (e *ETCDStorage) DeletePowerStatus(xname string) error {
 	return err
 }
 
-func (e *ETCDStorage) GetPowerStatus(xname string) (PowerStatusComponent, error) {
-	var pcomp PowerStatusComponent
+func (e *ETCDStorage) GetPowerStatus(xname string) (model.PowerStatusComponent, error) {
+	var pcomp model.PowerStatusComponent
 	if !(xnametypes.IsHMSCompIDValid(xname)) {
-		return pcomp,fmt.Errorf("Error parsing '%s': invalid xname format.",xname)
+		return pcomp, fmt.Errorf("Error parsing '%s': invalid xname format.", xname)
 	}
-	key := fmt.Sprintf("%s/%s", keySegPowerState,xname)
+	key := fmt.Sprintf("%s/%s", keySegPowerState, xname)
 
 	err := e.kvGet(key, &pcomp)
 	if err != nil {
@@ -196,13 +197,13 @@ func (e *ETCDStorage) GetPowerStatus(xname string) (PowerStatusComponent, error)
 	return pcomp, err
 }
 
-func (e *ETCDStorage) GetAllPowerStatus() (PowerStatus, error) {
-	var pstats PowerStatus
+func (e *ETCDStorage) GetAllPowerStatus() (model.PowerStatus, error) {
+	var pstats model.PowerStatus
 	k := e.fixUpKey(keySegPowerState)
 	kvl, err := e.kvHandle.GetRange(k+keyMin, k+keyMax)
 	if err == nil {
 		for _, kv := range kvl {
-			var pcomp PowerStatusComponent
+			var pcomp model.PowerStatusComponent
 			err = json.Unmarshal([]byte(kv.Value), &pcomp)
 			if err != nil {
 				e.Logger.Error(err)
@@ -215,4 +216,3 @@ func (e *ETCDStorage) GetAllPowerStatus() (PowerStatus, error) {
 	}
 	return pstats, err
 }
-

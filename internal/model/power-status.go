@@ -109,3 +109,15 @@ func (msf ManagementStateFilter) String() string {
 func (msf ManagementStateFilter) EnumIndex() int {
 	return int(msf)
 }
+
+type PowerStatusComponent struct {
+	XName                     string   `json:"xname"`
+	PowerState                string   `json:"powerState"`
+	ManagementState           string   `json:"managementState"`
+	Error                     string   `json:"error"`
+	SupportedPowerTransitions []string `json:"supportedPowerTransitions"`
+}
+
+type PowerStatus struct {
+	Status []PowerStatusComponent `json:"status"`
+}

@@ -24,23 +24,21 @@ package storage
 
 import (
 	"fmt"
-	"sync"
-	"github.com/sirupsen/logrus"
 	hmetcd "github.com/Cray-HPE/hms-hmetcd"
+	"github.com/Cray-HPE/hms-power-control/internal/model"
+	"github.com/sirupsen/logrus"
+	"sync"
 )
 
-
-//This file contains the in-memory implementation of our object storage. 
+//This file contains the in-memory implementation of our object storage.
 //Note that is really is just a wrapper around the ETCD implementation, which
 //contains an in-memory implementation already.
-
 
 type MEMStorage struct {
 	Logger   *logrus.Logger
 	mutex    *sync.Mutex
 	kvHandle hmetcd.Kvi
 }
-
 
 func toETCDStorage(m *MEMStorage) *ETCDStorage {
 	return &ETCDStorage{Logger: m.Logger, mutex: m.mutex, kvHandle: m.kvHandle}
@@ -49,19 +47,19 @@ func toETCDStorage(m *MEMStorage) *ETCDStorage {
 func (m *MEMStorage) Init(Logger *logrus.Logger) error {
 	var kverr error
 
-	if (Logger == nil) {
+	if Logger == nil {
 		m.Logger = logrus.New()
 	} else {
 		m.Logger = Logger
 	}
 
 	m.mutex = &sync.Mutex{}
-	m.Logger.Infof("Storage medium: memory, url: '%s'",kvUrlMemDefault)
+	m.Logger.Infof("Storage medium: memory, url: '%s'", kvUrlMemDefault)
 
 	m.kvHandle, kverr = hmetcd.Open(kvUrlMemDefault, "")
 	if kverr != nil {
 		m.kvHandle = nil
-		return fmt.Errorf("ERROR opening KV memory storage: %v",kverr)
+		return fmt.Errorf("ERROR opening KV memory storage: %v", kverr)
 	}
 	m.Logger.Info("KV memory setup succeeded.")
 	return nil
@@ -72,23 +70,22 @@ func (m *MEMStorage) Ping() error {
 	return e.Ping()
 }
 
-func (m *MEMStorage) StorePowerStatus(p PowerStatusComponent) error {
+func (m *MEMStorage) StorePowerStatus(p model.PowerStatusComponent) error {
 	e := toETCDStorage(m)
 	return e.StorePowerStatus(p)
 }
 
-func (m *MEMStorage) DeletePowerStatus(xname string)error {
+func (m *MEMStorage) DeletePowerStatus(xname string) error {
 	e := toETCDStorage(m)
 	return e.DeletePowerStatus(xname)
 }
 
-func (m *MEMStorage) GetPowerStatus(xname string) (PowerStatusComponent, error) {
+func (m *MEMStorage) GetPowerStatus(xname string) (model.PowerStatusComponent, error) {
 	e := toETCDStorage(m)
 	return e.GetPowerStatus(xname)
 }
 
-func (m *MEMStorage) GetAllPowerStatus() (PowerStatus, error) {
+func (m *MEMStorage) GetAllPowerStatus() (model.PowerStatus, error) {
 	e := toETCDStorage(m)
 	return e.GetAllPowerStatus()
 }
-
