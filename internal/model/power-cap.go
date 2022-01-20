@@ -22,23 +22,26 @@
 
 package model
 
-import (
-	"net/http"
-)
+import "github.com/google/uuid"
 
-func GetFormattedErrorMessage(err error, code int) Problem7807 {
+type PowerCapSnapshotParameter struct {
+	Xnames []string `json:"xnames"`
+}
 
-	var JSONerror Problem7807
+type PowerCapPatchParameter struct {
+	Components []Component `json:"components"`
+}
 
-	JSONerror.Type_ = "about:blank"
-	JSONerror.Instance = ""
-	JSONerror.Status = code
-	if err != nil {
-		JSONerror.Detail = err.Error()
-	} else {
-		JSONerror.Detail = "unknown error - could not parse from error object"
-	}
-	JSONerror.Title = http.StatusText(code)
+type Component struct {
+	Xname    string    `json:"xname"`
+	Controls []Control `json:"controls"`
+}
 
-	return JSONerror
+type Control struct {
+	Name  string `json:"name"`
+	Value int    `json:"value"` //TODO is this the right data type? can it be double?
+}
+
+type PowerCapTaskCreation struct {
+	TaskID uuid.UUID `json:"taskID"`
 }

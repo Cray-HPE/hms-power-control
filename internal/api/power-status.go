@@ -1,7 +1,5 @@
 /*
- * MIT License
- *
- * (C) Copyright [2021] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2022] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -9,6 +7,7 @@
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
+ *
  * The above copyright notice and this permission notice shall be included
  * in all copies or substantial portions of the Software.
  *
@@ -19,7 +18,6 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
  */
 
 package api
@@ -33,7 +31,13 @@ import (
 	"net/http"
 )
 
-// GetPowerStatus - Returns hte power status of the hardware
+// The API layer is responsible for Json Unmarshaling and Marshaling,
+// creating the correct parameter types, validating the parameters by schema
+// and calling the domain layer.   Validation in the API layer does not include 'domain level validation'.
+// e.g. Check to see if an PowerStatus filter (like xname) is valid type, not check if this xname is available in the system.
+// That is the responsibility of the domain layer.
+
+// GetPowerStatus - Returns the power status of the hardware
 func GetPowerStatus(w http.ResponseWriter, req *http.Request) {
 	var pb model.Passback
 
@@ -71,7 +75,7 @@ func GetPowerStatus(w http.ResponseWriter, req *http.Request) {
 		WriteHeaders(w, pb)
 		return
 	}
-
+	//validates the schema of the xname, not that the xname actually exists; that requires a HSM call.
 	xnames, badXnames := base.ValidateCompIDs(xnamesReq, true)
 	if len(badXnames) > 0 {
 

@@ -1,7 +1,5 @@
 /*
- * MIT License
- *
- * (C) Copyright [2020-2021] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2022] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,23 +23,23 @@
 package model
 
 type Passback struct {
-StatusCode int
-Obj        interface{}
-Error      Problem7807
-IsError    bool
+	StatusCode int
+	Obj        interface{}
+	Error      Problem7807
+	IsError    bool
 }
 
-func BuildErrorPassback(StatusCode int, Err error) (passback Passback){
-passback.StatusCode = StatusCode
-passback.Obj = nil
-passback.Error = GetFormattedErrorMessage(Err, StatusCode)
-passback.IsError = true
-return passback
+func BuildErrorPassback(StatusCode int, Err error) (passback Passback) {
+	passback.StatusCode = StatusCode
+	passback.Obj = nil
+	passback.Error = GetFormattedErrorMessage(Err, StatusCode)
+	passback.IsError = true
+	return passback
 }
 
-func BuildSuccessPassback(StatusCode int, Obj interface{}) (passback Passback){
-passback.StatusCode = StatusCode
-passback.Obj = Obj
-passback.IsError = false
-return passback
+func BuildSuccessPassback(StatusCode int, Obj interface{}) (passback Passback) {
+	passback.StatusCode = StatusCode
+	passback.Obj = Obj
+	passback.IsError = false
+	return passback
 }

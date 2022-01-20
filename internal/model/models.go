@@ -1,7 +1,5 @@
 /*
- * MIT License
- *
- * (C) Copyright [2020-2021] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2022] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -88,7 +86,6 @@ func NewInvalidInputError(Message string, CompIDs []string) (err error) {
 	err = fmt.Errorf("%s: %v", Message, CompIDs)
 	return err
 }
-
 
 func Find(slice []string, val string) (int, bool) {
 	for i, item := range slice {

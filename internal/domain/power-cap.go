@@ -20,25 +20,33 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package model
+package domain
 
 import (
-	"net/http"
+	"github.com/Cray-HPE/hms-power-control/internal/model"
+	"github.com/google/uuid"
 )
 
-func GetFormattedErrorMessage(err error, code int) Problem7807 {
+func SnapshotPowerCap(parameters model.PowerCapSnapshotParameter) (pb model.Passback) {
+	//TODO stuff here!
+	pb = model.BuildSuccessPassback(501, "SnapshotPowerCap")
+	return pb
+}
 
-	var JSONerror Problem7807
+func PatchPowerCap(parameters model.PowerCapPatchParameter) (pb model.Passback) {
+	//TODO stuff here!
+	pb = model.BuildSuccessPassback(501, "PatchPowerCap")
+	return pb
+}
 
-	JSONerror.Type_ = "about:blank"
-	JSONerror.Instance = ""
-	JSONerror.Status = code
-	if err != nil {
-		JSONerror.Detail = err.Error()
-	} else {
-		JSONerror.Detail = "unknown error - could not parse from error object"
-	}
-	JSONerror.Title = http.StatusText(code)
+func GetPowerCap() (pb model.Passback) {
+	//TODO stuff here!
+	pb = model.BuildSuccessPassback(501, "GetPowerCap")
+	return pb
+}
 
-	return JSONerror
+func GetPowerCapQuery(taskID uuid.UUID) (pb model.Passback) {
+	//TODO stuff here!
+	pb = model.BuildSuccessPassback(501, "GetPowerCapQuery")
+	return pb
 }

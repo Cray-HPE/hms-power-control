@@ -1,7 +1,5 @@
 /*
- * MIT License
- *
- * (C) Copyright [2020-2021] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2022] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -48,7 +46,7 @@ func WriteJSON(w http.ResponseWriter, i interface{}) {
 
 // WriteHeaders - writes JSON to the open http connection along with headers
 func WriteHeaders(w http.ResponseWriter, pb model.Passback) {
-	if pb.IsError{
+	if pb.IsError {
 		w.Header().Add("Content-Type", "application/problem+json")
 		w.WriteHeader(pb.StatusCode)
 		WriteJSON(w, pb.Error)
@@ -84,10 +82,9 @@ func GetUUIDFromVars(key string, r *http.Request) (passback model.Passback) {
 
 	if err != nil {
 		passback = model.BuildErrorPassback(http.StatusBadRequest, err)
-		logger.Log.WithFields(logrus.Fields{"ERROR": err,}).Error("Could not parse UUID: " + key)
+		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Could not parse UUID: " + key)
 		return passback
 	}
 	passback = model.BuildSuccessPassback(http.StatusOK, UUID)
 	return passback
 }
-
