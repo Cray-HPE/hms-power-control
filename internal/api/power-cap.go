@@ -25,10 +25,10 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/domain"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
+	base "github.com/Cray-HPE/hms-xname/xnametypes"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"

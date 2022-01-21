@@ -26,11 +26,10 @@ package main
 
 import (
 	"context"
-	"github.com/Cray-HPE/hms-base"
-	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
 	"github.com/Cray-HPE/hms-power-control/internal/api"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	trsapi "github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api"
+	"github.com/Cray-HPE/hms-xname/xnametypes"
 	"github.com/namsral/flag"
 	"github.com/sirupsen/logrus"
 	"net/http"

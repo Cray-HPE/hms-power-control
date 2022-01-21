@@ -28,12 +28,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
-
-	base "github.com/Cray-HPE/hms-base/v2"
 )
-
-// Use HMS-wrapped errors.  Subsequent errors will be children of this one.
-var e = base.NewHMSError("hms", "GenericError")
 
 //
 // HMS Component type.  This is the top-level classification.  There may be
@@ -115,9 +110,6 @@ const (
 	HMSTypeInvalid HMSType = "INVALID"   // Not a valid type/xname
 )
 
-var ErrHMSTypeInvalid = e.NewChild("got HMSTypeInvalid instead of valid type")
-var ErrHMSTypeUnsupported = e.NewChild("HMSType value not supported for this operation") // TODO should this be in base?
-
 type HMSCompRecognitionEntry struct {
 	Type          HMSType
 	ParentType    HMSType
@@ -129,6 +121,7 @@ type HMSCompRecognitionEntry struct {
 
 // Component recognition table keyed by normalized (i.e. all lowercase)
 // component name.
+// WARNING: if you modify this map you MUST regenerate the xnames, see https://github.com/Cray-HPE/hms-xname#code-generation
 var hmsCompRecognitionTable = map[string]HMSCompRecognitionEntry{
 	"invalid": {
 		HMSTypeInvalid,
@@ -787,7 +780,7 @@ func GetHMSCompParent(xname string) string {
 // normalization should still be as invalid or valid as an xname as it
 // was prior to this call.
 func NormalizeHMSCompID(xname string) string {
-	xnameNorm := base.RemoveLeadingZeros(strings.TrimSpace(xname))
+	xnameNorm := RemoveLeadingZeros(strings.TrimSpace(xname))
 	return strings.ToLower(xnameNorm)
 }
 
@@ -837,4 +830,42 @@ func ValidateCompIDs(compIDs []string, dupsValid bool) ([]string, []string) {
 	}
 
 	return valid, invalid
+}
+
+// Remove leading zeros, i.e. for each run of numbers, trim off leading
+// zeros so each run starts with either non-zero, or is a single zero.
+// This has been duplicated from hms-base, but it allows the packages to be independent.
+func RemoveLeadingZeros(s string) string {
+	//var b strings.Builder // Go 1.10
+	b := []byte("")
+
+	// base case
+	length := len(s)
+	if length < 2 {
+		return s
+	}
+	// Look for 0 after letter and before number. Skip these and
+	// pretend the previous value was still a letter for the next
+	// round, to catch multiple leading zeros.
+	i := 0
+	lastLetter := true
+	for ; i < length-1; i++ {
+		if s[i] == '0' && lastLetter == true {
+			if unicode.IsNumber(rune(s[i+1])) {
+				// leading zero
+				continue
+			}
+		}
+		if unicode.IsNumber(rune(s[i])) {
+			lastLetter = false
+		} else {
+			lastLetter = true
+		}
+		// b.WriteByte(s[i]) // Go 1.10
+		b = append(b, s[i])
+	}
+	//b.WriteByte(s[i]) // Go 1.10
+	//return b.String()
+	b = append(b, s[i])
+	return string(b)
 }

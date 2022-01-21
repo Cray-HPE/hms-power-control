@@ -25,8 +25,8 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
+	base "github.com/Cray-HPE/hms-xname/xnametypes"
 	"io/ioutil"
 	"net/http"
 
