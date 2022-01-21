@@ -14,6 +14,7 @@ require (
 	github.com/google/go-cmp v0.5.1 // indirect
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/hashicorp/go-hclog v0.14.1 // indirect
 	github.com/hashicorp/go-multierror v1.1.0 // indirect
 	github.com/namsral/flag v1.7.4-pre
@@ -26,4 +27,5 @@ require (
 	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
