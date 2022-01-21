@@ -23,6 +23,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -38,6 +39,8 @@ type ETCDLockProvider struct {
 	Logger *logrus.Logger
 	Duration time.Duration
 	mutex *sync.Mutex
+	ctx context.Context
+	ctxCancelFunc context.CancelFunc
 	kvHandle hmetcd.Kvi
 }
 
@@ -74,27 +77,31 @@ func (d *ETCDLockProvider) Ping() error {
 	return e.Ping()
 }
 
-func (d *ETCDLockProvider) DistributedTimedLock(maxLockTime time.Duration) error {
+func (d *ETCDLockProvider) DistributedTimedLock(maxLockTime time.Duration) (context.Context,error) {
 	if (maxLockTime < 1) {
-		return fmt.Errorf("Error: lock duration request invalid (%s seconds) -- must be >= 1.",
+		return nil,fmt.Errorf("Error: lock duration request invalid (%s seconds) -- must be >= 1.",
 					maxLockTime.String())
 	}
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
+	d.ctx,d.ctxCancelFunc = context.WithTimeout(context.Background(),maxLockTime)
 	err := d.kvHandle.DistTimedLock(int(maxLockTime.Seconds()))
 	if (err != nil) {
-		return err
+		d.ctxCancelFunc()
+		return nil,err
 	}
 	d.Duration = maxLockTime
 
-	return nil
+	return d.ctx,nil
 }
 
 func (d *ETCDLockProvider) Unlock() error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	d.Duration = 0
-	return d.kvHandle.DistUnlock()
+	d.kvHandle.DistUnlock()
+	d.ctxCancelFunc()
+	return nil
 }
 
 func (d *ETCDLockProvider) GetDuration() time.Duration {

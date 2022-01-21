@@ -23,6 +23,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -41,6 +42,8 @@ type MEMLockProvider struct {
 	Logger *logrus.Logger
 	Duration time.Duration
 	mutex *sync.Mutex
+	ctx context.Context
+	ctxCancelFunc context.CancelFunc
 	kvHandle hmetcd.Kvi
 }
 
@@ -48,13 +51,11 @@ func toStorageMEM(m *MEMLockProvider) *MEMStorage {
 	return &MEMStorage{Logger: m.Logger, mutex: m.mutex, kvHandle: m.kvHandle}
 }
 
-func fromStorageMEM(m *MEMStorage) *MEMLockProvider {
-	return &MEMLockProvider{Logger: m.Logger, mutex: m.mutex, kvHandle: m.kvHandle}
-}
-
 func toDistLockETCD(m *MEMLockProvider) *ETCDLockProvider {
 	return &ETCDLockProvider{Logger: m.Logger, Duration: m.Duration,
-	                         mutex: m.mutex, kvHandle: m.kvHandle}
+	                         mutex: m.mutex, ctx: m.ctx,
+	                         ctxCancelFunc: m.ctxCancelFunc,
+	                         kvHandle: m.kvHandle}
 }
 
 
@@ -83,14 +84,17 @@ func (d *MEMLockProvider) Ping() error {
 	return e.Ping()
 }
 
-func (d *MEMLockProvider) DistributedTimedLock(maxLockTime time.Duration) error {
+func (d *MEMLockProvider) DistributedTimedLock(maxLockTime time.Duration) (context.Context,error) {
 	if (maxLockTime < 1) {
-		return fmt.Errorf("Error: lock duration request invalid (%s seconds) -- must be >= 1.",
+		return nil,fmt.Errorf("Error: lock duration request invalid (%s seconds) -- must be >= 1.",
 					maxLockTime.String())
 	}
 	d.Duration = maxLockTime
 	e := toDistLockETCD(d)
-	return e.DistributedTimedLock(maxLockTime)
+	c,ce := e.DistributedTimedLock(maxLockTime)
+	d.ctx = e.ctx
+	d.ctxCancelFunc = e.ctxCancelFunc
+	return c,ce
 }
 
 func (d *MEMLockProvider) Unlock() error {

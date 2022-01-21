@@ -183,9 +183,9 @@ func TestPowerStatusStorage(t *testing.T) {
 	//for locking, so all we can exercise is the function calls.
 
 	lockDur := 10 * time.Second
-	err = ds.DistributedTimedLock(lockDur)
-	if err != nil {
-		t.Errorf("DistributedTimedLock() failed: %v", err)
+	ctx,dlerr := ds.DistributedTimedLock(lockDur)
+	if dlerr != nil {
+		t.Errorf("DistributedTimedLock() failed: %v", dlerr)
 	}
 	time.Sleep(1 * time.Second)
 	if ds.GetDuration() != lockDur {
@@ -199,5 +199,47 @@ func TestPowerStatusStorage(t *testing.T) {
 	if ds.GetDuration() != 0 {
 		t.Errorf("Lock duration readout failed, expecting 0s, got %s",
 			ds.GetDuration().String())
+	}
+
+	ctx,dlerr = ds.DistributedTimedLock(lockDur)
+	if dlerr != nil {
+		t.Errorf("DistributedTimedLock(2) failed: %v", dlerr)
+	}
+	gotCancelled := false
+	Outer:
+	for ix := 0; ix < 15; ix ++ {
+		select {
+			case <-ctx.Done():
+				t.Logf("Context cancelled!")
+				gotCancelled = true
+				break Outer
+			default:
+				time.Sleep(time.Second)
+		}
+	}
+
+	if (!gotCancelled) {
+		t.Errorf("Never saw context cancel.")
+	}
+	err = ds.Unlock()
+	if err != nil {
+		t.Errorf("Error releasing timed lock (outer): %v", err)
+	}
+
+
+	ctx,dlerr = ds.DistributedTimedLock(lockDur)
+	if dlerr != nil {
+		t.Errorf("DistributedTimedLock(2) failed: %v", dlerr)
+	}
+
+	envstr := os.Getenv("ETCD_HOST")
+	if (envstr != "") {
+		t.Logf("Running ETCD detected, checking dist lock contention.")
+		time.Sleep(3 * time.Second)
+		_,dlerr2 := ds.DistributedTimedLock(2 * time.Second)
+		if dlerr2 == nil {
+			t.Errorf("DistributedTimedLock(3) should have failed, did not.")
+		}
+		ds.Unlock()
 	}
 }
