@@ -59,4 +59,4 @@ CMD set -ex \
     && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/domain \
     && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/api \
     && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/model \
-    && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/storage \
+    && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/storage 

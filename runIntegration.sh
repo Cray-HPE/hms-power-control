@@ -46,7 +46,7 @@ function cleanup() {
 # Step 3) Get the base containers running
 echo "Starting containers..."
 docker-compose build
-docker-compose up  -d cray-power-control
+docker-compose up  -d cray-power-control #this will stand up everythin except for the integration test container
 docker-compose up --exit-code-from integration-tests integration-tests
 
 test_result=$?
@@ -54,9 +54,9 @@ test_result=$?
 # Clean up
 echo "Cleaning up containers..."
 if [[ $test_result -ne 0 ]]; then
-  echo "Unit tests FAILED!"
+  echo "Integration tests FAILED!"
   cleanup 1
 fi
 
-echo "Unit tests PASSED!"
+echo "Integration tests PASSED!"
 cleanup 0
