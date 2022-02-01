@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2021-2022] Hewlett Packard Enterprise Development LP
+# (C) Copyright 2021 Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -14,28 +14,27 @@
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
 # OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-# This file only exists as a means to run tests in an automated fashion.
+# Service
+NAME ?= cray-power-control
+VERSION ?= $(shell cat .version)
 
-FROM artifactory.algol60.net/docker.io/library/alpine:3.13 AS build-base
+all: image unittest integration snyk
 
-ENV LOG_LEVEL TRACE
-ENV API_URL "http://cray-power-control"
-ENV API_SERVER_PORT ":28007"
-ENV API_BASE_PATH ""
-ENV VERIFY_SSL False
+image:
+	docker build --pull ${DOCKER_ARGS} --tag '${NAME}:${VERSION}' .
+unittest:
+	./runUnitTest.sh
 
-RUN set -x \
-    && apk -U upgrade \
-    && apk add --no-cache \
-        bash \
-        curl
+integration:
+	./runIntegration.sh
 
-CMD ["sh", "-c", "curl --fail -i ${API_URL}${API_SERVER_PORT}/" ]
+snyk:
+	./runSnyk.sh
 
-    # ^right now we dont have any integration tests, so this is more perfunctary
+

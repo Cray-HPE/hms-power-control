@@ -8,6 +8,17 @@ networks:
   pcs:
 
 services:
+  integration-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.integration.tests.Dockerfile
+    environment:
+      - API_URL=http://cray-power-control
+      - API_SERVER_PORT=:28007
+    depends_on:
+      - cray-power-control
+    networks:
+      - pcs  
   etcd:
     image: artifactory.algol60.net/quay.io/coreos/etcd:v3.4.7
     environment:
@@ -16,7 +27,7 @@ services:
       - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
     networks:
       - pcs
-  power-control:
+  cray-power-control:
     build:
       context: .
       dockerfile: Dockerfile.integration.Dockerfile
@@ -36,6 +47,9 @@ services:
       - STORAGE=ETCD
       - ETCD_HOST=etcd
       - ETCD_PORT=2379
+    depends_on:
+      - cray-smd
+      - etcd
     networks:
       - pcs
   vault:
