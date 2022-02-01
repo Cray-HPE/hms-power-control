@@ -1,5 +1,5 @@
 name: Run Integration Tests
-on: [pull_request]
+on: [pull_request, workflow_dispatch]
 jobs:
   run_integration_test:
     uses: Cray-HPE/hms-build-image-workflows/.github/workflows/run_integration_test.yaml@v1
