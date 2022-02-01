@@ -1,7 +1,5 @@
 /*
- * MIT License
- *
- * (C) Copyright [2021] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2022] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -113,12 +111,36 @@ var routes = Routes{
 		"/transitions/{transitionID}",
 		AbortTransitionID,
 	},
-
+	// Power Status
 	Route{
 		"GetPowerStatus",
 		strings.ToUpper("get"),
 		"/power-status",
 		GetPowerStatus,
 	},
-
+	// Power Cap
+	Route{
+		"SnapshotPowerCap",
+		strings.ToUpper("post"),
+		"/power-cap/snapshot",
+		SnapshotPowerCap,
+	},
+	Route{
+		"PatchPowerCap",
+		strings.ToUpper("patch"),
+		"/power-cap",
+		PatchPowerCap,
+	},
+	Route{
+		"GetPowerCap",
+		strings.ToUpper("get"),
+		"/power-cap",
+		GetPowerCap,
+	},
+	Route{
+		"GetPowerCapQuery",
+		strings.ToUpper("get"),
+		"/power-cap/{taskID}",
+		GetPowerCapQuery,
+	},
 }

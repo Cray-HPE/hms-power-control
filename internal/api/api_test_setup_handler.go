@@ -1,7 +1,5 @@
 /*
- * MIT License
- *
- * (C) Copyright [2020-2021] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2022] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,13 +29,14 @@ import (
 
 // mutex - protects the CreateRouterAndHandler
 var mutex = &sync.Mutex{}
+
 // IsHandled - setups protection for the mutex
 var IsHandled bool
 
 // CreateRouterAndHandler - Create a singleton for setting up routing for the UnitTests
 func CreateRouterAndHandler() {
 	mutex.Lock()
-	if !IsHandled  {
+	if !IsHandled {
 		IsHandled = true
 		//This setups the production routs
 		router := NewRouter()

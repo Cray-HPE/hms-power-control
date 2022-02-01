@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * (C) Copyright [2021] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2022] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,16 +26,16 @@ package main
 
 import (
 	"context"
+	"github.com/Cray-HPE/hms-base"
+	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
 	"github.com/Cray-HPE/hms-power-control/internal/api"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
+	trsapi "github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api"
 	"github.com/namsral/flag"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"os/signal"
-	"stash.us.cray.com/HMS/hms-base"
-	"stash.us.cray.com/HMS/hms-certs/pkg/hms_certs"
-	trsapi "stash.us.cray.com/HMS/hms-trs-app-api/pkg/trs_http_api"
 	"strconv"
 	"sync"
 	"syscall"
@@ -43,7 +43,7 @@ import (
 )
 
 // Default Port to use
-const defaultPORT = "29495"
+const defaultPORT = "28007"
 
 const defaultSMSServer = "https://api-gw-service-nmn/apis/smd"
 

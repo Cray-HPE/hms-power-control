@@ -464,7 +464,7 @@ components:
     transition_start_output:
       type: object
       properties:
-        jobID:
+        transitionID:
           type: string
           format: uuid
         operation:

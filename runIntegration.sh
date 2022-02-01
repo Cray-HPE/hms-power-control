@@ -84,7 +84,11 @@ ${docker_compose_exe} up  -d --build
 #${docker_compose_exe} pull &&
 #  ${docker_compose_exe} build cray-smd loader x0c0s1b0 x0c0s2b0 &&
 #  ${docker_compose_exe} up -d cray-smd loader x0c0s1b0 x0c0s2b0
+<<<<<<< HEAD
 network_name=${RANDY}_rts
+=======
+network_name=${RANDY}_pcs #check the network name!
+>>>>>>> develop
 # TODO make this dynamic, and not just sleep!
 sleep 10 #Hey its a hack, but lets just sleep for a few seconds and make sure everything is up.
 #the RIGHT way to do it would be check cray-smd for 'discoveredOK' on the expected endpoints, but a sleep is more convenient, if not lazy.

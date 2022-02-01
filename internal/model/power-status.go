@@ -1,7 +1,5 @@
 /*
- * MIT License
- *
- * (C) Copyright [2021] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2022] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -9,6 +7,7 @@
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
+ *
  * The above copyright notice and this permission notice shall be included
  * in all copies or substantial portions of the Software.
  *
@@ -19,7 +18,6 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
  */
 
 package model
@@ -46,7 +44,7 @@ const (
 func ToPowerStateFilter(psf string) (PSF PowerStateFilter, err error) {
 
 	if len(psf) == 0 {
-		err = nil
+		err = errors.New("invalid PowerStateFilter type " + psf)
 		PSF = PowerStateFilter_Nil
 		return
 	}
@@ -110,4 +108,16 @@ func (msf ManagementStateFilter) String() string {
 //https://levelup.gitconnected.com/implementing-enums-in-golang-9537c433d6e2
 func (msf ManagementStateFilter) EnumIndex() int {
 	return int(msf)
+}
+
+type PowerStatusComponent struct {
+	XName                     string   `json:"xname"`
+	PowerState                string   `json:"powerState"`
+	ManagementState           string   `json:"managementState"`
+	Error                     string   `json:"error"`
+	SupportedPowerTransitions []string `json:"supportedPowerTransitions"`
+}
+
+type PowerStatus struct {
+	Status []PowerStatusComponent `json:"status"`
 }
