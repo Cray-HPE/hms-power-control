@@ -54,9 +54,7 @@ COPY vendor $GOPATH/src/github.com/Cray-HPE/hms-power-control/vendor
 COPY internal $GOPATH/src/github.com/Cray-HPE/hms-power-control/internal
 COPY .version $GOPATH/src/github.com/Cray-HPE/hms-power-control/.version
 
-# if you use CMD, then it will run like a service; we want this to execute the tests and quit
-#RUN go test -v ./...
-RUN set -ex \
+CMD set -ex \
     && go version \
     && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/domain \
     && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/api \

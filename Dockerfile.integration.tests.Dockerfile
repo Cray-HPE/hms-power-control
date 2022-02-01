@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2020-2021] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2021-2022] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -24,47 +24,18 @@
 
 FROM artifactory.algol60.net/docker.io/library/alpine:3.13 AS build-base
 
-RUN set -ex \
-    echo "Hello World" 
+ENV LOG_LEVEL TRACE
+ENV API_URL "http://cray-power-control"
+ENV API_SERVER_PORT ":28007"
+ENV API_BASE_PATH ""
+ENV VERIFY_SSL False
+
+RUN set -x \
+    && apk -U upgrade \
+    && apk add --no-cache \
+        bash \
+        curl
+
+CMD ["sh", "-c", "curl --fail -i ${API_URL}${API_SERVER_PORT}/" ]
+
     # ^right now we dont have any integration tests, so this is more perfunctary
-
-# ENV LOG_LEVEL TRACE
-# ENV API_URL "http://cray-power-control"
-# ENV API_SERVER_PORT ":28007"
-# ENV API_BASE_PATH ""
-# ENV VERIFY_SSL False
-
-
-# COPY test/integration/py/Pipfile* /
-# COPY test/integration/py/src src
-#C OPY test/integration/py/requirements.txt .
-
-# RUN set -x \
-#     && apk -U upgrade \
-#     && apk add --no-cache \
-#         bash \
-#         curl \
-#         python3 \
-#         py3-pip \
-#     && pip3 install --upgrade pip \
-#     && pip3 install \
-#         requests \
-#         pytest
-
-# WORKDIR src
-
-# PROTIP: python -m pytest test/ is different than pytest test/
-# the first one appends some path stuff and python paths are a PITA; so DONT change this!
-# RUN set -ex \
-#     && pwd \
-#     && python3 -m pytest test/
-
-#in case you want to sleep instead of RUN
-#CMD ["sh", "-c", "sleep 1000" ]
-
-#build and run
-#docker build --rm --no-cache --network hms-power-control_rts -f test.Dockerfile .
-
-#build then run-
-#docker build -t fas_test -f test.Dockerfile .
-#docker run -d --name fas_test --network hms-power-control_rts fas_test
