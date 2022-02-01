@@ -24,36 +24,40 @@
 
 FROM artifactory.algol60.net/docker.io/library/alpine:3.13 AS build-base
 
-ENV LOG_LEVEL TRACE
-ENV API_URL "http://power-control"
-ENV API_SERVER_PORT ":28007"
-ENV API_BASE_PATH ""
-ENV VERIFY_SSL False
+RUN set -ex \
+    echo "Hello World" 
+    # ^right now we dont have any integration tests, so this is more perfunctary
+
+# ENV LOG_LEVEL TRACE
+# ENV API_URL "http://cray-power-control"
+# ENV API_SERVER_PORT ":28007"
+# ENV API_BASE_PATH ""
+# ENV VERIFY_SSL False
 
 
-COPY test/integration/py/Pipfile* /
-COPY test/integration/py/src src
-COPY test/integration/py/requirements.txt .
+# COPY test/integration/py/Pipfile* /
+# COPY test/integration/py/src src
+#C OPY test/integration/py/requirements.txt .
 
-RUN set -x \
-    && apk -U upgrade \
-    && apk add --no-cache \
-        bash \
-        curl \
-        python3 \
-        py3-pip \
-    && pip3 install --upgrade pip \
-    && pip3 install \
-        requests \
-        pytest
+# RUN set -x \
+#     && apk -U upgrade \
+#     && apk add --no-cache \
+#         bash \
+#         curl \
+#         python3 \
+#         py3-pip \
+#     && pip3 install --upgrade pip \
+#     && pip3 install \
+#         requests \
+#         pytest
 
-WORKDIR src
+# WORKDIR src
 
 # PROTIP: python -m pytest test/ is different than pytest test/
 # the first one appends some path stuff and python paths are a PITA; so DONT change this!
-RUN set -ex \
-    && pwd \
-    && python3 -m pytest test/
+# RUN set -ex \
+#     && pwd \
+#     && python3 -m pytest test/
 
 #in case you want to sleep instead of RUN
 #CMD ["sh", "-c", "sleep 1000" ]
