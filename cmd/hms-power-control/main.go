@@ -40,6 +40,10 @@ import (
 	"sync"
 	"syscall"
 	"time"
+//ZZZZ
+	"strings"
+	"github.com/Cray-HPE/hms-power-control/internal/hsm"
+	"github.com/Cray-HPE/hms-smd/pkg/sm"
 )
 
 // Default Port to use
@@ -303,6 +307,10 @@ func main() {
 	waitGroup.Add(1)
 	doRest(defaultPORT)
 
+//ZZZZ
+	doHSMTest()
+//ZZZZ
+
 	//////////////////////
 	// WAIT FOR GOD
 	/////////////////////
@@ -334,3 +342,116 @@ func doRest(serverPort string) {
 	logger.Log.Info("REST collection server started on port " + serverPort)
 	restSrv = srv
 }
+
+
+
+func doHSMTest() {
+	var glb hsm.HSM_GLOBALS
+	var resList []hsm.ReservationData
+	var err error
+	var svcClient *hms_certs.HTTPClientPair
+
+	logger := logrus.New()
+	lck,_ := sm.NewCompLock("cuz","me",1,[]string{"x0c0s0b0n0"})
+	logger.Infof("lck: %p",lck)
+
+	svcClient,err = hms_certs.CreateRetryableHTTPClientPair("",10,4,5)
+	if (err != nil) {
+		logger.Errorf("ERROR creating http client: %v",err)
+		os.Exit(1)
+	}
+
+	nodelist := os.Getenv("NODELIST")
+	if (nodelist == "") {
+		logger.Errorf("ERROR: must set NODELIST, CSV of node xnames.")
+		os.Exit(1)
+	}
+
+	smurl := os.Getenv("SMURL")
+	if (smurl == "") {
+		logger.Errorf("ERROR: must set 'SMURL' env var.")
+		os.Exit(1)
+	}
+
+	glb.SvcName = "PCSTEST"
+	glb.Logger = logger
+	glb.LockEnabled = true
+	glb.SMUrl = smurl
+	glb.SVCHttpClient = svcClient
+
+	HSM := &hsm.HSMv0{}
+	err = HSM.Init(&glb)
+	if (err != nil) {
+		logger.Errorf("ERROR Init(): %v",err)
+		os.Exit(1)
+	}
+
+	err = HSM.Ping()
+	if (err != nil) {
+		logger.Errorf("ERROR Ping(): %v",err)
+		os.Exit(1)
+	}
+
+	nodes := strings.Split(nodelist,",")
+	for _,nn := range(nodes) {
+		resList = append(resList,hsm.ReservationData{XName: nn})
+	}
+
+	err = HSM.CheckDeputyKeys(resList)
+	if (err != nil) {
+		logger.Errorf("ERROR CheckDeputyKeys(): %v",err)
+		os.Exit(1)
+	}
+
+	logger.Infof("CheckDeputyKeys() RESULTS:")
+	for ix,item := range(resList) {
+		logger.Infof("   [%d]: '%v'",ix,item)
+	}
+	logger.Infof("")
+
+	hsmMap,herr := HSM.FillHSMData(nodes)
+	if (herr != nil) {
+		logger.Errorf("ERROR FillHSMData(): %v",herr)
+		os.Exit(1)
+	}
+
+	logger.Infof("FillHSMData() RESULTS:")
+	for k,v := range(hsmMap) {
+		logger.Infof("    [%s]: '%v'",k,v)
+	}
+	logger.Infof("")
+
+	//Get reservations
+
+	tickets,terr := HSM.ReserveComponents(resList)
+	if (terr != nil) {
+		logger.Errorf("ERROR ReserveComponents(): %v",terr)
+		os.Exit(1)
+	}
+
+	for _,tix := range(tickets) {
+		logger.Infof("TICKET '%s': rsvkey: '%s', depkey: '%s', exp: '%s', err: '%s'",
+			tix.XName,tix.ReservationKey,tix.DeputyKey,tix.ExpirationTime,
+			tix.Error)
+	}
+
+	//Call CheckDeputyKeys() with the returned deputy keys
+
+	terr = HSM.CheckDeputyKeys(resList)
+	if (terr != nil) {
+		logger.Errorf("ERROR CheckDeputyKeys() (post-reserve): %v",terr)
+		os.Exit(1)
+	}
+
+	//Release reservations.
+
+	terr = HSM.ReleaseComponents(tickets)
+	if (terr != nil) {
+		logger.Errorf("ERROR ReleaseComponents(): %v",terr)
+		os.Exit(1)
+	}
+
+	os.Exit(0)
+}
+
+
