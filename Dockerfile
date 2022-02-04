@@ -47,7 +47,7 @@ RUN set -ex && go build -v -i -o /usr/local/bin/hms-power-control github.com/Cra
 
 ### Final Stage ###
 
-FROM builder
+FROM artifactory.algol60.net/docker.io/alpine:3
 LABEL maintainer="Hewlett Packard Enterprise"
 EXPOSE 28007
 STOPSIGNAL SIGTERM
