@@ -37,6 +37,7 @@ RUN go env -w GO111MODULE=auto
 # Copy all the necessary files to the image.
 COPY cmd $GOPATH/src/github.com/Cray-HPE/hms-power-control/cmd
 COPY vendor $GOPATH/src/github.com/Cray-HPE/hms-power-control/vendor
+COPY configs $GOPATH/src/github.com/Cray-HPE/hms-power-control/configs
 COPY internal $GOPATH/src/github.com/Cray-HPE/hms-power-control/internal
 COPY .version $GOPATH/src/github.com/Cray-HPE/hms-power-control/.version
 

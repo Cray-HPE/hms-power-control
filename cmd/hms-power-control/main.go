@@ -308,7 +308,10 @@ func main() {
 	doRest(defaultPORT)
 
 //ZZZZ
-	doHSMTest()
+	envstr = os.Getenv("HSMTEST")
+	if (envstr != "") {
+		doHSMTest()
+	}
 //ZZZZ
 
 	//////////////////////
