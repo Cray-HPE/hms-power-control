@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2020-2021] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2021-2022] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -54,11 +54,9 @@ COPY vendor $GOPATH/src/github.com/Cray-HPE/hms-power-control/vendor
 COPY internal $GOPATH/src/github.com/Cray-HPE/hms-power-control/internal
 COPY .version $GOPATH/src/github.com/Cray-HPE/hms-power-control/.version
 
-# if you use CMD, then it will run like a service; we want this to execute the tests and quit
-#RUN go test -v ./...
-RUN set -ex \
+CMD set -ex \
     && go version \
     && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/domain \
     && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/api \
     && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/model \
-    && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/storage \
+    && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/storage 
