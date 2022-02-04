@@ -3,7 +3,8 @@ module github.com/Cray-HPE/hms-power-control
 go 1.16
 
 require (
-	github.com/Cray-HPE/hms-base v1.15.1 // indirect
+	github.com/Cray-HPE/hms-base v1.15.1
+	github.com/Cray-HPE/hms-certs v1.3.3
 	github.com/Cray-HPE/hms-hmetcd v1.10.3
 	github.com/Cray-HPE/hms-trs-app-api v1.6.3
 	github.com/Cray-HPE/hms-xname v1.0.1
@@ -12,7 +13,6 @@ require (
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-hclog v0.14.1 // indirect
-	github.com/hashicorp/go-retryablehttp v0.7.0 // indirect
 	github.com/namsral/flag v1.7.4-pre
 	github.com/pierrec/lz4 v2.4.1+incompatible // indirect
 	github.com/sirupsen/logrus v1.8.1
