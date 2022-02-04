@@ -3,7 +3,7 @@ module github.com/Cray-HPE/hms-power-control
 go 1.16
 
 require (
-	github.com/Cray-HPE/hms-base v1.15.1
+	github.com/Cray-HPE/hms-base v1.15.1 // indirect
 	github.com/Cray-HPE/hms-certs v1.3.3
 	github.com/Cray-HPE/hms-hmetcd v1.10.3
 	github.com/Cray-HPE/hms-trs-app-api v1.6.3

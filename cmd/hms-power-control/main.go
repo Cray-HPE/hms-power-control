@@ -34,7 +34,6 @@ import (
 	"syscall"
 	"time"
 
-	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
 	"github.com/Cray-HPE/hms-power-control/internal/api"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
@@ -71,7 +70,7 @@ func main() {
 	logger.Init()
 	logger.Log.Error()
 
-	serviceName, err = base.GetServiceInstanceName()
+	serviceName, err = os.Hostname()
 	if err != nil {
 		serviceName = "PCS"
 		logger.Log.Errorf("Can't get service instance name, using %s", serviceName)
