@@ -23,6 +23,7 @@
 package storage
 
 import (
+	"context"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/sirupsen/logrus"
 	"time"
@@ -43,6 +44,6 @@ type DistributedLockProvider interface {
 	InitFromStorage(si interface{}, Logger *logrus.Logger)
 	Ping() error
 	GetDuration() time.Duration
-	DistributedTimedLock(maxLockTime time.Duration) error
+	DistributedTimedLock(maxLockTime time.Duration) (context.Context,error)
 	Unlock() error
 }
