@@ -1,4 +1,4 @@
-name: Build and Publish Docker Images
+name: Build and Publish test Docker Image
 on:
   - push # Perform a build of the contents from the branch
   - pull_request # Perform a build after merging with the target branch
@@ -8,6 +8,7 @@ jobs:
     uses: Cray-HPE/hms-build-image-workflows/.github/workflows/build_and_release_image.yaml@feature/CASMHMS-5374
     with:
       image-name: cray-power-control
+      docker-build-file: Dockerfile.test
       enable-pr-comment: true
     secrets:
       artifactory-username: ${{ secrets.ARTIFACTORY_ALGOL60_USERNAME }}
