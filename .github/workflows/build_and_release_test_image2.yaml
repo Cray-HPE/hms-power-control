@@ -8,7 +8,6 @@ jobs:
     uses: Cray-HPE/hms-build-image-workflows/.github/workflows/build_and_release_image.yaml@feature/CASMHMS-5374
     with:
       image-name: cray-power-control-test2
-      docker-build-file: ""
       docker-build-context: testing/ct
       enable-pr-comment: true
     secrets:
