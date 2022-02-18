@@ -6,14 +6,10 @@ github.com/Cray-HPE/hms-base/v2
 # github.com/Cray-HPE/hms-certs v1.3.3
 ## explicit
 github.com/Cray-HPE/hms-certs/pkg/hms_certs
-# github.com/Cray-HPE/hms-compcredentials v1.11.2
-## explicit
-github.com/Cray-HPE/hms-compcredentials
 # github.com/Cray-HPE/hms-hmetcd v1.10.3
 ## explicit
 github.com/Cray-HPE/hms-hmetcd
 # github.com/Cray-HPE/hms-securestorage v1.12.2
-## explicit
 github.com/Cray-HPE/hms-securestorage
 # github.com/Cray-HPE/hms-smd v1.47.0
 ## explicit
@@ -65,6 +61,8 @@ github.com/google/uuid
 # github.com/gorilla/mux v1.8.0
 ## explicit
 github.com/gorilla/mux
+# github.com/gorilla/websocket v1.4.1
+## explicit
 # github.com/hashicorp/errwrap v1.0.0
 github.com/hashicorp/errwrap
 # github.com/hashicorp/go-cleanhttp v0.5.1
@@ -275,5 +273,7 @@ gopkg.in/square/go-jose.v2
 gopkg.in/square/go-jose.v2/cipher
 gopkg.in/square/go-jose.v2/json
 gopkg.in/square/go-jose.v2/jwt
+# gopkg.in/yaml.v2 v2.2.8
+## explicit
 # gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 gopkg.in/yaml.v3
