@@ -35,6 +35,7 @@ echo "COMPOSE_FILE: $COMPOSE_FILE"
 
 
 function cleanup() {
+  #docker-compose logs > /tmp/dockerLog_${COMPOSE_PROJECT_NAME}.txt
   docker-compose down
   if ! [[ $? -eq 0 ]]; then
     echo "Failed to decompose environment!"
