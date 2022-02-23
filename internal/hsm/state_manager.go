@@ -27,6 +27,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -179,7 +180,7 @@ func (b *HSMv2) ReserveComponents(compList []ReservationData) ([]*ReservationDat
 		compMap[comp.XName] = &compList[ix]
 		compMap[comp.XName].needRsv = true
 		compMap[comp.XName].ReservationOwner = false
-		compMap[comp.XName].Error = ""
+		compMap[comp.XName].Error = nil
 		if (comp.DeputyKey != "") {
 			depKeys = append(depKeys,reservation.Key{ID: comp.XName, Key: comp.DeputyKey})
 		}
@@ -259,7 +260,7 @@ func (b *HSMv2) CheckDeputyKeys(compList []ReservationData) error {
 
 	for ix,comp := range(compList) {
 		cmap[comp.XName] = &compList[ix]
-		compList[ix].Error = ""
+		compList[ix].Error = nil
 		if (comp.DeputyKey != "") {
 			keyList = append(keyList,reservation.Key{ID: comp.XName, Key: comp.DeputyKey})
 		}
@@ -276,11 +277,11 @@ func (b *HSMv2) CheckDeputyKeys(compList []ReservationData) error {
 
 	for _,comp := range(checkList.Success) {
 		cmap[comp.ID].ExpirationTime =  comp.ExpirationTime
-		cmap[comp.ID].Error = ""
+		cmap[comp.ID].Error = nil
 	}
 
 	for _,comp := range(checkList.Failure) {
-		cmap[comp.ID].Error = comp.Reason
+		cmap[comp.ID].Error = errors.New(comp.Reason)
 	}
 
 	return nil
@@ -323,10 +324,10 @@ func (b *HSMv2) ReleaseComponents(compList []ReservationData) ([]*ReservationDat
 		compMap[rr].ReservationKey = ""
 		compMap[rr].ExpirationTime = ""
 		compMap[rr].DeputyKey = ""
-		compMap[rr].Error = ""
+		compMap[rr].Error = nil
 	}
 	for _,rr := range(rsv.Failure) {
-		compMap[rr.ID].Error = rr.Reason
+		compMap[rr.ID].Error = errors.New(rr.Reason)
 		retData = append(retData,compMap[rr.ID])
 	}
 

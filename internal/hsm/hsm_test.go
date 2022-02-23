@@ -233,8 +233,8 @@ func TestReserveComponents(t *testing.T) {
 
 	for ix,key := range(unlockedList) {
 		t.Logf("Now-locked Key[%d]: '%v'",ix,key)
-		if (key.Error != "") {
-			t.Logf("   ERROR: '%s'",key.Error)
+		if (key.Error != nil) {
+			t.Logf("   ERROR: '%v'",key.Error)
 		} else {
 			t.Logf("   OK.")
 		}
@@ -251,8 +251,8 @@ func TestReserveComponents(t *testing.T) {
 
 	for ix,key := range(keyList) {
 		t.Logf("Reservation[%d]: '%v'",ix,key)
-		if (key.Error != "") {
-			t.Logf("   ERROR: '%s'",key.Error)
+		if (key.Error != nil) {
+			t.Logf("   ERROR: '%v'",key.Error)
 		} else {
 			t.Logf("   OK.")
 		}

@@ -137,8 +137,9 @@ services:
       - CRAY_VAULT_ROLE_FILE=configs/namespace
       - CRAY_VAULT_AUTH_PATH=auth/token/create
       - VAULT_ADDR=http://vault:8200
+      - KAFKA_BROKERS_CONFIG=configs/kafka_brokers_local.json
     volumes:
-      - ./configs/kafka_brokers.json:/configs/kafka_brokers.json
+      - ./configs/kafka_brokers_local.json:/configs/kafka_brokers_local.json
       - ./configs/namespace:/configs/namespace
       - ./configs/token:/configs/token
     networks:
@@ -157,6 +158,8 @@ services:
       - CRAY_VAULT_JWT_FILE=configs/token
       - CRAY_VAULT_ROLE_FILE=configs/namespace
       - CRAY_VAULT_AUTH_PATH=auth/token/create
+      - HTTPS_CERT=configs/rts.crt
+      - HTTPS_KEY=configs/rts.key
       - BACKEND_HELPER=RFSimulator
       - PERIODIC_SLEEP=120
       - COLLECTOR_URL=http://cray-hms-hmcollector

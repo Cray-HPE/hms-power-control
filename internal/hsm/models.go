@@ -54,7 +54,7 @@ type ReservationData struct {
 	ReservationKey   string	//only valid if we had to get the reservation
 	ExpirationTime   string	//Ditto.
 	DeputyKey        string	//Can be empty, filled in when getting reservation
-	Error            string
+	Error            error
 
 	//Private stuff, used only internally
 	needRsv      bool
