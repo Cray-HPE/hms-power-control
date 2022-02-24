@@ -7,7 +7,9 @@ go 1.16
 require (
 	github.com/Cray-HPE/hms-base v1.15.1
 	github.com/Cray-HPE/hms-certs v1.3.3
+	github.com/Cray-HPE/hms-compcredentials v1.11.2
 	github.com/Cray-HPE/hms-hmetcd v1.10.3
+	github.com/Cray-HPE/hms-smd v1.48.0
 	github.com/Cray-HPE/hms-trs-app-api v1.6.3
 	github.com/Cray-HPE/hms-xname v1.0.0
 	github.com/frankban/quicktest v1.7.3 // indirect
