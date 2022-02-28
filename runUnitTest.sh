@@ -54,8 +54,9 @@ openssl req -newkey rsa:4096 \
     -days 3650 \
     -nodes \
     -subj "/C=US/ST=Minnesota/L=Bloomington/O=HPE/OU=Engineering/CN=hpe.com" \
-    -out $ephCertDir/tls.crt \
-    -keyout $ephCertDir/tls.key
+    -out $ephCertDir/rts.crt \
+    -keyout $ephCertDir/rts.key
+
 
 echo "Starting containers..."
 docker-compose build

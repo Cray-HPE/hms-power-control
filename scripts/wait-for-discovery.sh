@@ -38,6 +38,12 @@ echo " "
 while [ 1 -eq 1 ]; do
 	attempt=`expr $attempt + 1`
 	echo "Discovery check ${attempt} of ${maxRetries}..."
+	echo "   $discovered of $ncomp components discovered..."
+
+	if [ $attempt -ge $maxRetries ]; then
+		echo "DISCOVERY ATTEMPTS EXHAUSTED, GIVING UP."
+		break
+	fi
 
 	curl -s -D /tmp/hout ${SMURL}/hsm/v2/Inventory/RedfishEndpoints > /tmp/rfep.json
 
@@ -56,6 +62,13 @@ while [ 1 -eq 1 ]; do
 		exit 1
 	fi
 
+	nComp=`cat /tmp/rfep.json | jq .RedfishEndpoints[].DiscoveryInfo.LastDiscoveryStatus | wc -l`
+	if [ $nComp -eq 0 ]; then
+		echo "Warning: No components in HSM yet."
+		sleep 10
+		continue
+	fi
+
 	discovered=0
 	ok=1
 	for cc in `cat /tmp/rfep.json | jq .RedfishEndpoints[].DiscoveryInfo.LastDiscoveryStatus | sed 's/"//g'`; do
@@ -69,13 +82,6 @@ while [ 1 -eq 1 ]; do
 	if [ $ok -eq 1 ]; then
 		echo ">>> DISCOVERY COMPLETE.<<<"
 		exit 0
-	fi
-
-	echo "   $discovered of $ncomp components discovered..."
-
-	if [ $attempt -ge $maxRetries ]; then
-		echo "DISCOVERY ATTEMPTS EXHAUSTED, GIVING UP."
-		break
 	fi
 
 	sleep 10

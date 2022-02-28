@@ -52,14 +52,15 @@ ENV CRAY_VAULT_JWT_FILE "/go/configs/token"
 RUN go env -w GO111MODULE=auto
 
 COPY cmd $GOPATH/src/github.com/Cray-HPE/hms-power-control/cmd
-COPY configs /tmp/configs
-COPY scripts /tmp/scripts
+COPY configs configs
+COPY scripts scripts
+COPY ephemeral_cert configs
 COPY vendor $GOPATH/src/github.com/Cray-HPE/hms-power-control/vendor
 COPY internal $GOPATH/src/github.com/Cray-HPE/hms-power-control/internal
 COPY .version $GOPATH/src/github.com/Cray-HPE/hms-power-control/.version
 
 CMD set -ex \
-    && /tmp/scripts/wait-for-discovery.sh \
+    && ./scripts/wait-for-discovery.sh \
     && go version \
     && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/domain \
     && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/api \
