@@ -25,6 +25,8 @@
 maxRetries=50
 attempt=0
 SMURL=$SMS_SERVER
+discovered=0
+ncomp=0
 
 if [ -z $SMS_SERVER ]; then
 	SMURL="http://cray-smd:27779"
@@ -69,6 +71,8 @@ while [ 1 -eq 1 ]; do
 		continue
 	fi
 
+	echo "Component Status:"
+	cat /tmp/rfep.json | jq .RedfishEndpoints[].DiscoveryInfo.LastDiscoveryStatus
 	discovered=0
 	ok=1
 	for cc in `cat /tmp/rfep.json | jq .RedfishEndpoints[].DiscoveryInfo.LastDiscoveryStatus | sed 's/"//g'`; do
