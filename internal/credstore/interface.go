@@ -20,23 +20,15 @@
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
 
-package hsm
+package credstore
 
-import (
-	"github.com/Cray-HPE/hms-base"
-)
-
-type HSMv2 struct {
-	HSMGlobals HSM_GLOBALS
+type VAULTv0 struct {
+	CredStoreGlobals CREDSTORE_GLOBALS
 }
 
-type HSMProvider interface {
-	Init(glb *HSM_GLOBALS) error
-	Ping() error
-	ReserveComponents(compList []ReservationData) ([]*ReservationData,error)
-	ReleaseComponents(compList []ReservationData) ([]*ReservationData,error)
-	CheckDeputyKeys(comp []ReservationData) error
-	FillComponentEndpointData(hd map[string]*HsmData) error
-	GetStateComponents(xnames []string) (base.ComponentArray,error)
-	FillHSMData(xnames []string) (map[string]*HsmData,error)
+type CredStoreProvider interface {
+	Init(glb *CREDSTORE_GLOBALS)
+	IsReady() bool
+	GetCredentials(xname string) (string, string, error)
+	GetControllerCredentials(xname string) (string, string, error)
 }

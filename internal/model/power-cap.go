@@ -22,26 +22,175 @@
 
 package model
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/Cray-HPE/hms-power-control/internal/hsm"
+	"github.com/google/uuid"
+)
+
+///////////////////////////
+// Power Capping Definitions
+///////////////////////////
+
+const (
+	PowerCapTaskTypeSnapshot = "snapshot"
+	PowerCapTaskTypePatch    = "patch"
+)
+
+const (
+	PowerCapTaskStatusNew        = "new"
+	PowerCapTaskStatusInProgress = "in-progress"
+	PowerCapTaskStatusCompleted  = "completed"
+)
+
+const (
+	PowerCapOpStatusNew         = "new"
+	PowerCapOpStatusInProgress  = "in-progress"
+	PowerCapOpStatusFailed      = "failed"
+	PowerCapOpStatusSucceeded   = "Succeeded"
+	PowerCapOpStatusUnsupported = "Unsupported"
+)
+
+///////////////////////////
+//INPUT - Generally from the API layer
+///////////////////////////
 
 type PowerCapSnapshotParameter struct {
 	Xnames []string `json:"xnames"`
 }
 
 type PowerCapPatchParameter struct {
-	Components []Component `json:"components"`
+	Components []PowerCapComponentParameter `json:"components"`
 }
 
-type Component struct {
-	Xname    string    `json:"xname"`
-	Controls []Control `json:"controls"`
+type PowerCapComponentParameter struct {
+	Xname    string                     `json:"xname"`
+	Controls []PowerCapControlParameter `json:"controls"`
 }
 
-type Control struct {
+type PowerCapControlParameter struct {
 	Name  string `json:"name"`
 	Value int    `json:"value"` //TODO is this the right data type? can it be double?
 }
 
+//////////////
+// INTERNAL - Generally passed around /internal/* packages
+//////////////
+
+type PowerCapTask struct {
+	TaskID                  uuid.UUID                  `json:"taskID"`
+	Type                    string                     `json:"type"`
+	SnapshotParameters      *PowerCapSnapshotParameter `json:"snapshotParameters,omitempty"`
+	PatchParameters         *PowerCapPatchParameter    `json:"patchParameters,omitempty"`
+	TaskCreateTime          time.Time                  `json:"taskCreateTime"`
+	AutomaticExpirationTime time.Time                  `json:"automaticExpirationTime"`
+	TaskStatus              string                     `json:"taskStatus"`
+	OperationIDs            []uuid.UUID
+}
+
+type PowerCapOperation struct {
+	OperationID  uuid.UUID         `json:"operationID"`
+	TaskID       uuid.UUID         `json:"taskID"`
+	Type         string            `json:"type"`
+	Status       string            `json:"status"`
+	Component    PowerCapComponent `json:"Component"`
+
+	// From HSM /Inventory/ComponentEndpoints
+	RfFQDN                string                  `json:"RfFQDN"`
+	PowerCapURI           string                  `json:"powerCapURI"`
+	PowerCapTargetURI     string                  `json:"powerCapTargetURI"`
+	PowerCapControlsCount int                     `json:"powerCapControlsCount"`
+	PowerCapCtlInfoCount  int                     `json:"powerCapCtlInfoCount"`
+	PowerCaps             map[string]hsm.PowerCap `json:"powerCap"`
+}
+
+//////////////
+// OUTPUT - Generally passed back to the API layer.
+//////////////
+
 type PowerCapTaskCreation struct {
 	TaskID uuid.UUID `json:"taskID"`
+}
+
+type PowerCapTaskRespArray struct {
+	Tasks []PowerCapTaskResp `json:"tasks"`
+}
+
+type PowerCapTaskResp struct {
+	TaskID                  uuid.UUID           `json:"taskID"`
+	Type                    string              `json:"type"`
+	TaskCreateTime          time.Time           `json:"taskCreateTime"`
+	AutomaticExpirationTime time.Time           `json:"automaticExpirationTime"`
+	TaskStatus              string              `json:"taskStatus"`
+	TaskCounts              PowerCapTaskCounts  `json:"taskCounts"`
+	Components              []PowerCapComponent `json:"components,omitempty"`
+}
+
+type PowerCapTaskCounts struct {
+	Total       int `json:"total"`
+	New         int `json:"new"`
+	InProgress  int `json:"in-progress"`
+	Failed      int `json:"failed"`
+	Succeeded   int `json:"succeeded"`
+	Unsupported int `json:"un-supported"`
+}
+
+type PowerCapComponent struct {
+	Xname          string             `json:"xname"`
+	Error          string             `json:"error,omitempty"`
+	Limits         *PowerCapabilities `json:"limits,omitempty"`
+	PowerCapLimits []PowerCapControls `json:"powerCapLimits,omitempty"`
+}
+
+type PowerCapabilities struct {
+	HostLimitMax *int `json:"hostLimitMax,omitempty"`
+	HostLimitMin *int `json:"hostLimitMin,omitempty"`
+	StaticPower  *int `json:"staticPower,omitempty"`
+	SupplyPower  *int `json:"supplyPower,omitempty"`
+	PowerupPower *int `json:"powerupPower,omitempty"`
+}
+
+type PowerCapControls struct {
+	Name         string `json:"name"`
+	CurrentValue *int   `json:"currentValue,omitempty"`
+	MaximumValue *int   `json:"maximumValue,omitempty"`
+	MinimumValue *int   `json:"minimumValue,omitempty"`
+}
+
+//////////////
+// FUNCTIONS
+//////////////
+
+func NewPowerCapSnapshotTask(parameters PowerCapSnapshotParameter) (PowerCapTask) {
+	task := newPowerCapTask()
+	task.Type = PowerCapTaskTypeSnapshot
+	task.SnapshotParameters = &parameters
+	return task
+}
+
+func NewPowerCapPatchTask(parameters PowerCapPatchParameter) (PowerCapTask) {
+	task := newPowerCapTask()
+	task.Type = PowerCapTaskTypePatch
+	task.PatchParameters = &parameters
+	return task
+}
+
+func newPowerCapTask() (PowerCapTask) {
+	return PowerCapTask{
+		TaskID:                  uuid.New(),
+		TaskCreateTime:          time.Now(),
+		AutomaticExpirationTime: time.Now().Add(time.Hour * 24),
+		TaskStatus:              PowerCapTaskStatusNew,
+		OperationIDs:            []uuid.UUID{},
+	}
+}
+
+func NewPowerCapOperation(taskID uuid.UUID, operationType string) (PowerCapOperation){
+	return PowerCapOperation{
+		OperationID: uuid.New(),
+		TaskID:      taskID,
+		Type:        operationType,
+		Status:      PowerCapOpStatusNew,
+	}
 }

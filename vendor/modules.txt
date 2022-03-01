@@ -6,12 +6,16 @@ github.com/Cray-HPE/hms-base/v2
 # github.com/Cray-HPE/hms-certs v1.3.3
 ## explicit
 github.com/Cray-HPE/hms-certs/pkg/hms_certs
+# github.com/Cray-HPE/hms-compcredentials v1.11.2
+## explicit
+github.com/Cray-HPE/hms-compcredentials
 # github.com/Cray-HPE/hms-hmetcd v1.10.3
 ## explicit
 github.com/Cray-HPE/hms-hmetcd
 # github.com/Cray-HPE/hms-securestorage v1.12.2
+## explicit
 github.com/Cray-HPE/hms-securestorage
-# github.com/Cray-HPE/hms-smd v1.47.0
+# github.com/Cray-HPE/hms-smd v1.48.0
 ## explicit
 github.com/Cray-HPE/hms-smd/pkg/redfish
 github.com/Cray-HPE/hms-smd/pkg/service-reservations

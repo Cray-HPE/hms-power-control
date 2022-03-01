@@ -23,9 +23,11 @@
 package storage
 
 import (
-	"github.com/Cray-HPE/hms-power-control/internal/model"
-	"github.com/sirupsen/logrus"
 	"time"
+
+	"github.com/Cray-HPE/hms-power-control/internal/model"
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 type StorageProvider interface {
@@ -36,6 +38,15 @@ type StorageProvider interface {
 	DeletePowerStatus(xname string) error
 	GetPowerStatus(xname string) (model.PowerStatusComponent, error)
 	GetAllPowerStatus() (model.PowerStatus, error)
+
+	StorePowerCapTask(task model.PowerCapTask) error
+	StorePowerCapOperation(op model.PowerCapOperation) error
+	GetPowerCapTask(taskID uuid.UUID) (model.PowerCapTask, error)
+	GetPowerCapOperation(taskID uuid.UUID, opID uuid.UUID) (model.PowerCapOperation, error)
+	GetAllPowerCapOperationsForTask(taskID uuid.UUID) ([]model.PowerCapOperation, error)
+	GetAllPowerCapTasks() ([]model.PowerCapTask, error)
+	DeletePowerCapTask(taskID uuid.UUID) error
+	DeletePowerCapOperation(taskID uuid.UUID, opID uuid.UUID) error
 }
 
 type DistributedLockProvider interface {

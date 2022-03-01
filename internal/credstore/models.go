@@ -20,23 +20,37 @@
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
 
-package hsm
+package credstore
 
 import (
-	"github.com/Cray-HPE/hms-base"
+	"time"
+
+	"github.com/Cray-HPE/hms-compcredentials"
+	"github.com/sirupsen/logrus"
 )
 
-type HSMv2 struct {
-	HSMGlobals HSM_GLOBALS
+type CREDSTORE_GLOBALS struct {
+	Logger            *logrus.Logger
+	Running           *bool
+	CredCacheDuration int
+	VaultKeypath      string
+	credStoreReady    bool
+	credsCacheMap     map[string]CompCredCached
+	credStore         *compcredentials.CompCredStore
 }
 
-type HSMProvider interface {
-	Init(glb *HSM_GLOBALS) error
-	Ping() error
-	ReserveComponents(compList []ReservationData) ([]*ReservationData,error)
-	ReleaseComponents(compList []ReservationData) ([]*ReservationData,error)
-	CheckDeputyKeys(comp []ReservationData) error
-	FillComponentEndpointData(hd map[string]*HsmData) error
-	GetStateComponents(xnames []string) (base.ComponentArray,error)
-	FillHSMData(xnames []string) (map[string]*HsmData,error)
+type CompCredCached struct {
+	User   string
+	Pw     string
+	Expire time.Time
+}
+
+func (g *CREDSTORE_GLOBALS) NewGlobals(logger *logrus.Logger,
+                                       running *bool,
+                                       credCacheDuration int,
+                                       keypath string) {
+	g.Logger = logger
+	g.Running = running
+	g.CredCacheDuration = credCacheDuration
+	g.VaultKeypath = keypath
 }

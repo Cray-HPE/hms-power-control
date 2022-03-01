@@ -302,4 +302,3 @@ func (suite *Models_TS) TestFillHSMData() {
 func Test_Stuff(t *testing.T) {
 	suite.Run(t,new(Models_TS))
 }
-

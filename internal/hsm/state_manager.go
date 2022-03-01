@@ -418,10 +418,12 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 				case sm.CompEPTypeSystem:	//node
 					hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
 					hd[comp.ID].PowerStatusURI = comp.OdataID
-					if ((comp.RedfishSystemInfo != nil) && (comp.RedfishSystemInfo.Actions != nil)) {
-						hd[comp.ID].PowerActionURI = comp.RedfishSystemInfo.Actions.ComputerSystemReset.Target
-						hd[comp.ID].AllowableActions = comp.RedfishSystemInfo.Actions.ComputerSystemReset.AllowableValues
-						hd[comp.ID].PowerCapURI = comp.RedfishSystemInfo.PowerURL
+					if comp.RedfishSystemInfo != nil {
+						if comp.RedfishSystemInfo.Actions != nil {
+							hd[comp.ID].PowerActionURI = comp.RedfishSystemInfo.Actions.ComputerSystemReset.Target
+							hd[comp.ID].AllowableActions = comp.RedfishSystemInfo.Actions.ComputerSystemReset.AllowableValues
+						}
+						hd[comp.ID] = extractPowerCapInfo(hd[comp.ID], comp)
 					}
 
 				case sm.CompEPTypeManager:	//BMC
@@ -452,6 +454,82 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 	}
 
 	return nil
+}
+
+// Turn the PowerCtl and Controls structs from HSM into something useful for
+// PCS. This function constructs a map of PowerCap structs from PowerCtl[] or
+// Controls[] in RedfishSystemInfo from HSM. This function manipulates the
+// given compData and sets the following fields:
+// - compData.PowerCapURI
+// - compData.PowerCapControlsCount
+// - compData.PowerCapCtlInfoCount
+// - compData.PowerCapTargetURI - if rfSysInfo.PowerCtlInfo.PowerCtl[0].OEM.HPE.Target exists
+// - compData.PowerCaps
+func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmData {
+	if compData == nil || compEP == nil || compEP.RedfishSystemInfo == nil {
+		return compData
+	}
+	rfSysInfo := compEP.RedfishSystemInfo
+	compData.PowerCapURI = rfSysInfo.PowerURL
+	compData.PowerCapControlsCount = len(rfSysInfo.Controls)
+	compData.PowerCapCtlInfoCount = len(rfSysInfo.PowerCtlInfo.PowerCtl)
+	if compData.PowerCapControlsCount > 0 {
+		compData.PowerCaps = make(map[string]PowerCap)
+		for i, ctl := range rfSysInfo.Controls {
+			compData.PowerCaps[ctl.Control.Name] = PowerCap{
+				Name:        ctl.Control.Name,
+				Path:        ctl.URL,
+				Min:         ctl.Control.SettingRangeMin,
+				Max:         ctl.Control.SettingRangeMax,
+				PwrCtlIndex: i,
+			}
+		}
+	} else if compData.PowerCapCtlInfoCount > 0 {
+		pwrCtl := rfSysInfo.PowerCtlInfo.PowerCtl[0]
+		if pwrCtl.OEM != nil && pwrCtl.OEM.HPE != nil && len(pwrCtl.OEM.HPE.Target) > 0 {
+			compData.PowerCapTargetURI = pwrCtl.OEM.HPE.Target
+		}
+		compData.PowerCaps = make(map[string]PowerCap)
+		isHpeApollo6500 := strings.Contains(compData.PowerCapURI, "AccPowerService/PowerLimit")
+		isHpeServer := strings.Contains(compData.PowerCapURI, "Chassis/1/Power")
+		for i, ctl := range rfSysInfo.PowerCtlInfo.PowerCtl {
+			var min int
+			var max int
+			if isHpeApollo6500 || isHpeServer {
+				ctl.Name = "Node Power Control"
+			}
+			if ctl.OEM != nil {
+				if ctl.OEM.Cray != nil {
+					min = ctl.OEM.Cray.PowerLimit.Min
+					max = ctl.OEM.Cray.PowerLimit.Max
+				} else if ctl.OEM.HPE != nil {
+					min = ctl.OEM.HPE.PowerLimit.Min
+					max = ctl.OEM.HPE.PowerLimit.Max
+				}
+			}
+			// remove any #fragment in the path
+			var path string
+			c := strings.Index(ctl.Oid, "#")
+			if c < 0 {
+				path = ctl.Oid
+			} else {
+				path = ctl.Oid[:c]
+			}
+
+			if path == "" {
+				// A sane default fallback.
+				path = rfSysInfo.PowerURL
+			}
+			compData.PowerCaps[ctl.Name] = PowerCap{
+				Name:        ctl.Name,
+				Path:        path,
+				Min:         min,
+				Max:         max,
+				PwrCtlIndex: i,
+			}
+		}
+	}
+	return compData
 }
 
 // Fetch component info from HSM.
@@ -526,4 +604,3 @@ func (b *HSMv2) FillHSMData(xnames []string) (map[string]*HsmData,error) {
 
 	return hdata,nil
 }
-

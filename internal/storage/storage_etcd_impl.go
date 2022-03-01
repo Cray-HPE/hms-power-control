@@ -46,6 +46,8 @@ const (
 	kvRetriesDefault = 5
 	keyPrefix        = "/pcs/"
 	keySegPowerState = "/powerstate"
+	keySegPowerCap   = "/powercaptask"
+	keySegPowerCapOp = "/powercapop"
 	keyMin           = " "
 	keyMax           = "~"
 )
@@ -215,4 +217,109 @@ func (e *ETCDStorage) GetAllPowerStatus() (model.PowerStatus, error) {
 		e.Logger.Error(err)
 	}
 	return pstats, err
+}
+
+///////////////////////
+// Power Capping
+///////////////////////
+
+func (e *ETCDStorage) StorePowerCapTask(task model.PowerCapTask) error {
+	key := fmt.Sprintf("%s/%s", keySegPowerCap, task.TaskID.String())
+	err := e.kvStore(key, task)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return err
+}
+
+func (e *ETCDStorage) StorePowerCapOperation(op model.PowerCapOperation) error {
+	// Store PowerCapOperations using their parent task's key so it will be
+	// easier to get all of them when needed.
+	key := fmt.Sprintf("%s/%s/%s", keySegPowerCapOp, op.TaskID.String(), op.OperationID.String())
+	err := e.kvStore(key, op)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return err
+}
+
+func (e *ETCDStorage) GetPowerCapTask(taskID uuid.UUID) (model.PowerCapTask, error) {
+	var task model.PowerCapTask
+	key := fmt.Sprintf("%s/%s", keySegPowerCap, taskID.String())
+
+	err := e.kvGet(key, &task)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return task, err
+}
+
+func (e *ETCDStorage) GetPowerCapOperation(taskID, opID uuid.UUID) (model.PowerCapOperation, error) {
+	var op model.PowerCapOperation
+	key := fmt.Sprintf("%s/%s/%s", keySegPowerCapOp, taskID.String(), opID.String())
+
+	err := e.kvGet(key, &op)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return op, err
+}
+
+func (e *ETCDStorage) GetAllPowerCapOperationsForTask(taskID uuid.UUID) ([]model.PowerCapOperation, error) {
+	ops := []model.PowerCapOperation{}
+	key := fmt.Sprintf("%s/%s", keySegPowerCapOp, taskID.String())
+	k := e.fixUpKey(key)
+	kvl, err := e.kvHandle.GetRange(k+keyMin, k+keyMax)
+	if err == nil {
+		for _, kv := range kvl {
+			var op model.PowerCapOperation
+			err = json.Unmarshal([]byte(kv.Value), &op)
+			if err != nil {
+				e.Logger.Error(err)
+			} else {
+				ops = append(ops, op)
+			}
+		}
+	} else {
+		e.Logger.Error(err)
+	}
+	return ops, err
+}
+
+func (e *ETCDStorage) GetAllPowerCapTasks() ([]model.PowerCapTask, error) {
+	tasks := []model.PowerCapTask{}
+	k := e.fixUpKey(keySegPowerCap)
+	kvl, err := e.kvHandle.GetRange(k+keyMin, k+keyMax)
+	if err == nil {
+		for _, kv := range kvl {
+			var task model.PowerCapTask
+			err = json.Unmarshal([]byte(kv.Value), &task)
+			if err != nil {
+				e.Logger.Error(err)
+			} else {
+				tasks = append(tasks, task)
+			}
+		}
+	} else {
+		e.Logger.Error(err)
+	}
+	return tasks, err
+}
+
+func (e *ETCDStorage) DeletePowerCapTask(taskID uuid.UUID) error {
+	key := fmt.Sprintf("%s/%s", keySegPowerCap, taskID.String())
+	err := e.kvDelete(key)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return err
+}
+
+func (e *ETCDStorage) DeletePowerCapOperation(taskID uuid.UUID, opID uuid.UUID) error {
+	key := fmt.Sprintf("%s/%s/%s", keySegPowerCapOp, taskID.String(), opID.String())
+	err := e.kvDelete(key)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return err
 }

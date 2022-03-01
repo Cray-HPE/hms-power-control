@@ -67,7 +67,21 @@ type HsmData struct {
 	PowerActionURI   string   `json:"actionURI"`
 	AllowableActions []string `json:"allowableActions"`
 	PowerStatusURI   string   `json:"statusURI"`
-	PowerCapURI      string   `json:"powerCapURI"`
 	Error            error    `json:"error"`
+
+// For PCS power capping
+	PowerCapURI           string              `json:"powerCapURI"`
+	PowerCapTargetURI     string              `json:"powerCapTargetURI"`
+	PowerCapControlsCount int                 `json:"powerCapControlsCount"`
+	PowerCapCtlInfoCount  int                 `json:"powerCapCtlInfoCount"`
+	PowerCaps             map[string]PowerCap `json:"powerCaps"`
 }
 
+// PowerCap defines values useful to PCS for power capping.
+type PowerCap struct {
+	Name        string
+	Path        string
+	Min         int
+	Max         int
+	PwrCtlIndex int
+}

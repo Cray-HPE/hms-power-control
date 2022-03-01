@@ -25,7 +25,6 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/domain"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
@@ -63,25 +62,18 @@ func SnapshotPowerCap(w http.ResponseWriter, req *http.Request) {
 			WriteHeaders(w, pb)
 			return
 		}
+
+		if len(parameters.Xnames) == 0 {
+			err := errors.New("Xname list is empty. A list of xnames is required")
+			pb = model.BuildErrorPassback(http.StatusBadRequest, err)
+			logrus.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Empty xname list")
+			WriteHeaders(w, pb)
+			return
+		}
 	} else {
 		err := errors.New("empty body not allowed")
 		pb = model.BuildErrorPassback(http.StatusBadRequest, err)
 		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("empty body")
-		WriteHeaders(w, pb)
-		return
-	}
-
-	//validates the schema of the xname, not that the xname actually exists; that requires a HSM call.
-	_, badXnames := base.ValidateCompIDs(parameters.Xnames, true)
-	if len(badXnames) > 0 {
-
-		errormsg := "invalid xnames detected "
-		for _, badxname := range badXnames {
-			errormsg += badxname + " "
-		}
-		err := errors.New(errormsg)
-		pb = model.BuildErrorPassback(http.StatusBadRequest, err)
-		logrus.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode, "xnames": badXnames}).Error("Invalid xnames detected")
 		WriteHeaders(w, pb)
 		return
 	}
@@ -129,24 +121,26 @@ func PatchPowerCap(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	//TODO something needs to validate the ranges of values (can they be negative? doubles? is there a max?).
-	// Its key/value, so it might be quite permissive across our many hw types
-
-	//validates the schema of the xname, not that the xname actually exists; that requires a HSM call.
-	var xnamesReq []string
-	for _, component := range parameters.Components {
-		xnamesReq = append(xnamesReq, component.Xname)
+	var badCtls []string
+	for _, comp := range parameters.Components {
+		isBad := false
+		for _, ctl := range comp.Controls {
+			if ctl.Name == "" || ctl.Value < 0 {
+				isBad = true
+			}
+		}
+		if isBad {
+			badCtls = append(badCtls, comp.Xname)
+		}
 	}
-	_, badXnames := base.ValidateCompIDs(xnamesReq, true)
-	if len(badXnames) > 0 {
-
-		errormsg := "invalid xnames detected "
-		for _, badxname := range badXnames {
-			errormsg += badxname + " "
+	if len(badCtls) > 0 {
+		errormsg := "Invalid control parameters for xnames detected "
+		for _, xname := range badCtls {
+			errormsg += xname + " "
 		}
 		err := errors.New(errormsg)
 		pb = model.BuildErrorPassback(http.StatusBadRequest, err)
-		logrus.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode, "xnames": badXnames}).Error("Invalid xnames detected")
+		logrus.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode, "xnames": badCtls}).Error("Invalid control parameters for xnames detected")
 		WriteHeaders(w, pb)
 		return
 	}

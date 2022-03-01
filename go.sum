@@ -31,6 +31,7 @@ github.com/Cray-HPE/hms-base/v2 v2.0.0/go.mod h1:Mq+Ao3q4YtNZJZ1ly9wnEIKyvc3+QaA
 github.com/Cray-HPE/hms-certs v1.3.2/go.mod h1:6DymilWScLtbQkaQRMuf55K1MzEi0kYCoXfT212yLjY=
 github.com/Cray-HPE/hms-certs v1.3.3 h1:0dUqeo+pE9xloliOCuIGFd0gEF66czrnI6lybW/tGmI=
 github.com/Cray-HPE/hms-certs v1.3.3/go.mod h1:6DymilWScLtbQkaQRMuf55K1MzEi0kYCoXfT212yLjY=
+github.com/Cray-HPE/hms-compcredentials v1.11.2 h1:Ug7e7vMSx1STHKkniWY27ddD1X49pQAEljQmTcVkng4=
 github.com/Cray-HPE/hms-compcredentials v1.11.2/go.mod h1:tmurR+zsOtB61n6j3GlEfsl7wmNIAGJqErFymOUb0Hw=
 github.com/Cray-HPE/hms-go-http-lib v1.5.3/go.mod h1:BKlB4HKAGW5GgS3x01y7zxxYFLaJM2byACUunmes2z8=
 github.com/Cray-HPE/hms-hmetcd v1.10.3 h1:bn+MzRcHp1CzLcm/VScouwiLB46EiLR6FddCEyanhqw=
@@ -38,8 +39,8 @@ github.com/Cray-HPE/hms-hmetcd v1.10.3/go.mod h1:cL/imOEh++ErJ1x30HEeo1a38gxBAJg
 github.com/Cray-HPE/hms-msgbus v1.11.0/go.mod h1:cxn+lUOq3tpY3+KdFml6L56ZQo8sqN2VoZ6gGxds6o8=
 github.com/Cray-HPE/hms-securestorage v1.12.2 h1:H5n0i6ldzewd5p7PI2Hktr/+9cYfSCui+0367p2L6n8=
 github.com/Cray-HPE/hms-securestorage v1.12.2/go.mod h1:P4CMKqQVlx/lv+AdyEjNQubZw2FKNyo/IAtFNgQ3VuI=
-github.com/Cray-HPE/hms-smd v1.47.0 h1:MtxpFZdGHo4/TKq2+3AXJ7wHGlf+Z9l8QSzMufzOlPE=
-github.com/Cray-HPE/hms-smd v1.47.0/go.mod h1:7J7taeRXmceyLPHdKlLbucb10lqTrJxTUo3RhaTGMhs=
+github.com/Cray-HPE/hms-smd v1.48.0 h1:hJXAU9Vip3Oo1ywltPZMxeTS5qKn+s4ATzk7pIPq2Z4=
+github.com/Cray-HPE/hms-smd v1.48.0/go.mod h1:7J7taeRXmceyLPHdKlLbucb10lqTrJxTUo3RhaTGMhs=
 github.com/Cray-HPE/hms-trs-app-api v1.6.3 h1:aES3CLgDWGFv36A2VUh3uuJLNggtOv50L1cDGma5fgM=
 github.com/Cray-HPE/hms-trs-app-api v1.6.3/go.mod h1:RbB2pYCrZ5N3d0ho4nzTAz9ifI2GYpAdf4Qeco748KQ=
 github.com/Cray-HPE/hms-trs-kafkalib v1.5.2 h1:MhV6SE0HmEcMnuAb/dVclfXd+49udbVCYr2ze0CDXoI=

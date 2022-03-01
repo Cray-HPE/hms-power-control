@@ -24,10 +24,12 @@ package storage
 
 import (
 	"fmt"
+	"sync"
+
 	hmetcd "github.com/Cray-HPE/hms-hmetcd"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"sync"
 )
 
 //This file contains the in-memory implementation of our object storage.
@@ -88,4 +90,48 @@ func (m *MEMStorage) GetPowerStatus(xname string) (model.PowerStatusComponent, e
 func (m *MEMStorage) GetAllPowerStatus() (model.PowerStatus, error) {
 	e := toETCDStorage(m)
 	return e.GetAllPowerStatus()
+}
+
+///////////////////////
+// Power Capping
+///////////////////////
+
+func (m *MEMStorage) StorePowerCapTask(task model.PowerCapTask) error {
+	e := toETCDStorage(m)
+	return e.StorePowerCapTask(task)
+}
+
+func (m *MEMStorage) StorePowerCapOperation(op model.PowerCapOperation) error {
+	e := toETCDStorage(m)
+	return e.StorePowerCapOperation(op)
+}
+
+func (m *MEMStorage) GetPowerCapTask(taskID uuid.UUID) (model.PowerCapTask, error) {
+	e := toETCDStorage(m)
+	return e.GetPowerCapTask(taskID)
+}
+
+func (m *MEMStorage) GetPowerCapOperation(taskID uuid.UUID, opID uuid.UUID) (model.PowerCapOperation, error) {
+	e := toETCDStorage(m)
+	return e.GetPowerCapOperation(taskID, opID)
+}
+
+func (m *MEMStorage) GetAllPowerCapOperationsForTask(taskID uuid.UUID) ([]model.PowerCapOperation, error) {
+	e := toETCDStorage(m)
+	return e.GetAllPowerCapOperationsForTask(taskID)
+}
+
+func (m *MEMStorage) GetAllPowerCapTasks() ([]model.PowerCapTask, error) {
+	e := toETCDStorage(m)
+	return e.GetAllPowerCapTasks()
+}
+
+func (m *MEMStorage) DeletePowerCapTask(taskID uuid.UUID) error {
+	e := toETCDStorage(m)
+	return e.DeletePowerCapTask(taskID)
+}
+
+func (m *MEMStorage) DeletePowerCapOperation(taskID uuid.UUID, opID uuid.UUID) error {
+	e := toETCDStorage(m)
+	return e.DeletePowerCapOperation(taskID, opID)
 }
