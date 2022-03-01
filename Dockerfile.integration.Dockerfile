@@ -55,6 +55,7 @@ STOPSIGNAL SIGTERM
 # Get the hms-power-control from the builder stage.
 COPY --from=builder /usr/local/bin/hms-power-control /usr/local/bin/.
 COPY configs configs
+COPY ephemeral_cert configs
 COPY .version /
 
 

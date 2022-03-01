@@ -8,6 +8,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.unittesting.Dockerfile
+    environment:
+      - SMS_SERVER=http://cray-smd:27779
     depends_on:
       - etcd
       - cray-smd
@@ -20,6 +22,7 @@ services:
       - cray-smd
       - cray-hms-hmcollector
       - redfish-simulator
+      - vault-kv-enabler
     networks:
       - pcs     
   etcd:
@@ -37,12 +40,16 @@ services:
       - VAULT_DEV_ROOT_TOKEN_ID=hms
       - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
       - VAULT_ADDR=http://127.0.0.1:8200
+    ports:
+      - "8200:8200"
     cap_add:
       - IPC_LOCK
     networks:
       - pcs
   vault-kv-enabler:
-    image: artifactory.algol60.net/csm-docker/stable/vault-kv-enabler:1.13.4
+    build:
+      context: .
+      dockerfile: vault-kv-enabler.dockerfile
     environment:
       - VAULT_ADDR=http://vault:8200
       - VAULT_TOKEN=hms
@@ -130,8 +137,9 @@ services:
       - CRAY_VAULT_ROLE_FILE=configs/namespace
       - CRAY_VAULT_AUTH_PATH=auth/token/create
       - VAULT_ADDR=http://vault:8200
+      - KAFKA_BROKERS_CONFIG=configs/kafka_brokers_local.json
     volumes:
-      - ./configs/kafka_brokers.json:/configs/kafka_brokers.json
+      - ./configs/kafka_brokers_local.json:/configs/kafka_brokers_local.json
       - ./configs/namespace:/configs/namespace
       - ./configs/token:/configs/token
     networks:
@@ -158,7 +166,7 @@ services:
       - HSM_URL=http://cray-smd:27779
       - HMS_VAULT_KEYPATH=hms-creds
       - RF_USERNAME=root
-      - RF_PASSWORD=testpassword
+      - RF_PASSWORD=rts
       - RF_SIMULATOR_XNAMES=x0c0s1b0,x0c0s2b0
     depends_on:
       - redis
