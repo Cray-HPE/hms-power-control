@@ -26,7 +26,10 @@ FROM artifactory.algol60.net/docker.io/library/golang:1.16-alpine
 
 RUN set -ex \
     && apk -U upgrade \
-    && apk add build-base
+    && apk add build-base \
+    && apk add bash \
+    && apk add curl \
+    && apk add jq
 
 ENV SMS_SERVER "http://cray-smd:27779"
 ENV LOG_LEVEL "INFO"
@@ -50,13 +53,18 @@ RUN go env -w GO111MODULE=auto
 
 COPY cmd $GOPATH/src/github.com/Cray-HPE/hms-power-control/cmd
 COPY configs configs
+COPY scripts scripts
+COPY ephemeral_cert configs
 COPY vendor $GOPATH/src/github.com/Cray-HPE/hms-power-control/vendor
 COPY internal $GOPATH/src/github.com/Cray-HPE/hms-power-control/internal
 COPY .version $GOPATH/src/github.com/Cray-HPE/hms-power-control/.version
 
 CMD set -ex \
+    && ./scripts/wait-for-discovery.sh \
     && go version \
     && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/domain \
     && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/api \
     && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/model \
-    && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/storage 
+    && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/storage \
+    && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/hsm
+

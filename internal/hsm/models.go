@@ -69,6 +69,7 @@ type HsmData struct {
 	PowerStatusURI   string   `json:"statusURI"`
 	Error            error    `json:"error"`
 
+// For PCS power capping
 	PowerCapURI           string              `json:"powerCapURI"`
 	PowerCapTargetURI     string              `json:"powerCapTargetURI"`
 	PowerCapControlsCount int                 `json:"powerCapControlsCount"`

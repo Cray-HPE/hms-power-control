@@ -26,9 +26,10 @@ import (
 	"errors"
 	"time"
 
-	"github.com/Cray-HPE/hms-base"
+	// "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-compcredentials"
 	"github.com/Cray-HPE/hms-securestorage"
+	base "github.com/Cray-HPE/hms-xname/xnametypes"
 	"github.com/sirupsen/logrus"
 )
 

@@ -35,39 +35,36 @@ import (
 	"github.com/Cray-HPE/hms-xname/xnametypes"
 	"github.com/Cray-HPE/hms-base"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/suite"
 )
+
+type Models_TS struct {
+	suite.Suite
+}
 
 var glogger = logrus.New()
 
-func TestInit(t *testing.T) {
+func (suite *Models_TS) TestInit() {
 	svcClient,err := hms_certs.CreateRetryableHTTPClientPair("",10,10,4)
-	if (err != nil) {
-		t.Errorf("ERROR creating retryable client pair: %v",err)
-	}
+	suite.Assert().Equal(nil,err,"ERROR creating retryable client pair: %v",err)
 	glb := HSM_GLOBALS{SvcName: "HSMLayerTest", Logger: glogger,
 	                   LockEnabled: false, SMUrl: "http://blah/blah",
 	                   SVCHttpClient: svcClient}
 	HSM := &HSMv2{}
 	err = HSM.Init(&glb)
-	if (err != nil) {
-		t.Errorf("ERROR calling Init(): %v",err)
-	}
+	suite.Assert().Equal(err,nil,"ERROR calling Init(): %v",err)
 
 	//Try error stuff
 
 	glb2 := glb
 	glb2.SMUrl = ""
 	err = HSM.Init(&glb2)
-	if (err == nil) {
-		t.Errorf("ERROR Init(1) should have failed, did not.")
-	}
+	suite.Assert().NotEqual(err,nil,"ERROR Init(1) should have failed, did not.")
 
 	glb2 = glb
 	glb2.SVCHttpClient = nil
 	err = HSM.Init(&glb2)
-	if (err == nil) {
-		t.Errorf("ERROR Init(2) should have failed, did not.")
-	}
+	suite.Assert().NotEqual(err,nil,"ERROR Init(2) should have failed, did not.")
 }
 
 func getSMURL() string {
@@ -75,11 +72,10 @@ func getSMURL() string {
 	return envstr
 }
 
-func TestPing(t *testing.T) {
+func (suite *Models_TS) TestPing() {
+	t := suite.T()
 	svcClient,err := hms_certs.CreateRetryableHTTPClientPair("",10,10,4)
-	if (err != nil) {
-		t.Errorf("ERROR creating retryable client pair: %v",err)
-	}
+	suite.Assert().Equal(err,nil,"ERROR creating retryable client pair: %v",err)
 
 	smURL := getSMURL()
 	if (smURL == "") {
@@ -91,14 +87,10 @@ func TestPing(t *testing.T) {
 	                   SVCHttpClient: svcClient}
 	HSM := &HSMv2{}
 	err = HSM.Init(&glb)
-	if (err != nil) {
-		t.Errorf("ERROR calling Init(): %v",err)
-	}
+	suite.Assert().Equal(err,nil,"ERROR calling Init(): %v",err)
 
 	err = HSM.Ping()
-	if (err != nil) {
-		t.Errorf("Ping() failed: %v",err)
-	}
+	suite.Assert().Equal(err,nil,"Ping() failed: %v",err)
 }
 
 //Get a list of discovered components, and return a list of components
@@ -176,8 +168,10 @@ func doHTTP(url string, method string, pld []byte) ([]byte,int,error) {
 	return rdata,rsp.StatusCode,nil
 }
 
-func TestReserveComponents(t *testing.T) {
+func (suite *Models_TS) TestReserveComponents() {
+	t := suite.T()
 	var keyList []ReservationData
+	var tr bool
 
 	//Get a list of discovered components from HSM, make a list of all
 	//BMC and/or controller types.  Get reservations for
@@ -191,8 +185,8 @@ func TestReserveComponents(t *testing.T) {
 										  xnametypes.NodeBMC.String()+","+
 										  xnametypes.RouterBMC.String()+","+
 										  xnametypes.Node.String())
-	if (cerr != nil) {
-		t.Logf("INFO: Can't get components from env, nothing to do: %v",cerr)
+	if ((cerr != nil) || (len(comps) == 0)) {
+		t.Log("INFO: Can't get components from env, nothing to do.")
 		return
 	}
 
@@ -207,9 +201,7 @@ func TestReserveComponents(t *testing.T) {
 	}
 
 	svcClient,err := hms_certs.CreateRetryableHTTPClientPair("",10,10,4)
-	if (err != nil) {
-		t.Errorf("ERROR creating retryable client pair: %v",err)
-	}
+	suite.Assert().Equal(err,nil,"ERROR creating retryable client pair: %v",err)
 
 	glogger.SetLevel(logrus.TraceLevel)
 	glb := HSM_GLOBALS{SvcName: "HSMLayerTest", Logger: glogger,
@@ -217,25 +209,19 @@ func TestReserveComponents(t *testing.T) {
 	                   SVCHttpClient: svcClient}
 	HSM := &HSMv2{}
 	err = HSM.Init(&glb)
-	if (err != nil) {
-		t.Errorf("ERROR calling Init(): %v",err)
-	}
+	suite.Assert().Equal(err,nil,"ERROR calling Init(): %v",err)
 
 	unlockedList,rerr := HSM.ReserveComponents(keyList)
-	if (rerr != nil) {
-		t.Errorf("ReserveComponents() failed: %v",rerr)
-	}
+	suite.Assert().Equal(rerr,nil,"ReserveComponents() failed: %v",rerr)
 
-	if (len(unlockedList) != len(keyList)) {
-		t.Errorf("Unlocked list expected length: %d, got %d",
+	suite.Assert().Equal(len(unlockedList),len(keyList),
+		"Unlocked list expected length: %d, got %d",
 			len(keyList), len(unlockedList))
-	}
 
 	for ix,key := range(unlockedList) {
 		t.Logf("Now-locked Key[%d]: '%v'",ix,key)
-		if (key.Error != nil) {
-			t.Logf("   ERROR: '%v'",key.Error)
-		} else {
+		tr = suite.Assert().Equal(key.Error,nil,"   ERROR: '%v'",key.Error)
+		if (tr) {
 			t.Logf("   OK.")
 		}
 	}
@@ -243,17 +229,14 @@ func TestReserveComponents(t *testing.T) {
 	//Check the deputy keys for validity
 
 	err = HSM.CheckDeputyKeys(keyList)
-	if (err != nil) {
-		t.Errorf("CheckDeputyKeys() failed: %v",err)
-	}
+	suite.Assert().Equal(err,nil,"CheckDeputyKeys() failed: %v",err)
 
 	//Display the dep keys results
 
 	for ix,key := range(keyList) {
 		t.Logf("Reservation[%d]: '%v'",ix,key)
-		if (key.Error != nil) {
-			t.Logf("   ERROR: '%v'",key.Error)
-		} else {
+		tr = suite.Assert().Equal(key.Error,nil,"   ERROR: '%v'",key.Error)
+		if (tr) {
 			t.Logf("   OK.")
 		}
 	}
@@ -261,13 +244,9 @@ func TestReserveComponents(t *testing.T) {
 	//Now release the keys we own
 
 	relList,relErr := HSM.ReleaseComponents(keyList)
-	if (relErr != nil) {
-		t.Errorf("ReleaseComponents() failed: %v",relErr)
-	}
+	suite.Assert().Equal(relErr,nil,"ReleaseComponents() failed: %v",relErr)
 
-	if (len(relList) != 0) {
-		t.Errorf("ReleaseComponents() didn't release all components!")
-	}
+	suite.Assert().Equal(len(relList),0,"ReleaseComponents() didn't release all components!")
 
 	for ix,key := range(unlockedList) {
 		t.Logf("Released Key[%d]: '%v'",ix,key)
@@ -275,43 +254,38 @@ func TestReserveComponents(t *testing.T) {
 }
 
 
-func TestFillHSMData(t *testing.T) {
+func (suite *Models_TS) TestFillHSMData() {
+	t := suite.T()
+	var tr bool
+
 	//Get discovered components.  Keep all of them
 	compList,cerr := getDiscoveredComponents("")
-	if (cerr != nil) {
-		t.Logf("Can't get components from env, nothing to do: %v",cerr)
+	if ((cerr != nil) || (len(compList) == 0)) {
+		t.Log("Can't get components from env, nothing to do.")
 		return
 	}
 
 	smURL := getSMURL()
-	if (smURL == "") {
-		t.Logf("Can't get SM URL from env, nothing to do.")
+	tr = suite.Assert().NotEqual(smURL,"","Can't get SM URL from env, nothing to do.")
+	if (!tr) {
 		return
 	}
 
 	svcClient,err := hms_certs.CreateRetryableHTTPClientPair("",10,10,4)
-	if (err != nil) {
-		t.Errorf("ERROR creating retryable client pair: %v",err)
-	}
+	suite.Assert().Equal(err,nil,"ERROR creating retryable client pair: %v",err)
 
 	glb := HSM_GLOBALS{SvcName: "HSMLayerTest", Logger: glogger,
 	                   LockEnabled: true, SMUrl: smURL,
 	                   SVCHttpClient: svcClient, MaxComponentQuery: 1}
 	HSM := &HSMv2{}
 	err = HSM.Init(&glb)
-	if (err != nil) {
-		t.Errorf("ERROR calling Init(): %v",err)
-	}
+	suite.Assert().Equal(err,nil,"ERROR calling Init(): %v",err)
 
 	compMap,err := HSM.FillHSMData(compList)
-	if (err != nil) {
-		t.Errorf("ERROR FillHSMData(): %v",err)
-	}
-
-	if (len(compMap) != len(compList)) {
-		t.Errorf("Length mismatch of returned map, exp: %d, got: %d",
+	suite.Assert().Equal(err,nil,"ERROR FillHSMData(): %v",err)
+	suite.Assert().Equal(len(compMap),len(compList),
+		"Length mismatch of returned map, exp: %d, got: %d",
 			len(compList),len(compMap))
-	}
 
 	for _,comp := range(compList) {
 		ok := false
@@ -321,8 +295,10 @@ func TestFillHSMData(t *testing.T) {
 				break
 			}
 		}
-		if (!ok) {
-			t.Errorf("ERROR: No match found for '%s'",comp)
-		}
+		suite.Assert().True(ok,"ERROR: No match found for '%s'",comp)
 	}
+}
+
+func Test_Stuff(t *testing.T) {
+	suite.Run(t,new(Models_TS))
 }

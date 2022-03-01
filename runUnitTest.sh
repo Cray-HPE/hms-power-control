@@ -29,12 +29,15 @@ set -x
 # Configure docker compose
 export COMPOSE_PROJECT_NAME=$RANDOM
 export COMPOSE_FILE=docker-compose.test.unit.yaml
+ephCertDir=ephemeral_cert
 
 echo "COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}"
 echo "COMPOSE_FILE: $COMPOSE_FILE"
 
 
 function cleanup() {
+  #docker-compose logs > /tmp/dockerLog_${COMPOSE_PROJECT_NAME}.txt
+  rm -rf $ephCertDir
   docker-compose down
   if ! [[ $? -eq 0 ]]; then
     echo "Failed to decompose environment!"
@@ -43,7 +46,18 @@ function cleanup() {
   exit $1
 }
 
-# Step 3) Get the base containers running
+# Create "ephemeral" TLS .crt and .key files
+
+mkdir -p $ephCertDir
+openssl req -newkey rsa:4096 \
+    -x509 -sha256 \
+    -days 3650 \
+    -nodes \
+    -subj "/C=US/ST=Minnesota/L=Bloomington/O=HPE/OU=Engineering/CN=hpe.com" \
+    -out $ephCertDir/rts.crt \
+    -keyout $ephCertDir/rts.key
+
+
 echo "Starting containers..."
 docker-compose build
 docker-compose up  -d dummy #we use dummy to make sure all our dependencies are up

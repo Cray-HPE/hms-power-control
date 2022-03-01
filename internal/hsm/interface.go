@@ -40,4 +40,3 @@ type HSMProvider interface {
 	GetStateComponents(xnames []string) (base.ComponentArray,error)
 	FillHSMData(xnames []string) (map[string]*HsmData,error)
 }
-
