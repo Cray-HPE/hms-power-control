@@ -20,7 +20,7 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-FROM arti.dev.cray.com/third-party-docker-stable-local/vault:1.5.5
+FROM artifactory.algol60.net/docker.io/library/vault:1.5.5
 
 LABEL maintainer="Hewlett Packard Enterprise"
 
