@@ -386,7 +386,7 @@ func (suite *PwrStat_TS) Test_PowerStatusMonitor() {
 			"Mismatch number of 'on' nodes, exp: '%s', got: '%s'",
 			expOnCount,nmatches)
 
-		printCompList(t,"ON COMPONENTS",rcomp)
+		printCompList(t,"ON NODES",rcomp)
 	}
 
 
