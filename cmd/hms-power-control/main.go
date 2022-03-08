@@ -192,7 +192,7 @@ func main() {
 	rfClient, _ = hms_certs.CreateRetryableHTTPClientPair("", dfltMaxHTTPTimeout, dfltMaxHTTPRetries, dfltMaxHTTPBackoff)
 	svcClient, _ = hms_certs.CreateRetryableHTTPClientPair("", dfltMaxHTTPTimeout, dfltMaxHTTPRetries, dfltMaxHTTPBackoff)
 
-	//STORAGE CONFIGURATION
+	//STORAGE/DISTLOCK CONFIGURATION
 	envstr = os.Getenv("STORAGE")
 	if envstr == "" || envstr == "MEMORY" {
 		tmpStorageImplementation := &storage.MEMStorage{
@@ -200,14 +200,22 @@ func main() {
 		}
 		DSP = tmpStorageImplementation
 		logger.Log.Info("Storage Provider: In Memory")
+		tmpDistLockImplementation := &storage.MEMLockProvider{}
+		DLOCK = tmpDistLockImplementation
+		logger.Log.Info("Distributed Lock Provider: In Memory")
 	} else if envstr == "ETCD" {
 		tmpStorageImplementation := &storage.ETCDStorage{
 			Logger: logger.Log,
 		}
 		DSP = tmpStorageImplementation
 		logger.Log.Info("Storage Provider: ETCD")
+		tmpDistLockImplementation := &storage.ETCDLockProvider{}
+		DLOCK = tmpDistLockImplementation
+		logger.Log.Info("Distributed Lock Provider: ETCD")
 	}
 	DSP.Init(logger.Log)
+	DLOCK.Init(logger.Log)
+	//TODO: there should be a Ping() to insure dist lock mechanism is alive
 
 	//Hardware State Manager CONFIGURATION
 	HSM = &hsm.HSMv2{}
@@ -231,12 +239,6 @@ func main() {
 		credStoreGlob.NewGlobals(logger.Log, &Running, credCacheDuration, VaultKeypath)
 		CS.Init(&credStoreGlob)
 	}
-
-	//Distributed Lock provider
-	tmpDLock := &storage.DistributedLockProvider{}
-	DLOCK = tmpDLock
-	DLOCK.Init(logger.Log)
-	//TODO: there should be a Ping() to insure dist lock mechanism is alive
 
 	//DOMAIN CONFIGURATION
 	var domainGlobals domain.DOMAIN_GLOBALS
