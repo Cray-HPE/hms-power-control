@@ -70,6 +70,7 @@ var (
 	DSP                 storage.StorageProvider
 	HSM                 hsm.HSMProvider
 	CS                  credstore.CredStoreProvider
+	DLOCK               storage.DistributedLockProvider
 )
 
 func main() {
@@ -219,6 +220,7 @@ func main() {
 		SVCHttpClient: svcClient,
 	}
 	HSM.Init(&hsmGlob)
+	//TODO: there should be a Ping() to insure HSM is alive
 
 	//Vault CONFIGURATION
 	tmpCS := &credstore.VAULTv0{}
@@ -230,10 +232,17 @@ func main() {
 		CS.Init(&credStoreGlob)
 	}
 
+	//Distributed Lock provider
+	tmpDLock := &storage.DistributedLockProvider{}
+	DLOCK = tmpDLock
+	DLOCK.Init(logger.Log)
+	//TODO: there should be a Ping() to insure dist lock mechanism is alive
+
 	//DOMAIN CONFIGURATION
 	var domainGlobals domain.DOMAIN_GLOBALS
 	domainGlobals.NewGlobals(&BaseTRSTask, &TLOC_rf, &TLOC_svc, rfClient, svcClient,
-	                         rfClientLock, &Running, &DSP, &HSM, VaultEnabled, &CS)
+	                         rfClientLock, &Running, &DSP, &HSM, VaultEnabled,
+	                         &CS, &DLOCK)
 
 	//Wait for vault PKI to respond for CA bundle.  Once this happens, re-do
 	//the globals.  This goroutine will run forever checking if the CA trust
@@ -342,7 +351,6 @@ func main() {
 		close(idleConnsClosed)
 	}()
 
-	
 
 	///////////////////////
 	// START

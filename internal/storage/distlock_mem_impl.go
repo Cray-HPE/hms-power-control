@@ -59,8 +59,24 @@ func toDistLockETCD(m *MEMLockProvider) *ETCDLockProvider {
 
 
 func (d *MEMLockProvider) Init(Logger *logrus.Logger) error {
-	e := toStorageMEM(d)
-	return e.Init(Logger)
+	var kverr error
+
+	if Logger == nil {
+		d.Logger = logrus.New()
+	} else {
+		d.Logger = Logger
+	}
+
+	d.mutex = &sync.Mutex{}
+	d.Logger.Infof("Dist Lock medium: memory, url: '%s'", kvUrlMemDefault)
+
+	d.kvHandle, kverr = hmetcd.Open(kvUrlMemDefault, "")
+	if kverr != nil {
+		d.kvHandle = nil
+		return fmt.Errorf("ERROR opening KV memory storage: %v", kverr)
+	}
+	d.Logger.Info("Dist Lock memory setup succeeded.")
+	return nil
 }
 
 func (d *MEMLockProvider) InitFromStorage(m interface{}, Logger *logrus.Logger) {
@@ -84,9 +100,8 @@ func (d *MEMLockProvider) Ping() error {
 }
 
 func (d *MEMLockProvider) DistributedTimedLock(maxLockTime time.Duration) error {
-	if (maxLockTime < 1) {
-		return fmt.Errorf("Error: lock duration request invalid (%s seconds) -- must be >= 1.",
-					maxLockTime.String())
+	if (maxLockTime < time.Second) {
+		return fmt.Errorf("Error: lock duration request invalid -- must be >= 1 second.")
 	}
 	d.Duration = maxLockTime
 	e := toDistLockETCD(d)

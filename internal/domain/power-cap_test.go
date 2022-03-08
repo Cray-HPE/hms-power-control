@@ -243,7 +243,7 @@ func doSetup() error {
 	HSM.Init(&hsmGlob)
 
 	domainGlobals.NewGlobals(&BaseTRSTask, &TLOC_rf, &TLOC_svc, nil, nil,
-	                         rfClientLock, &Running, &DSP, &HSM, VaultEnabled, nil)
+	                         rfClientLock, &Running, &DSP, &HSM, VaultEnabled, nil,nil)
 	Init(&domainGlobals)
 	return nil
 }
