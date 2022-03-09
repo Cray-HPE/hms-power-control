@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Cray-HPE/hms-power-control/internal/credstore"
@@ -82,7 +83,7 @@ var distLockMaxTime time.Duration
 var pstateMonitorRunning bool
 var serviceRunning *bool
 var vaultEnabled = false
-var httpTimeout = 15 //seconds
+var httpTimeout = 30 //seconds
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -208,19 +209,36 @@ func GetPowerStatus(xnames []string,
 		stateMatch := true
 		mp,mapok := compMap[name]
 		if (!mapok) {
-			rcomps.Status = append(rcomps.Status,
-					pcsmodel.PowerStatusComponent{XName: name,
-						Error: "Component not found in component map."})
+			//Get the type.  If it has no support for power status, make the
+			//error message reflect that.  Otherwise give a generic error.
+			pcomp := pcsmodel.PowerStatusComponent{XName: name}
+			htype := xnametypes.GetHMSType(name)
+			switch (htype) {
+				case xnametypes.Chassis:    fallthrough
+				case xnametypes.ChassisBMC: fallthrough
+				case xnametypes.NodeBMC:    fallthrough
+				case xnametypes.RouterBMC:  fallthrough
+				case xnametypes.Node:       fallthrough
+				case xnametypes.CabinetPDUOutlet:
+					pcomp.Error = "Component not found in component map."
+
+				case xnametypes.HMSTypeInvalid:
+					pcomp.Error = "Invalid component name."
+
+				default:
+					pcomp.Error = "Component can not have power state and managment state data"
+			}
+			rcomps.Status = append(rcomps.Status,pcomp)
 			continue
 		}
 		//Filter by pwrstate and mgmtstate
 		if (!psUndef) {
-			if (pwrStateFilter.String() != mp.PowerState) {
+			if (strings.ToLower(pwrStateFilter.String()) != strings.ToLower(mp.PowerState)) {
 				stateMatch = false
 			}
 		}
 		if (!msUndef) {
-			if (mgmtStateFilter.String() != mp.ManagementState) {
+			if (strings.ToLower(mgmtStateFilter.String()) != strings.ToLower(mp.ManagementState)) {
 				stateMatch = false
 			}
 		}
@@ -302,7 +320,7 @@ func updateComponentMap() error {
 					hwStateMap[v.BaseData.ID] = &newComp
 				}
 			default:
-				glogger.Errorf("%s: Component type not handled: %s",
+				glogger.Tracef("%s: Component type not handled: %s",
 					fname,string(v.BaseData.Type))
 		}
 	}
@@ -422,7 +440,7 @@ func getHWStatesFromHW() error {
 			case xnametypes.Node:       fallthrough
 			case xnametypes.Chassis:    fallthrough
 			case xnametypes.CabinetPDUOutlet:
-				url = "https://" + v.HSMData.RfFQDN + "/" + v.HSMData.PowerStatusURI
+				url = "https://" + v.HSMData.RfFQDN + v.HSMData.PowerStatusURI
 				taskList[activeTasks].Request,_ = http.NewRequest(http.MethodGet,url,nil)
 				taskList[activeTasks].Request.SetBasicAuth(v.BmcUsername,v.BmcPassword)
 				//Hack alert: set the xname and comp type in the req header 
@@ -531,8 +549,8 @@ func getHWStatesFromHW() error {
 		stsBody, stserr := ioutil.ReadAll(taskList[ii].Request.Response.Body)
 
 		if (stserr != nil) {
-			glogger.Errorf("ERROR reading response body for '%s': %v",
-				rqURL,stserr)
+			glogger.Errorf("ERROR reading response body for '%s' '%s': %v",
+				xname,rqURL,stserr)
 			//Power state unknown, but got a response, so mgmt state OK
 			updateHWState(xname,pcsmodel.PowerStateFilter_Undefined,
 				pcsmodel.ManagementStateFilter_available,
@@ -561,7 +579,12 @@ func getHWStatesFromHW() error {
 						"Unable to unmarshal power payload")
 					break
 				}
-				powerState,_ = pcsmodel.ToPowerStateFilter(info.PowerState)
+				powerState,err = pcsmodel.ToPowerStateFilter(info.PowerState)
+				if (err != nil) {
+					glogger.Errorf("Invalid power state from HW: '%s', setting to undefined.",
+						info.PowerState)
+					powerState = pcsmodel.PowerStateFilter_Undefined
+				}
 				updateHWState(xname,powerState,pcsmodel.ManagementStateFilter_available,"")
 
 			case xnametypes.Chassis:
@@ -691,10 +714,10 @@ func updateHWState(xname string, hwState pcsmodel.PowerStateFilter,
 
 	//See if the HW state has changed, and if so, update the ETCD record.
 
-	hwStateStr   := hwState.String()
-	mgmtStateStr := mgmtState.String()
+	hwStateStr   := strings.ToLower(hwState.String())
+	mgmtStateStr := strings.ToLower(mgmtState.String())
 
-	if ((hwStateStr == comp.PSComp.PowerState) && (mgmtStateStr == comp.PSComp.ManagementState)) {
+	if ((hwStateStr == strings.ToLower(comp.PSComp.PowerState)) && (mgmtStateStr == strings.ToLower(comp.PSComp.ManagementState))) {
 		return
 	}
 

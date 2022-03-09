@@ -323,6 +323,32 @@ func main() {
 	//////////////////////////////
 	domain.Init(&domainGlobals)
 
+	dlockTimeout := 60
+	pwrSampleInterval := 30
+	envstr = os.Getenv("PCS_POWER_SAMPLE_INTERVAL")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_POWER_SAMPLE_INTERVAL, defaulting to %d",
+				pwrSampleInterval)
+		} else {
+			pwrSampleInterval = tps
+		}
+	}
+	envstr = os.Getenv("PCS_DISTLOCK_TIMEOUT")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_DISTLOCK_TIMEOUT, defaulting to %d",
+				dlockTimeout)
+		} else {
+			dlockTimeout = tps
+		}
+	}
+	domain.PowerStatusMonitorInit(&domainGlobals,
+		(time.Duration(dlockTimeout)*time.Second),
+		logger.Log,(time.Duration(pwrSampleInterval)*time.Second))
+
 	///////////////////////////////
 	//SIGNAL HANDLING -- //TODO does this need to move up ^ so it happens sooner?
 	//////////////////////////////

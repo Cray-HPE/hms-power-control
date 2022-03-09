@@ -411,8 +411,10 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 					hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
 					hd[comp.ID].PowerStatusURI = comp.OdataID
 					if (comp.RedfishChassisInfo != nil) {
-						hd[comp.ID].PowerActionURI = comp.RedfishChassisInfo.Actions.ChassisReset.Target
-						hd[comp.ID].AllowableActions = comp.RedfishChassisInfo.Actions.ChassisReset.AllowableValues
+						if (comp.RedfishChassisInfo.Actions != nil) {
+							hd[comp.ID].PowerActionURI = comp.RedfishChassisInfo.Actions.ChassisReset.Target
+							hd[comp.ID].AllowableActions = comp.RedfishChassisInfo.Actions.ChassisReset.AllowableValues
+						}
 					}
 
 				case sm.CompEPTypeSystem:	//node

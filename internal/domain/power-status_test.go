@@ -394,7 +394,8 @@ func (suite *PwrStat_TS) Test_PowerStatusMonitor() {
 
 	t.Logf("Testing GetPowerStatus(), filtering for ERROR nodes.")
 
-	pb = GetPowerStatus([]string{"x1234c7s7b0n3"},pcsmodel.PowerStateFilter_Nil,
+	enodes := []string{"x1234c7s7b0n3","x1000c0s0e0","xyzzy"}
+	pb = GetPowerStatus(enodes,pcsmodel.PowerStateFilter_Nil,
 				pcsmodel.ManagementStateFilter_Nil)
 
 	suite.Assert().Equal(http.StatusOK,pb.StatusCode,
@@ -403,17 +404,17 @@ func (suite *PwrStat_TS) Test_PowerStatusMonitor() {
 
 	rcomp = pb.Obj.(pcsmodel.PowerStatus)
 
-	//Should be exactly one component.
-
-	suite.Assert().Equal(1,len(rcomp.Status),
-		"GetPowerStatus() failed, has %d components (expecting 1).",
-			len(rcomp.Status))
+	suite.Assert().Equal(len(enodes),len(rcomp.Status),
+		"GetPowerStatus() failed, has %d components (expecting %d).",
+			len(rcomp.Status),len(enodes))
 
 	if (len(rcomp.Status) > 0) {
-		//Make sure it has an error message
+		//Make sure they all have an error message
 
-		suite.Assert().NotEqual("",rcomp.Status[0].Error,
-			"GetPowerStatus() with bad xname should have failed, did not.")
+		for _,cmp := range(rcomp.Status) {
+			suite.Assert().NotEqual("",cmp.Error,
+				"GetPowerStatus() with unhandled xname/type should have failed, did not.")
+		}
 
 		printCompList(t,"ERROR COMPONENTS",rcomp)
 	}
