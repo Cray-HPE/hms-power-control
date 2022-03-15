@@ -230,7 +230,7 @@ func GetPowerStatus(xnames []string,
 				case xnametypes.ComputeModule: fallthrough
 				case xnametypes.RouterModule:  fallthrough
 				case xnametypes.HSNBoard:      fallthrough
-				case xnametypes.CabinetPDUOutlet:
+				case xnametypes.CabinetPDUPowerConnector:
 					pcomp.Error = "Component not found in component map."
 
 				case xnametypes.HMSTypeInvalid:
@@ -321,7 +321,7 @@ func updateComponentMap() error {
 			case xnametypes.RouterBMC:     fallthrough
 			case xnametypes.Node:          fallthrough
 			case xnametypes.HSNBoard:      fallthrough
-			case xnametypes.CabinetPDUOutlet:
+			case xnametypes.CabinetPDUPowerConnector:
 				_,ok := hwStateMap[v.BaseData.ID]
 				if (!ok) {
 					//New component.
@@ -460,7 +460,7 @@ func getHWStatesFromHW() error {
 			case xnametypes.ComputeModule: fallthrough
 			case xnametypes.RouterModule:  fallthrough
 			case xnametypes.HSNBoard:      fallthrough
-			case xnametypes.CabinetPDUOutlet:
+			case xnametypes.CabinetPDUPowerConnector:
 				if ((v.HSMData.RfFQDN == "") || (v.HSMData.PowerStatusURI == "")) {
 					glogger.Warnf("%s: Missing FQDN or power status URI for %s",
 						fname,k)
