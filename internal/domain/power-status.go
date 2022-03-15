@@ -39,6 +39,7 @@ import (
 	rf "github.com/Cray-HPE/hms-smd/pkg/redfish"
 	trsapi "github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api"
 	"github.com/Cray-HPE/hms-xname/xnametypes"
+	"github.com/Cray-HPE/hms-base"
 
 	"github.com/sirupsen/logrus"
 )
@@ -64,6 +65,13 @@ type componentPowerInfo struct {
 	HSMData     pcshsm.HsmData
 	BmcUsername string
 	BmcPassword string
+}
+
+//Used for local TRS response handling
+
+type rspStuff struct {
+	task *trsapi.HttpTask
+	body []byte
 }
 
 const (
@@ -214,11 +222,14 @@ func GetPowerStatus(xnames []string,
 			pcomp := pcsmodel.PowerStatusComponent{XName: name}
 			htype := xnametypes.GetHMSType(name)
 			switch (htype) {
-				case xnametypes.Chassis:    fallthrough
-				case xnametypes.ChassisBMC: fallthrough
-				case xnametypes.NodeBMC:    fallthrough
-				case xnametypes.RouterBMC:  fallthrough
-				case xnametypes.Node:       fallthrough
+				case xnametypes.Chassis:       fallthrough
+				case xnametypes.ChassisBMC:    fallthrough
+				case xnametypes.NodeBMC:       fallthrough
+				case xnametypes.RouterBMC:     fallthrough
+				case xnametypes.Node:          fallthrough
+				case xnametypes.ComputeModule: fallthrough
+				case xnametypes.RouterModule:  fallthrough
+				case xnametypes.HSNBoard:      fallthrough
 				case xnametypes.CabinetPDUOutlet:
 					pcomp.Error = "Component not found in component map."
 
@@ -297,12 +308,19 @@ func updateComponentMap() error {
 	//Filter on all pertinent component types and add to the component map.
 
 	for _,v := range(compMap) {
+		if (v.BaseData.State == string(base.StateEmpty)) {
+			continue
+		}
+
 		switch (xnametypes.HMSType(v.BaseData.Type)) {
-			case xnametypes.Chassis:    fallthrough
-			case xnametypes.ChassisBMC: fallthrough
-			case xnametypes.NodeBMC:    fallthrough
-			case xnametypes.RouterBMC:  fallthrough
-			case xnametypes.Node:       fallthrough
+			case xnametypes.Chassis:       fallthrough
+			case xnametypes.ChassisBMC:    fallthrough
+			case xnametypes.ComputeModule: fallthrough
+			case xnametypes.RouterModule:  fallthrough
+			case xnametypes.NodeBMC:       fallthrough
+			case xnametypes.RouterBMC:     fallthrough
+			case xnametypes.Node:          fallthrough
+			case xnametypes.HSNBoard:      fallthrough
 			case xnametypes.CabinetPDUOutlet:
 				_,ok := hwStateMap[v.BaseData.ID]
 				if (!ok) {
@@ -403,11 +421,14 @@ func getStatusCode(tp *trsapi.HttpTask) int {
 
 func getHWStatesFromHW() error {
 	var url string
+	var rspErr error
 	var powerState pcsmodel.PowerStateFilter
 
 	fname := "getHWStatesFromHW"
 	hashXName := http.CanonicalHeaderKey("XName")
 	hashCType := http.CanonicalHeaderKey("CType")
+	hashFQDN  := http.CanonicalHeaderKey("FQDN")
+
 	sourceTL := trsapi.HttpTask{Timeout: time.Duration(httpTimeout) * time.Second,}
 
 	//Get vault creds where needed
@@ -426,33 +447,44 @@ func getHWStatesFromHW() error {
 
 	taskList := (*tloc).CreateTaskList(&sourceTL,len(hwStateMap))
 	activeTasks := 0
+	taskIX := 0
 
 	for k,v := range(hwStateMap) {	//key is component XName, val is HSM RF EP info
-		if (v.PSComp.ManagementState == pcsmodel.ManagementStateFilter_unavailable.String()) {
-			continue
-		}
-
 		ctype := xnametypes.GetHMSType(k)
 		switch (ctype) {
-			case xnametypes.NodeBMC:    fallthrough
-			case xnametypes.RouterBMC:  fallthrough
-			case xnametypes.ChassisBMC: fallthrough
-			case xnametypes.Node:       fallthrough
-			case xnametypes.Chassis:    fallthrough
+			case xnametypes.NodeBMC:       fallthrough
+			case xnametypes.RouterBMC:     fallthrough
+			case xnametypes.ChassisBMC:    fallthrough
+			case xnametypes.Node:          fallthrough
+			case xnametypes.Chassis:       fallthrough
+			case xnametypes.ComputeModule: fallthrough
+			case xnametypes.RouterModule:  fallthrough
+			case xnametypes.HSNBoard:      fallthrough
 			case xnametypes.CabinetPDUOutlet:
-				url = "https://" + v.HSMData.RfFQDN + v.HSMData.PowerStatusURI
-				taskList[activeTasks].Request,_ = http.NewRequest(http.MethodGet,url,nil)
-				taskList[activeTasks].Request.SetBasicAuth(v.BmcUsername,v.BmcPassword)
-				//Hack alert: set the xname and comp type in the req header 
-				//so we can use it when processing the responses.
-				taskList[activeTasks].Request.Header.Add(hashXName,k)
-				taskList[activeTasks].Request.Header.Add(hashCType,string(ctype))
-				activeTasks ++
+				if ((v.HSMData.RfFQDN == "") || (v.HSMData.PowerStatusURI == "")) {
+					glogger.Warnf("%s: Missing FQDN or power status URI for %s",
+						fname,k)
+					taskList[taskIX].Ignore = true
+					taskIX ++
+				} else {
+					url = "https://" + v.HSMData.RfFQDN + v.HSMData.PowerStatusURI
+					taskList[taskIX].Request,_ = http.NewRequest(http.MethodGet,url,nil)
+					taskList[taskIX].Request.SetBasicAuth(v.BmcUsername,v.BmcPassword)
+					taskList[taskIX].Request.Header.Set("Accept","*/*")
+					//Hack alert: set the xname and comp type in the req header 
+					//so we can use it when processing the responses.
+					taskList[taskIX].Request.Header.Add(hashXName,k)
+					taskList[taskIX].Request.Header.Add(hashCType,string(ctype))
+					taskList[taskIX].Request.Header.Add(hashFQDN,v.HSMData.RfFQDN)
+					taskIX ++
+					activeTasks ++
+				}
 
 			default:
 				glogger.Errorf("%s: Component type not handled: %s",
 					fname,string(ctype))
-				taskList[activeTasks].Ignore = true
+				taskList[taskIX].Ignore = true
+				taskIX ++
 		}
 	}
 
@@ -465,45 +497,88 @@ func getHWStatesFromHW() error {
 
 	//Pick off responses.
 
+	rspMap := make(map[string]*rspStuff)
 	nDone := 0
+	glogger.Tracef("%s: Waiting for %d/%d tasks.",fname,activeTasks,taskIX)
+
 	for {
 		task := <-rchan
-		glogger.Debugf("%s: Task complete, URL: '%s', status code: %d",
-			fname,task.Request.URL.Path,getStatusCode(task))
+		xnameArr := task.Request.Header[hashXName]
+		fqdnArr  := task.Request.Header[hashFQDN]
+		xname := ""
+		fqdn  := ""
+		if ((len(xnameArr) > 0) && (len(fqdnArr) > 0)) {
+			xname = xnameArr[0]
+			fqdn  = fqdnArr[0]
+		}
+		if (xname == "") {
+			glogger.Errorf("%s: INTERNAL ERROR: xname not found in task headers! Can't process response.",
+				fname)
+		} else {
+			rmp := rspStuff{task: task,}
+
+			glogger.Tracef("%s: Task %d complete, xname: %s, FQDN: %s, URL: '%s', status code: %d",
+				fname,nDone+1,xname,fqdn,task.Request.URL.Path,getStatusCode(task))
+
+			if (task.Request.Response != nil) {
+				glogger.Tracef("%s: Response received from %s,%s,%s, status: %d",
+					fname,xname,fqdn,task.Request.URL.Path,
+					task.Request.Response.StatusCode)
+
+				//TODO: an optimization would be to unmarshall stuff here.
+				//But, that makes the code quite a bit messier and scattered.
+				rmp.body,rspErr = ioutil.ReadAll(task.Request.Response.Body)
+				if (rspErr != nil) {
+					glogger.Errorf("%s: ERROR reading response body for '%s' '%s' '%s': %v",
+						fname,xname,fqdn,task.Request.URL.Path,rspErr)
+				}
+			} else {
+				rspErr = nil
+				if (task.Err != nil) {
+					rspErr = *task.Err
+				}
+				glogger.Errorf("%s: ERROR no response body for '%s' '%s' '%s', err: %v",
+					fname,xname,fqdn,task.Request.URL.Path,rspErr)
+			}
+			rspMap[xname] = &rmp
+		}
+
 		nDone++
 		if (nDone >= activeTasks) {
 			break
 		}
 	}
+	(*tloc).Close(&taskList)
+	glogger.Tracef("%s: DONE Waiting for tasks.",fname)
 
 	//For each response, get the XName via Request.Header["XName"].
 	//Get it's type via Request.Header["CType"].
 
-	for ii,_ := range(taskList) {
-		if (taskList[ii].Ignore) {
+	for xname,v := range(rspMap) {
+		if (v.task.Ignore) {
 			continue
 		}
 
 		//Grab the XName and component type from the header (put into
 		//place in the requests above).
 		needState := false
-		xnameArr := taskList[ii].Request.Header[hashXName]
-		ctypeArr := taskList[ii].Request.Header[hashCType]
-		if ((len(xnameArr) == 0) || (len(ctypeArr) == 0)) {
-			return fmt.Errorf("Internal error: response headers for xname and/or ctype are empty: '%v', '%v'",
-				xnameArr,ctypeArr)
+		ctypeArr := v.task.Request.Header[hashCType]
+		fqdnArr  := v.task.Request.Header[hashFQDN]
+		if ((len(ctypeArr) == 0) || (len(fqdnArr) == 0)) {
+			return fmt.Errorf("Internal error: response headers for xname/ctype/fqdn are empty: '%v', '%v'",
+				ctypeArr,fqdnArr)
 		}
-		xname := xnameArr[0]
 		ctype := ctypeArr[0]
+		fqdn  := fqdnArr[0]
 
-		if (taskList[ii].Request.Response == nil) {
+		if (v.task.Request.Response == nil) {
 			//TODO: should this "ride through" transient failures?
 			updateHWState(xname,pcsmodel.PowerStateFilter_Undefined,
 				pcsmodel.ManagementStateFilter_undefined,"No response from target")
 			continue
 		}
 
-		scode := getStatusCode(&taskList[ii])
+		scode := getStatusCode(v.task)
 
 		switch (scode) {
 			case http.StatusBadRequest:          fallthrough
@@ -518,12 +593,12 @@ func getHWStatesFromHW() error {
 					fname,xname,scode,http.StatusText(scode))
 				updateHWState(xname,pcsmodel.PowerStateFilter_Undefined,
 					pcsmodel.ManagementStateFilter_undefined,
-					taskList[ii].Request.Response.Status)
+					v.task.Request.Response.Status)
 
 			case http.StatusUnauthorized:
 				updateHWState(xname,pcsmodel.PowerStateFilter_Undefined,
 					pcsmodel.ManagementStateFilter_undefined,
-					taskList[ii].Request.Response.Status)
+					v.task.Request.Response.Status)
 				//Insure the next sweep gets new creds from Vault.
 				hwStateMap[xname].BmcUsername = ""
 				hwStateMap[xname].BmcPassword = ""
@@ -532,7 +607,7 @@ func getHWStatesFromHW() error {
 				if (scode >= 206) {
 					updateHWState(xname,pcsmodel.PowerStateFilter_Undefined,
 						pcsmodel.ManagementStateFilter_undefined,
-						taskList[ii].Request.Response.Status)
+						v.task.Request.Response.Status)
 				} else {
 					needState = true
 				}
@@ -545,12 +620,11 @@ func getHWStatesFromHW() error {
 
 		//At this point we have to actually decode the returned state info.
 
-		rqURL := taskList[ii].Request.URL.Path
-		stsBody, stserr := ioutil.ReadAll(taskList[ii].Request.Response.Body)
+		rqURL := v.task.Request.URL.Path
 
-		if (stserr != nil) {
-			glogger.Errorf("ERROR reading response body for '%s' '%s': %v",
-				xname,rqURL,stserr)
+		if (string(v.body) == "") {
+			glogger.Errorf("%s: ERROR no response body for '%s' '%s' '%s'",
+				fname,xname,fqdn,rqURL)
 			//Power state unknown, but got a response, so mgmt state OK
 			updateHWState(xname,pcsmodel.PowerStateFilter_Undefined,
 				pcsmodel.ManagementStateFilter_available,
@@ -569,10 +643,10 @@ func getHWStatesFromHW() error {
 			case xnametypes.Node:
 				//Nodes: look for "PowerState" in response payload.
 				var info rf.ComputerSystem
-				err = json.Unmarshal(stsBody, &info)
+				err = json.Unmarshal(v.body, &info)
 				if (err != nil) {
-					glogger.Errorf("ERROR unmarshalling power payload for '%s': %v",
-						rqURL,err)
+					glogger.Errorf("%s: ERROR unmarshalling power payload for '%s': %v",
+						fname,rqURL,err)
 					//Power state unknown, but got a response, so mgmt state OK
 					updateHWState(xname,pcsmodel.PowerStateFilter_Undefined,
 						pcsmodel.ManagementStateFilter_available,
@@ -581,19 +655,21 @@ func getHWStatesFromHW() error {
 				}
 				powerState,err = pcsmodel.ToPowerStateFilter(info.PowerState)
 				if (err != nil) {
-					glogger.Errorf("Invalid power state from HW: '%s', setting to undefined.",
-						info.PowerState)
+					glogger.Errorf("%s: Invalid power state from HW: '%s', setting to undefined.",
+						fname,info.PowerState)
 					powerState = pcsmodel.PowerStateFilter_Undefined
 				}
 				updateHWState(xname,powerState,pcsmodel.ManagementStateFilter_available,"")
 
-			case xnametypes.Chassis:
-				//Mt Chassis: PowerState is for rect status
+			case xnametypes.Chassis:       fallthrough
+			case xnametypes.ComputeModule: fallthrough
+			case xnametypes.RouterModule:  fallthrough
+			case xnametypes.HSNBoard:
 				var info rf.Chassis
-				err = json.Unmarshal(stsBody, &info)
+				err = json.Unmarshal(v.body, &info)
 				if (err != nil) {
-					glogger.Errorf("ERROR unmarshalling power payload for '%s': %v",
-						rqURL,err)
+					glogger.Errorf("%s: ERROR unmarshalling power payload for '%s': %v",
+						fname,rqURL,err)
 					//Power state unknown, but got a response, so mgmt state OK
 					updateHWState(xname,pcsmodel.PowerStateFilter_Undefined,
 						pcsmodel.ManagementStateFilter_available,
@@ -606,10 +682,10 @@ func getHWStatesFromHW() error {
 
 			case xnametypes.CabinetPDUPowerConnector:
 				var info rf.Outlet
-				err = json.Unmarshal(stsBody, &info)
+				err = json.Unmarshal(v.body, &info)
 				if (err != nil) {
-					glogger.Errorf("ERROR unmarshalling power payload for '%s': %v",
-						rqURL,err)
+					glogger.Errorf("%s: ERROR unmarshalling power payload for '%s': %v",
+						fname,rqURL,err)
 					//Power state unknown, but got a response, so mgmt state OK
 					updateHWState(xname,pcsmodel.PowerStateFilter_Undefined,
 						pcsmodel.ManagementStateFilter_available,
@@ -619,7 +695,7 @@ func getHWStatesFromHW() error {
 				powerState,_ = pcsmodel.ToPowerStateFilter(info.PowerState)
 				updateHWState(xname,powerState,pcsmodel.ManagementStateFilter_available,"")
 			default:
-				glogger.Errorf("Error: %s: unknown component type.", ctype)
+				glogger.Errorf("%s: Error: %s: unknown component type.",fname,ctype)
 				updateHWState(xname,pcsmodel.PowerStateFilter_Undefined,
 					pcsmodel.ManagementStateFilter_available,
 					"Unknown component type")
