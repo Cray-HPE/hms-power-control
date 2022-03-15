@@ -24,6 +24,7 @@ package storage
 
 import (
 	"fmt"
+	"os"
 	"sync"
 	"time"
 	"github.com/sirupsen/logrus"
@@ -49,9 +50,47 @@ func fromStorageETCD(m *ETCDStorage) *ETCDLockProvider {
 	return &ETCDLockProvider{Logger: m.Logger, mutex: m.mutex, kvHandle: m.kvHandle}
 }
 
-func (d *ETCDLockProvider) Init(Logger *logrus.Logger) error {
-	e := toStorageETCD(d)
-	return e.Init(Logger)
+func (e *ETCDLockProvider) Init(Logger *logrus.Logger) error {
+	var kverr error
+
+	if Logger == nil {
+		e.Logger = logrus.New()
+	} else {
+		e.Logger = Logger
+	}
+
+	e.mutex = &sync.Mutex{}
+	retries := kvRetriesDefault
+	host, hostExists := os.LookupEnv("ETCD_HOST")
+	if !hostExists {
+		e.kvHandle = nil
+		return fmt.Errorf("No ETCD HOST specified, can't open ETCD.")
+	}
+	port, portExists := os.LookupEnv("ETCD_PORT")
+	if !portExists {
+		e.kvHandle = nil
+		return fmt.Errorf("No ETCD PORT specified, can't open ETCD.")
+	}
+
+	kvURL := fmt.Sprintf("http://%s:%s", host, port)
+	e.Logger.Info(kvURL)
+
+	etcOK := false
+	for ix := 1; ix <= retries; ix++ {
+		e.kvHandle, kverr = hmetcd.Open(kvURL, "")
+		if kverr != nil {
+			e.Logger.Error("ERROR opening connection to ETCD (attempt ", ix, "):", kverr)
+		} else {
+			etcOK = true
+			e.Logger.Info("ETCD connection succeeded.")
+			break
+		}
+	}
+	if !etcOK {
+		e.kvHandle = nil
+		return fmt.Errorf("ETCD connection attempts exhausted, can't connect.")
+	}
+	return nil
 }
 
 func (d *ETCDLockProvider) InitFromStorage(m interface{}, Logger *logrus.Logger) {

@@ -10,6 +10,8 @@ services:
       dockerfile: Dockerfile.unittesting.Dockerfile
     environment:
       - SMS_SERVER=http://cray-smd:27779
+      - VAULT_ENABLED=true
+      - VAULT_KEYPATH=hms-creds
     depends_on:
       - etcd
       - cray-smd

@@ -54,6 +54,7 @@ type DOMAIN_GLOBALS struct {
 	RFTransportReady  *bool
 	VaultEnabled      bool
 	CS                *credstore.CredStoreProvider
+	DistLock          *storage.DistributedLockProvider
 }
 
 func (g *DOMAIN_GLOBALS) NewGlobals(base *trs_http_api.HttpTask,
@@ -64,7 +65,8 @@ func (g *DOMAIN_GLOBALS) NewGlobals(base *trs_http_api.HttpTask,
                                     rfClientLock *sync.RWMutex,
                                     running *bool, dsp *storage.StorageProvider,
                                     hsm *hsm.HSMProvider, vaultEnabled bool,
-                                    credStore *credstore.CredStoreProvider) {
+                                    credStore *credstore.CredStoreProvider,
+                                    distLock *storage.DistributedLockProvider) {
 	g.BaseTRSTask = base
 	g.RFTloc = tlocRF
 	g.HSMTloc = tlocSVC
@@ -76,4 +78,5 @@ func (g *DOMAIN_GLOBALS) NewGlobals(base *trs_http_api.HttpTask,
 	g.HSM = hsm
 	g.VaultEnabled = vaultEnabled
 	g.CS = credStore
+	g.DistLock = distLock
 }

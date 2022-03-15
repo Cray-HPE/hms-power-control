@@ -65,6 +65,9 @@ func ToPowerStateFilter(psf string) (PSF PowerStateFilter, err error) {
 }
 
 func (psf PowerStateFilter) String() string {
+	if (int(psf) < 0) {
+		return "invalid"
+	}
 	return [...]string{"on", "off", "undefined"}[psf]
 }
 
@@ -78,6 +81,7 @@ const (
 	ManagementStateFilter_Nil         ManagementStateFilter = iota - 1
 	ManagementStateFilter_available                         // available = 0
 	ManagementStateFilter_unavailable                       //  1
+	ManagementStateFilter_undefined                         //  2
 )
 
 func ToManagementStateFilter(msf string) (MSF ManagementStateFilter, err error) {
@@ -102,7 +106,10 @@ func ToManagementStateFilter(msf string) (MSF ManagementStateFilter, err error) 
 }
 
 func (msf ManagementStateFilter) String() string {
-	return [...]string{"available", "unavailable"}[msf]
+	if (int(msf) < 0) {
+		return "invalid"
+	}
+	return [...]string{"available", "unavailable", "undefined"}[msf]
 }
 
 //https://levelup.gitconnected.com/implementing-enums-in-golang-9537c433d6e2
@@ -116,6 +123,7 @@ type PowerStatusComponent struct {
 	ManagementState           string   `json:"managementState"`
 	Error                     string   `json:"error"`
 	SupportedPowerTransitions []string `json:"supportedPowerTransitions"`
+	LastUpdated               string   `json:"LastUpdated"` //RFC3339Nano
 }
 
 type PowerStatus struct {

@@ -70,6 +70,7 @@ var (
 	DSP                 storage.StorageProvider
 	HSM                 hsm.HSMProvider
 	CS                  credstore.CredStoreProvider
+	DLOCK               storage.DistributedLockProvider
 )
 
 func main() {
@@ -191,7 +192,7 @@ func main() {
 	rfClient, _ = hms_certs.CreateRetryableHTTPClientPair("", dfltMaxHTTPTimeout, dfltMaxHTTPRetries, dfltMaxHTTPBackoff)
 	svcClient, _ = hms_certs.CreateRetryableHTTPClientPair("", dfltMaxHTTPTimeout, dfltMaxHTTPRetries, dfltMaxHTTPBackoff)
 
-	//STORAGE CONFIGURATION
+	//STORAGE/DISTLOCK CONFIGURATION
 	envstr = os.Getenv("STORAGE")
 	if envstr == "" || envstr == "MEMORY" {
 		tmpStorageImplementation := &storage.MEMStorage{
@@ -199,14 +200,22 @@ func main() {
 		}
 		DSP = tmpStorageImplementation
 		logger.Log.Info("Storage Provider: In Memory")
+		tmpDistLockImplementation := &storage.MEMLockProvider{}
+		DLOCK = tmpDistLockImplementation
+		logger.Log.Info("Distributed Lock Provider: In Memory")
 	} else if envstr == "ETCD" {
 		tmpStorageImplementation := &storage.ETCDStorage{
 			Logger: logger.Log,
 		}
 		DSP = tmpStorageImplementation
 		logger.Log.Info("Storage Provider: ETCD")
+		tmpDistLockImplementation := &storage.ETCDLockProvider{}
+		DLOCK = tmpDistLockImplementation
+		logger.Log.Info("Distributed Lock Provider: ETCD")
 	}
 	DSP.Init(logger.Log)
+	DLOCK.Init(logger.Log)
+	//TODO: there should be a Ping() to insure dist lock mechanism is alive
 
 	//Hardware State Manager CONFIGURATION
 	HSM = &hsm.HSMv2{}
@@ -219,6 +228,7 @@ func main() {
 		SVCHttpClient: svcClient,
 	}
 	HSM.Init(&hsmGlob)
+	//TODO: there should be a Ping() to insure HSM is alive
 
 	//Vault CONFIGURATION
 	tmpCS := &credstore.VAULTv0{}
@@ -233,7 +243,8 @@ func main() {
 	//DOMAIN CONFIGURATION
 	var domainGlobals domain.DOMAIN_GLOBALS
 	domainGlobals.NewGlobals(&BaseTRSTask, &TLOC_rf, &TLOC_svc, rfClient, svcClient,
-	                         rfClientLock, &Running, &DSP, &HSM, VaultEnabled, &CS)
+	                         rfClientLock, &Running, &DSP, &HSM, VaultEnabled,
+	                         &CS, &DLOCK)
 
 	//Wait for vault PKI to respond for CA bundle.  Once this happens, re-do
 	//the globals.  This goroutine will run forever checking if the CA trust
@@ -312,6 +323,32 @@ func main() {
 	//////////////////////////////
 	domain.Init(&domainGlobals)
 
+	dlockTimeout := 60
+	pwrSampleInterval := 30
+	envstr = os.Getenv("PCS_POWER_SAMPLE_INTERVAL")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_POWER_SAMPLE_INTERVAL, defaulting to %d",
+				pwrSampleInterval)
+		} else {
+			pwrSampleInterval = tps
+		}
+	}
+	envstr = os.Getenv("PCS_DISTLOCK_TIMEOUT")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_DISTLOCK_TIMEOUT, defaulting to %d",
+				dlockTimeout)
+		} else {
+			dlockTimeout = tps
+		}
+	}
+	domain.PowerStatusMonitorInit(&domainGlobals,
+		(time.Duration(dlockTimeout)*time.Second),
+		logger.Log,(time.Duration(pwrSampleInterval)*time.Second))
+
 	///////////////////////////////
 	//SIGNAL HANDLING -- //TODO does this need to move up ^ so it happens sooner?
 	//////////////////////////////
@@ -342,7 +379,6 @@ func main() {
 		close(idleConnsClosed)
 	}()
 
-	
 
 	///////////////////////
 	// START
