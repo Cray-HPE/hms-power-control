@@ -333,6 +333,73 @@ paths:
             application/error:
               schema:
                 $ref: '#/components/schemas/Problem7807'
+  /liveness:
+    get:
+      tags:
+        - cli_ignore
+      summary: Get liveness status of the service
+      description: Get liveness status of the service
+      x-private: true
+      responses:
+        '204':
+          description: >-
+            [No
+            Content](http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.5)
+            Network API call success
+        '503':
+          description: The service is not taking HTTP requests
+  /readiness:
+    get:
+      tags:
+        - cli_ignore
+      summary: Get readiness status of the service
+      description: Get readiness status of the service
+      x-private: true
+      responses:
+        '204':
+          description: >-
+            [No
+            Content](http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.5)
+            Network API call success
+        '503':
+          description: The service is not taking HTTP requests
+  /health:
+    get:
+      tags:
+        - cli_ignore
+      summary: Query the health of the service
+      description: >-
+        The `health` resource returns health information about the PCS service
+        and its dependencies.  This actively checks the connection between 
+        PCS and the following:
+          * KV store
+          * Distributed locking subsystem
+          * Hardware State Manager
+          * Vault
+          * Task Runner Service status and mode
+
+
+        This is primarily intended as a diagnostic tool to investigate the
+        functioning of the PCS service.
+      responses:
+        '200':
+          description: >-
+            [OK](http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1)
+            Network API call success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/health_rsp'
+        '405':
+          description: >-
+            Operation Not Permitted.  For /health, only GET operations are allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
 
 components:
   schemas:
@@ -737,3 +804,33 @@ components:
           type: integer
           example: 250
           description: Typical power consumption of each node during hardware initialization, specified in watts
+
+    health_rsp:
+      type: object
+      properties:
+        KvStore:
+          description: Status of the KV Store.
+          type: string
+        DistLocking:
+          description: Status of the distributed locking mechanism
+          type: string
+        StateManager:
+          description: Status of the connection to the Hardware State Manager.
+          type: string
+        Vault:
+          description: Status of the connection to Vault.
+          type: string
+        TaskRunner:
+          description: TRS status and mode (local or remote/worker).
+      example:
+        KvStore: 'connected, responsive'
+        StateManager: 'connected, responsive'
+        BackingStore: 'connected, responsive'
+        Vault: 'connected, responsive'
+        TaskRunnerMode: 'connected, responsive, local mode'
+      required:
+        - KvStore
+        - DistLocking
+        - StateManager
+        - Vault
+        - TaskRunner

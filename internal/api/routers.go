@@ -143,4 +143,22 @@ var routes = Routes{
 		"/power-cap/{taskID}",
 		GetPowerCapQuery,
 	},
+	Route{
+		"GetLiveness",
+		strings.ToUpper("get"),
+		"/liveness",
+		GetLiveness,
+	},
+	Route{
+		"GetReadiness",
+		strings.ToUpper("get"),
+		"/readiness",
+		GetReadiness,
+	},
+	Route{
+		"GetHealth",
+		strings.ToUpper("get"),
+		"/health",
+		GetHealth,
+	},
 }
