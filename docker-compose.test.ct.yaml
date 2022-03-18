@@ -1,0 +1,226 @@
+version: '3.7'
+#THIS environment sets up all of PCS
+#  All dependencies -> HSM (vault, hm-collector, kafka), RTS (red fish sims) are all setup and active.
+#  The PCS binary is active.
+#  NO ports are exposed to the local system.
+#  This will be used for CT testing.
+networks:
+  pcs:
+
+services:
+  ct-tests-functional-wait-for-smd:
+    build:
+      context: testing/ct/
+      dockerfile: Dockerfile.wait-for-smd.Dockerfile
+    depends_on:
+      - cray-power-control
+      - cray-smd
+    networks:
+      - pcs
+  ct-tests-functional:
+    build:
+      context: testing/ct/
+      dockerfile: Dockerfile
+    depends_on:
+      - cray-power-control
+      - cray-smd
+    entrypoint: entrypoint.sh functional -c /src/app/tavern_global_config_ct_test.yaml -p /src/app
+    networks:
+      - pcs
+  ct-tests-smoke:
+    build:
+      context: testing/ct/
+      dockerfile: Dockerfile
+    #TODO: don't know if these are needed
+    environment:
+      - API_URL=http://cray-power-control
+      - API_SERVER_PORT=:28007
+    depends_on:
+      - cray-power-control
+    entrypoint: entrypoint.sh smoke -f smoke.json -u http://cray-power-control:28007
+    networks:
+      - pcs
+  #TODO: delete this
+  #integration-tests:
+  #  build:
+  #    context: .
+  #    dockerfile: Dockerfile.integration.tests.Dockerfile
+  #  environment:
+  #    - API_URL=http://cray-power-control
+  #    - API_SERVER_PORT=:28007
+  #  depends_on:
+  #    - cray-power-control
+  #  networks:
+  #    - pcs  
+  etcd:
+    image: artifactory.algol60.net/quay.io/coreos/etcd:v3.4.7
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+    networks:
+      - pcs
+  cray-power-control:
+    build:
+      context: .
+      dockerfile: Dockerfile.integration.Dockerfile
+    environment:
+      - SMS_SERVER=http://cray-smd:27779
+      - CRAY_VAULT_AUTH_PATH=auth/token/create
+      - CRAY_VAULT_ROLE_FILE=configs/namespace
+      - CRAY_VAULT_JWT_FILE=configs/token
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=hms
+      - VAULT_KEYPATH=hms-creds
+      - VAULT_SKIP_VERIFY=true
+      - VAULT_ENABLED=true
+      - LOG_LEVEL=DEBUG
+      - TRS_IMPLEMENTATION=LOCAL
+      - HSMLOCK_ENABLED=true
+      - STORAGE=ETCD
+      - ETCD_HOST=etcd
+      - ETCD_PORT=2379
+    depends_on:
+      - cray-smd
+      - etcd
+    networks:
+      - pcs
+  vault:
+    hostname: vault
+    image: artifactory.algol60.net/docker.io/library/vault:1.5.5
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=hms
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+      - VAULT_ADDR=http://127.0.0.1:8200
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - pcs
+  vault-kv-enabler:
+    image: artifactory.algol60.net/csm-docker/stable/vault-kv-enabler:1.13.4
+    environment:
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=hms
+      - KV_STORES=hms-creds
+    depends_on:
+      - vault
+    networks:
+      - pcs
+  redis:
+    image: artifactory.algol60.net/docker.io/library/redis:5.0-alpine3.12
+    hostname: hms-redfish-redis
+    networks:
+      - pcs
+  hmsds-postgres:
+    hostname: hmsds-postgres
+    image: artifactory.algol60.net/docker.io/library/postgres:11-alpine
+    environment:
+      - POSTGRES_PASSWORD=hmsdsuser
+      - POSTGRES_USER=hmsdsuser
+      - POSTGRES_DB=hmsds
+    networks:
+      - pcs
+  cray-smd-init:
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.30.9
+    environment:
+      - SMD_DBHOST=hmsds-postgres
+      - SMD_DBPORT=5432
+    depends_on:
+      - hmsds-postgres
+    networks:
+      - pcs
+    command: /entrypoint.sh smd-init
+  cray-smd:
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.30.9
+    environment:
+      - POSTGRES_HOST=hmsds-postgres
+      - POSTGRES_PORT=5432
+      - RF_MSG_HOST=kafka:9092:cray-dmtf-resource-event
+      - CRAY_VAULT_AUTH_PATH=auth/token/create
+      - CRAY_VAULT_ROLE_FILE=configs/namespace
+      - CRAY_VAULT_JWT_FILE=configs/token
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=hms
+      - VAULT_KEYPATH=hms-creds
+      - SMD_WVAULT=true
+      - SMD_RVAULT=true
+    hostname: cray-smd
+    depends_on:
+      - cray-smd-init
+      - vault
+    networks:
+      - pcs
+  zookeeper:
+    image: artifactory.algol60.net/docker.io/confluentinc/cp-zookeeper:6.1.1
+    hostname: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - pcs
+  kafka:
+    image: artifactory.algol60.net/docker.io/confluentinc/cp-kafka:6.1.1
+    hostname: kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    networks:
+      - pcs
+  cray-hms-hmcollector:
+    image: artifactory.algol60.net/csm-docker/stable/hms-hmcollector:2.12.4
+    environment:
+      - LOG_LEVEL=TRACE
+      - SM_URL=http://cray-smd:27779
+      - POLLING_ENABLED=false
+      - RF_SUBSCRIBE_ENABLED=false
+      - REST_PORT=80
+      - VAULT_TOKEN=hms
+      - CRAY_VAULT_JWT_FILE=configs/token
+      - CRAY_VAULT_ROLE_FILE=configs/namespace
+      - CRAY_VAULT_AUTH_PATH=auth/token/create
+      - VAULT_ADDR=http://vault:8200
+    volumes:
+      - ./configs/kafka_brokers.json:/configs/kafka_brokers.json
+      - ./configs/namespace:/configs/namespace
+      - ./configs/token:/configs/token
+    networks:
+      - pcs
+  redfish-simulator:
+    image: artifactory.algol60.net/csm-docker/stable/hms-redfish-translation-service:1.13.3
+    environment:
+      - SCHEMA_VERSION=2019.1
+      - LOG_LEVEL=TRACE
+      - PRIVILEGE_REGISTRY_VERSION=1.0.4
+      - SCRIPT_DIR_PREFIX=/tmp/redfish
+      - VAULT_TOKEN=hms
+      - REDIS_HOSTNAME=redis
+      - REDIS_PORT=6379
+      - VAULT_ADDR=http://vault:8200
+      - CRAY_VAULT_JWT_FILE=configs/token
+      - CRAY_VAULT_ROLE_FILE=configs/namespace
+      - CRAY_VAULT_AUTH_PATH=auth/token/create
+      - HTTPS_CERT=configs/rts.crt
+      - HTTPS_KEY=configs/rts.key
+      - BACKEND_HELPER=RFSimulator
+      - PERIODIC_SLEEP=120
+      - COLLECTOR_URL=http://cray-hms-hmcollector
+      - HSM_URL=http://cray-smd:27779
+      - HMS_VAULT_KEYPATH=hms-creds
+      - RF_USERNAME=root
+      - RF_PASSWORD=testpassword
+      - RF_SIMULATOR_XNAMES=x0c0s1b0,x0c0s2b0
+    depends_on:
+      - redis
+      - vault
+      - cray-smd
+    networks:
+      pcs:
+        aliases:
+          - x0c0s1b0
+          - x0c0s2b0

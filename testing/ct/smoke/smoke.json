@@ -1,0 +1,14 @@
+{
+  "smoke_test_name": "pcs-smoke-tests",
+  "default_base_url": "http://cray-power-control/",
+  "test_paths": [
+    {
+      "path": "snapshots",
+      "path": "power-status",
+      "expected_status_code": 202,
+      "method": "GET",
+      "body": null,
+      "headers": {}
+    }
+  ]
+}
