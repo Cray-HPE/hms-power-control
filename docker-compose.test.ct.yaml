@@ -31,10 +31,6 @@ services:
     build:
       context: testing/ct/
       dockerfile: Dockerfile
-    #TODO: don't know if these are needed
-    environment:
-      - API_URL=http://cray-power-control
-      - API_SERVER_PORT=:28007
     depends_on:
       - cray-power-control
     entrypoint: entrypoint.sh smoke -f smoke.json -u http://cray-power-control:28007

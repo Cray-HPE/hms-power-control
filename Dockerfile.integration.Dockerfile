@@ -52,6 +52,11 @@ LABEL maintainer="Hewlett Packard Enterprise"
 EXPOSE 28007
 STOPSIGNAL SIGTERM
 
+#TODO
+RUN set -ex \
+    && apk -U upgrade \
+    && apk add curl
+
 # Get the hms-power-control from the builder stage.
 COPY --from=builder /usr/local/bin/hms-power-control /usr/local/bin/.
 COPY configs configs
