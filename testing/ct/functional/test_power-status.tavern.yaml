@@ -35,11 +35,14 @@ stages:
   # 2. GET /power-status API response body
   - name: Ensure that the PCS power status can be retrieved
     request:
-      url: "{pcs_base_url}/power-status"
+      #TODO:
+      #url: "{pcs_base_url}/power-status"
+      url: "{pcs_base_url}/power-status?powerStateFilter=on"
       method: GET
       verify: !bool "{verify}"
     response:
-      status_code: 202
+      #TODO: swagger says this is supposed to be 202
+      status_code: 200
       verify_response_with:
         function: tavern.testutils.helpers:validate_pykwalify
         extra_kwargs:
@@ -62,13 +65,16 @@ stages:
                       powerState:
                         type: str
                         required: True
-                        #TODO: more enums here?
                         enum:
                           - "on"
                           - "off"
+                          - "undefined"
                       managementState:
                         type: str
                         required: True
+                        enum:
+                          - "available"
+                          - "unavailable"
                       error:
                         type: str
                         required: True

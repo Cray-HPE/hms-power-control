@@ -61,27 +61,28 @@ docker-compose build --no-cache
 docker-compose up -d cray-power-control #this will stand up everything except for the integration test container
 
 # Run the CT smoke tests
-#TODO: getting the following smoke test failure with all optional parameters I've tried:
-# {
-#   "type": "about:blank",
-#   "detail": "invalid PowerStateFilter type ",
-#   "status": 400,
-#   "title": "Bad Request"
-# }
+#TODO: Bug: /power-status swagger says 202 on success, 200 is actually returned
+#TODO: Bug: /power-status swagger says all parameters are optional but seems to be requiring a powerStateFilter
 #docker-compose up --exit-code-from ct-tests-smoke ct-tests-smoke
 #test_result=$?
 #echo "Cleaning up containers..."
 #if [[ $test_result -ne 0 ]]; then
 #  echo "CT smoke tests FAILED!"
-#  cleanup 1
+#  #TODO
+#  #cleanup 1
 #fi
 
 # Run the CT functional tests
+#TODO: /power-status returning {"status":null} since no hardware is present, need to mock this?
 docker-compose up -d ct-tests-functional-wait-for-smd
 #TODO: failing on this docker wait
 docker wait ${COMPOSE_PROJECT_NAME}_ct-tests-functional-wait-for-smd_1
-#TODO: add cleanup/exit if wait-for-smd times out
-docker logs ${COMPOSE_PROJECT_NAME}_ct-tests-functional-wait-for-smd_1
+DOCKER_WAIT_FOR_SMD_LOGS=$(docker logs ${COMPOSE_PROJECT_NAME}_ct-tests-functional-wait-for-smd_1)
+DOCKER_WAIT_CHECK=$(echo "${DOCKER_WAIT_FOR_SMD_LOGS}" | grep -E "Failed to connect for [0-9]+, exiting")
+if [[ -n "${DOCKER_WAIT_CHECK}" ]]; then
+    echo "Timed out waiting for SMD to be populated, exiting..."
+    cleanup 1
+fi
 
 docker-compose up --exit-code-from ct-tests-functional ct-tests-functional
 test_result=$?

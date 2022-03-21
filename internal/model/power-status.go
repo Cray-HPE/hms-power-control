@@ -44,7 +44,7 @@ const (
 func ToPowerStateFilter(psf string) (PSF PowerStateFilter, err error) {
 
 	if len(psf) == 0 {
-		err = errors.New("invalid PowerStateFilter type " + psf)
+		err = errors.New("invalid powerStateFilter type: " + psf)
 		PSF = PowerStateFilter_Nil
 		return
 	}
@@ -58,7 +58,7 @@ func ToPowerStateFilter(psf string) (PSF PowerStateFilter, err error) {
 		PSF = PowerStateFilter_Undefined
 		err = nil
 	} else {
-		err = errors.New("invalid PowerStateFilter type " + psf)
+		err = errors.New("invalid powerStateFilter type: " + psf)
 		PSF = PowerStateFilter_Nil
 	}
 	return
