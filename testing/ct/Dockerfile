@@ -1,7 +1,6 @@
-FROM artifactory.algol60.net/csm-docker/stable/hms-test:3.0.0
-
-RUN set -ex \
-    && apk -U upgrade
+#TODO
+#FROM artifactory.algol60.net/csm-docker/stable/hms-test:3.0.0
+FROM artifactory.algol60.net/csm-docker/unstable/hms-test:3.0.0-20220323185800.872343d
 
 COPY smoke/ /src/app
 COPY functional/ /src/app
