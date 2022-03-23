@@ -1,7 +1,7 @@
 FROM artifactory.algol60.net/csm-docker/stable/hms-test:3.0.0
 
 RUN set -ex \
-    && apk -U upgrade \
+    && apk -U upgrade
 
 COPY smoke/ /src/app
 COPY functional/ /src/app
