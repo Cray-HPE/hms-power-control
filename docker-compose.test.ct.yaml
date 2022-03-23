@@ -201,6 +201,9 @@ services:
       - RF_USERNAME=root
       - RF_PASSWORD=testpassword
       - RF_SIMULATOR_XNAMES=x0c0s1b0,x0c0s2b0
+      # TODO: can node xnames be used here for power capping?
+      # /State/Components wasn't being populated when I tried
+      #- RF_SIMULATOR_XNAMES=x0c0s1b0n0,x0c0s2b0n0
     depends_on:
       - redis
       - vault
