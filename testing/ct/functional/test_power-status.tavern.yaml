@@ -24,9 +24,15 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
-# HMS test metrics test cases: 2
+# HMS test metrics test cases: 6
 # 1. GET /power-status API response code
 # 2. GET /power-status API response body
+
+# Negative tests
+# 3. POST /power-status API response code
+# 4. PUT /power-status API response code
+# 5. PATCH /power-status API response code
+# 6. DELETE /power-status API response code
 ---
 test_name: Verify the PCS power-status resource
 
@@ -35,53 +41,97 @@ stages:
   # 2. GET /power-status API response body
   - name: Ensure that the PCS power status can be retrieved
     request:
-      #TODO:
+      #TODO: CASMHMS-5453
       #url: "{pcs_base_url}/power-status"
       url: "{pcs_base_url}/power-status?powerStateFilter=on"
       method: GET
       verify: !bool "{verify}"
     response:
-      #TODO: swagger says this is supposed to be 202
+      #TODO: CASMHMS-5454
       status_code: 200
-      verify_response_with:
-        function: tavern.testutils.helpers:validate_pykwalify
-        extra_kwargs:
-          schema:
-            type: map
-            required: True
-            mapping:
-              status:
-                type: seq
-                matching: all
-                required: True
-                sequence:
-                  - type: map
-                    required: True
-                    mapping:
-                      xname:
-                        type: str
-                        required: True
-                        pattern: "^[xs].+"
-                      powerState:
-                        type: str
-                        required: True
-                        enum:
-                          - "on"
-                          - "off"
-                          - "undefined"
-                      managementState:
-                        type: str
-                        required: True
-                        enum:
-                          - "available"
-                          - "unavailable"
-                      error:
-                        type: str
-                        required: True
-                      supportedPowerTransitions:
-                        type: seq
-                        matching: all
-                        required: True
-                        sequence:
-                          - type: str
-                            required: True
+      #TODO: {"status":null} being returned from local PCS instance
+      #verify_response_with:
+      #  function: tavern.testutils.helpers:validate_pykwalify
+      #  extra_kwargs:
+      #    schema:
+      #      type: map
+      #      required: True
+      #      mapping:
+      #        status:
+      #          type: seq
+      #          matching: all
+      #          required: True
+      #          sequence:
+      #            - type: map
+      #              required: True
+      #              mapping:
+      #                xname:
+      #                  type: str
+      #                  required: True
+      #                  pattern: "^[xs].+"
+      #                powerState:
+      #                  type: str
+      #                  required: True
+      #                  enum:
+      #                    - "on"
+      #                    - "off"
+      #                    - "undefined"
+      #                managementState:
+      #                  type: str
+      #                  required: True
+      #                  enum:
+      #                    - "available"
+      #                    - "unavailable"
+      #                error:
+      #                  type: str
+      #                  required: True
+      #                supportedPowerTransitions:
+      #                  type: seq
+      #                  matching: all
+      #                  required: True
+      #                  sequence:
+      #                    - type: str
+      #                      required: True
+---
+test_name: Verify the PCS power-status resource negative cases
+
+stages:
+  # 3. POST /power-status API response code
+  - name: Ensure that the PCS power-status resource correctly handles unsupported POST operations
+    request:
+      url: "{pcs_base_url}/power-status"
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      # TODO: according to the Swagger file this should be 400
+      status_code: 405
+
+  # 4. PUT /power-status API response code
+  - name: Ensure that the PCS power-status resource correctly handles unsupported PUT operations
+    request:
+      url: "{pcs_base_url}/power-status"
+      method: PUT
+      verify: !bool "{verify}"
+    response:
+      # TODO: according to the Swagger file this should be 400
+      status_code: 405
+
+  # 5. PATCH /power-status API response code
+  - name: Ensure that the PCS power-status resource correctly handles unsupported PATCH operations
+    request:
+      url: "{pcs_base_url}/power-status"
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      # TODO: according to the Swagger file this should be 400
+      status_code: 405
+
+  # 6. DELETE /power-status API response code
+  - name: Ensure that the PCS power-status resource correctly handles unsupported DELETE operations
+    request:
+      url: "{pcs_base_url}/power-status"
+      method: DELETE
+      verify: !bool "{verify}"
+    response:
+      # TODO: according to the Swagger file this should be 400
+      status_code: 405

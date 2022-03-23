@@ -3,20 +3,6 @@
   "default_base_url": "http://cray-power-control/",
   "test_paths": [
     {
-      "path": "power-status",
-      "expected_status_code": 200,
-      "method": "GET",
-      "body": null,
-      "headers": {}
-    },
-    {
-      "path": "power-status?xname=x0c0s1b0",
-      "expected_status_code": 200,
-      "method": "GET",
-      "body": null,
-      "headers": {}
-    },
-    {
       "path": "power-status?powerStateFilter=on",
       "expected_status_code": 200,
       "method": "GET",
@@ -24,7 +10,21 @@
       "headers": {}
     },
     {
-      "path": "power-status?managementStateFilter=available",
+      "path": "power-status?powerStateFilter=off",
+      "expected_status_code": 200,
+      "method": "GET",
+      "body": null,
+      "headers": {}
+    },
+    {
+      "path": "power-status?powerStateFilter=undefined",
+      "expected_status_code": 200,
+      "method": "GET",
+      "body": null,
+      "headers": {}
+    },
+    {
+      "path": "power-cap",
       "expected_status_code": 200,
       "method": "GET",
       "body": null,
