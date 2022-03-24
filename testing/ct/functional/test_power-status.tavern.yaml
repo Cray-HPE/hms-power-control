@@ -44,12 +44,14 @@ stages:
       #TODO: CASMHMS-5453
       #url: "{pcs_base_url}/power-status"
       url: "{pcs_base_url}/power-status?powerStateFilter=on"
+      #TODO: need to retrieve xname from HSM since it's currently required
+      # https://api-gw-service-nmn.local/apis/power-control/v1/power-status?powerStateFilter=on\&xname=x3000c0s19b1n0
       method: GET
       verify: !bool "{verify}"
     response:
       #TODO: CASMHMS-5454
       status_code: 200
-      #TODO: {"status":null} being returned from local PCS instance
+      #TODO: {"status":null} being returned unless xname parameter is supplied. Is this the intended behavior? Will probably want a 'power-status-all' operation
       #verify_response_with:
       #  function: tavern.testutils.helpers:validate_pykwalify
       #  extra_kwargs:
@@ -92,6 +94,18 @@ stages:
       #                  sequence:
       #                    - type: str
       #                      required: True
+      #                      #TODO: check if these are enumerated in PCS, if not, delete enum
+      #                      enum:
+      #                        - "PushPowerButton"
+      #                        - "On"
+      #                        - "GracefulShutdown"
+      #                        - "ForceRestart"
+      #                        - "Nmi"
+      #                        - "ForceOn"
+      #                        - "ForceOff"
+      #                LastUpdated:
+      #                  type: str
+      #                  required: True
 ---
 test_name: Verify the PCS power-status resource negative cases
 

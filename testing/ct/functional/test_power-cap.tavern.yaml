@@ -47,6 +47,7 @@ stages:
   # 2. GET /power-cap API response body
   - name: Ensure that the PCS power caps can be retrieved
     request:
+      #TODO: this test won't work since there are initially no power-cap tasks to query for
       url: "{pcs_base_url}/power-cap"
       method: GET
       verify: !bool "{verify}"
@@ -182,6 +183,7 @@ stages:
                 type: map
                 required: True
                 mapping:
+                  #TODO: this could be updated based on the xname(s) used for the snapshot
                   total:
                     type: int
                     required: True
@@ -208,6 +210,7 @@ stages:
                   - type: map
                     required: True
                     mapping:
+                      #TODO: this could be updated based on the xname(s) used for the snapshot
                       xname:
                         type: str
                         required: True
@@ -217,6 +220,7 @@ stages:
                         #TODO: remove these
                         #enum:
                         #  - "Type, NodeBMC unsupported for power capping"
+                        #TODO: seeing this vvv on real hardware
                         #  - "Missing Power Cap URI"
                         #  - "Xname not found in HSM"
 ---
