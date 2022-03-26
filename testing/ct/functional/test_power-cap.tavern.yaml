@@ -24,30 +24,136 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
-# HMS test metrics test cases: 4
-# 1. GET /power-cap API response code
-# 2. GET /power-cap API response body
-#TODO: add these, but need real data/system to do so
-# 3. GET /power-cap/{taskID} API response code set
-# 4. GET /power-cap/{taskID} API response body set
-
-# 5. POST /power-cap/snapshot API response code
-# 6. POST /power-cap/snapshot API response body
-# 7. GET /power-cap/{taskID} API response code snapshot
-# 8. GET /power-cap/{taskID} API response body snapshot
+# HMS test metrics test cases: 8
+# 1. POST /power-cap/snapshot API response code
+# 2. POST /power-cap/snapshot API response body
+# 3. GET /power-cap/{taskID} API response code snapshot
+# 4. GET /power-cap/{taskID} API response body snapshot
+# 5. GET /power-cap API response code
+# 6. GET /power-cap API response body
 
 # Negative tests
-# 3. PUT /power-cap API response code
-# 4. DELETE /power-cap API response code
+# 7. PUT /power-cap API response code
+# 8. DELETE /power-cap API response code
 ---
 test_name: Verify the PCS power-cap resource
 
 stages:
-  # 1. GET /power-cap API response code
-  # 2. GET /power-cap API response body
-  - name: Ensure that the PCS power caps can be retrieved
+  # 1. POST /power-cap/snapshot API response code
+  # 2. POST /power-cap/snapshot API response body
+  - name: Ensure that PCS power cap snapshots can be generated
     request:
-      #TODO: this test won't work since there are initially no power-cap tasks to query for
+      url: "{pcs_base_url}/power-cap/snapshot"
+      #TODO: remove hardcoded xnames, need node xnames in HSM
+      #json: {"xnames":["x0c0s1b0","x0c0s2b0"]}
+      json: {"xnames":["x0c0s1b0n0","x0c0s2b0n0"]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+      save:
+        json:
+          snapshotTaskID: taskID
+
+  # 3. GET /power-cap/{taskID} API response code snapshot
+  # 4. GET /power-cap/{taskID} API response body snapshot
+  - name: Ensure that PCS power cap snapshots can be retrieved
+    request:
+      url: "{pcs_base_url}/power-cap/{snapshotTaskID}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              #TODO: this field from the Swagger is not actually present
+              #taskInfo:
+              taskID:
+                type: str
+                required: True
+              type:
+                type: str
+                required: True
+                enum:
+                  - "snapshot"
+                  - "patch"
+              taskCreateTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "new"
+                  - "in-progress"
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  #TODO: this could be updated based on the xname(s) used for the snapshot
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              components:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      #TODO: this could be updated based on the xname(s) used for the snapshot
+                      xname:
+                        type: str
+                        required: True
+                      error:
+                        type: str
+                        required: True
+                        #TODO: remove these
+                        #enum:
+                        #  - "Type, NodeBMC unsupported for power capping"
+                        #TODO: seeing this vvv on real hardware and in build environment
+                        #  - "Missing Power Cap URI"
+                        #  - "Xname not found in HSM"
+
+  # 5. GET /power-cap API response code
+  # 6. GET /power-cap API response body
+  - name: Ensure that PCS power cap tasks can be retrieved
+    request:
       url: "{pcs_base_url}/power-cap"
       method: GET
       verify: !bool "{verify}"
@@ -113,121 +219,11 @@ stages:
                             type: int
                             required: True
 
-  # 5. POST /power-cap/snapshot API response code
-  # 6. POST /power-cap/snapshot API response body
-  - name: Ensure that PCS power cap snapshots can be generated
-    request:
-      url: "{pcs_base_url}/power-cap/snapshot"
-      #TODO: remove hardcoded xnames, need node xnames in HSM
-      #json: {"xnames":["x0c0s1b0","x0c0s2b0"]}
-      json: {"xnames":["x0c0s1b0n0","x0c0s2b0n0"]}
-      method: POST
-      verify: !bool "{verify}"
-    response:
-      status_code: 200
-      verify_response_with:
-        function: tavern.testutils.helpers:validate_pykwalify
-        extra_kwargs:
-          schema:
-            type: map
-            required: True
-            mapping:
-              taskID:
-                type: str
-                required: True
-      save:
-        json:
-          snapshotTaskID: taskID
-
-  # 7. GET /power-cap/{taskID} API response code snapshot
-  # 8. GET /power-cap/{taskID} API response body snapshot
-  - name: Ensure that PCS power cap snapshots can be retrieved
-    request:
-      url: "{pcs_base_url}/power-cap/{snapshotTaskID}"
-      method: GET
-      verify: !bool "{verify}"
-    response:
-      status_code: 200
-      verify_response_with:
-        function: tavern.testutils.helpers:validate_pykwalify
-        extra_kwargs:
-          schema:
-            type: map
-            required: True
-            mapping:
-              #TODO: these fields from the Swagger are not present
-              #taskInfo:
-              taskID:
-                type: str
-                required: True
-              type:
-                type: str
-                required: True
-                enum:
-                  - "snapshot"
-                  - "patch"
-              taskCreateTime:
-                type: timestamp
-                required: True
-              automaticExpirationTime:
-                type: timestamp
-                required: True
-              taskStatus:
-                type: str
-                required: True
-                enum:
-                  - "new"
-                  - "in-progress"
-                  - "completed"
-              taskCounts:
-                type: map
-                required: True
-                mapping:
-                  #TODO: this could be updated based on the xname(s) used for the snapshot
-                  total:
-                    type: int
-                    required: True
-                  new:
-                    type: int
-                    required: True
-                  in-progress:
-                    type: int
-                    required: True
-                  failed:
-                    type: int
-                    required: True
-                  succeeded:
-                    type: int
-                    required: True
-                  un-supported:
-                    type: int
-                    required: True
-              components:
-                type: seq
-                matching: all
-                required: True
-                sequence:
-                  - type: map
-                    required: True
-                    mapping:
-                      #TODO: this could be updated based on the xname(s) used for the snapshot
-                      xname:
-                        type: str
-                        required: True
-                      error:
-                        type: str
-                        required: True
-                        #TODO: remove these
-                        #enum:
-                        #  - "Type, NodeBMC unsupported for power capping"
-                        #TODO: seeing this vvv on real hardware
-                        #  - "Missing Power Cap URI"
-                        #  - "Xname not found in HSM"
 ---
 test_name: Verify the PCS power-cap resource negative cases
 
 stages:
-  # 3. PUT /power-cap API response code
+  # 7. PUT /power-cap API response code
   - name: Ensure that the PCS power-cap resource correctly handles unsupported PUT operations
     request:
       url: "{pcs_base_url}/power-cap"
@@ -237,7 +233,7 @@ stages:
       # TODO: Swagger file is missing this response
       status_code: 405
 
-  # 4. DELETE /power-cap API response code
+  # 8. DELETE /power-cap API response code
   - name: Ensure that the PCS power-cap resource correctly handles unsupported DELETE operations
     request:
       url: "{pcs_base_url}/power-cap"

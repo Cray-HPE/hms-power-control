@@ -94,15 +94,8 @@ stages:
       #                  sequence:
       #                    - type: str
       #                      required: True
-      #                      #TODO: check if these are enumerated in PCS, if not, delete enum
-      #                      enum:
-      #                        - "PushPowerButton"
-      #                        - "On"
-      #                        - "GracefulShutdown"
-      #                        - "ForceRestart"
-      #                        - "Nmi"
-      #                        - "ForceOn"
-      #                        - "ForceOff"
+      #                      # no enum here since supportedPowerTransitions comes from Redfish
+      #                      #TODO: enums not in code, but Swagger could use better example
       #                LastUpdated:
       #                  type: str
       #                  required: True
