@@ -32,13 +32,34 @@ ephCertDir=ephemeral_cert
 echo "COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}"
 echo "COMPOSE_FILE: $COMPOSE_FILE"
 
+DASHN=false
+# parse command-line options
+while getopts "hn" opt; do
+    case ${opt} in
+        h) echo "Usage: runCT.sh [-h] [-n]"
+           echo
+           echo "Arguments:"
+           echo "    -h        display this help message"
+           echo "    -n        no cleanup; leaves docker-compose environment running"
+           echo "              for manual debugging, requires manual cleanup"
+           exit 0
+           ;;
+        n) DASHN=true
+           ;;
+    esac
+done
+
 
 function cleanup() {
-  rm -rf $ephCertDir
-  docker-compose down
-  if [[ $? -ne 0 ]]; then
-    echo "Failed to decompose environment!"
-    exit 1
+  if ! ${DASHN}; then
+    rm -rf $ephCertDir
+    docker-compose down
+    if [[ $? -ne 0 ]]; then
+      echo "Failed to decompose environment!"
+      exit 1
+    fi
+  else
+    echo "Exiting without cleanup"
   fi
   exit $1
 }

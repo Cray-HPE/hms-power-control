@@ -39,14 +39,23 @@
 test_name: Verify the PCS power-cap resource
 
 stages:
+  - name: Get compute node xname from HSM Components to use in upcoming stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&Role=Compute"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          xname: Components[0].ID
+
   # 1. POST /power-cap/snapshot API response code
   # 2. POST /power-cap/snapshot API response body
   - name: Ensure that PCS power cap snapshots can be generated
     request:
       url: "{pcs_base_url}/power-cap/snapshot"
-      #TODO: remove hardcoded xnames, need node xnames in HSM
-      #json: {"xnames":["x0c0s1b0","x0c0s2b0"]}
-      json: {"xnames":["x0c0s1b0n0","x0c0s2b0n0"]}
+      json: {"xnames":["{xname}"]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -109,10 +118,11 @@ stages:
                 type: map
                 required: True
                 mapping:
-                  #TODO: this could be updated based on the xname(s) used for the snapshot
                   total:
                     type: int
                     required: True
+                    enum:
+                      - 1
                   new:
                     type: int
                     required: True
@@ -136,10 +146,11 @@ stages:
                   - type: map
                     required: True
                     mapping:
-                      #TODO: this could be updated based on the xname(s) used for the snapshot
                       xname:
                         type: str
                         required: True
+                        enum:
+                          - "{xname}"
                       error:
                         type: str
                         required: True
