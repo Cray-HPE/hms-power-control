@@ -37,14 +37,25 @@
 test_name: Verify the PCS power-status resource
 
 stages:
+  - name: Get compute node xname from HSM Components to use in upcoming stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&Role=Compute"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          xname: Components[0].ID
+
   # 1. GET /power-status API response code
   # 2. GET /power-status API response body
   - name: Ensure that the PCS power status can be retrieved
     request:
       #TODO: CASMHMS-5453
-      #url: "{pcs_base_url}/power-status"
-      url: "{pcs_base_url}/power-status?powerStateFilter=on"
-      #TODO: need to retrieve xname from HSM since it's currently required
+      #url: "{pcs_base_url}/power-status?xname={xname}"
+      url: "{pcs_base_url}/power-status?powerStateFilter=on&xname={xname}"
+      #TODO: remove example call from outside service mesh below
       # https://api-gw-service-nmn.local/apis/power-control/v1/power-status?powerStateFilter=on\&xname=x3000c0s19b1n0
       method: GET
       verify: !bool "{verify}"
@@ -52,53 +63,59 @@ stages:
       #TODO: CASMHMS-5454
       status_code: 200
       #TODO: {"status":null} being returned unless xname parameter is supplied. Is this the intended behavior? Will probably want a 'power-status-all' operation
-      #verify_response_with:
-      #  function: tavern.testutils.helpers:validate_pykwalify
-      #  extra_kwargs:
-      #    schema:
-      #      type: map
-      #      required: True
-      #      mapping:
-      #        status:
-      #          type: seq
-      #          matching: all
-      #          required: True
-      #          sequence:
-      #            - type: map
-      #              required: True
-      #              mapping:
-      #                xname:
-      #                  type: str
-      #                  required: True
-      #                  pattern: "^[xs].+"
-      #                powerState:
-      #                  type: str
-      #                  required: True
-      #                  enum:
-      #                    - "on"
-      #                    - "off"
-      #                    - "undefined"
-      #                managementState:
-      #                  type: str
-      #                  required: True
-      #                  enum:
-      #                    - "available"
-      #                    - "unavailable"
-      #                error:
-      #                  type: str
-      #                  required: True
-      #                supportedPowerTransitions:
-      #                  type: seq
-      #                  matching: all
-      #                  required: True
-      #                  sequence:
-      #                    - type: str
-      #                      required: True
-      #                      # no enum here since supportedPowerTransitions comes from Redfish
-      #                      #TODO: enums not in code, but Swagger could use better example
-      #                LastUpdated:
-      #                  type: str
-      #                  required: True
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        pattern: "^[xs].+"
+                      powerState:
+                        type: str
+                        required: True
+                        #TODO: this showing up as '' in runCT environment, present when exec'ing into pod though
+                        enum:
+                          - "on"
+                          - "off"
+                          - "undefined"
+                          - ""
+                      managementState:
+                        type: str
+                        required: True
+                        #TODO: this showing up as '' in runCT environment, present when exec'ing into pod though
+                        enum:
+                          - "available"
+                          - "unavailable"
+                          - ""
+                      error:
+                        type: str
+                        required: True
+                      supportedPowerTransitions:
+                        type: seq
+                        matching: all
+                        #TODO: this showing up as empty list in runCT environment, present when exec'ing into pod though
+                        #required: True
+                        required: False
+                        sequence:
+                          - type: str
+                            required: True
+                            # no enum here since supportedPowerTransitions comes from Redfish
+                            #TODO: enums not in code, but Swagger could use better example
+                      LastUpdated:
+                        type: str
+                        required: True
 ---
 test_name: Verify the PCS power-status resource negative cases
 

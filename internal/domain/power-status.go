@@ -222,16 +222,17 @@ func GetPowerStatus(xnames []string,
 			pcomp := pcsmodel.PowerStatusComponent{XName: name}
 			htype := xnametypes.GetHMSType(name)
 			switch (htype) {
+				//TODO: CASMHMS-5470
+				case xnametypes.Node:          break
 				case xnametypes.Chassis:       fallthrough
 				case xnametypes.ChassisBMC:    fallthrough
 				case xnametypes.NodeBMC:       fallthrough
 				case xnametypes.RouterBMC:     fallthrough
-				case xnametypes.Node:          fallthrough
 				case xnametypes.ComputeModule: fallthrough
 				case xnametypes.RouterModule:  fallthrough
 				case xnametypes.HSNBoard:      fallthrough
 				case xnametypes.CabinetPDUPowerConnector:
-					pcomp.Error = "Component not found in component map."
+					pcomp.Error = "Component type not found in component map: " + string(htype)
 
 				case xnametypes.HMSTypeInvalid:
 					pcomp.Error = "Invalid component name."
