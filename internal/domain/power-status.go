@@ -207,7 +207,7 @@ func GetPowerStatus(xnames []string,
 		compMap[comp.XName] = &statusObj.Status[ix]
 	}
 	//TODO
-	glogger.Infof("compMap=%s",compMap)
+	//glogger.Infof("compMap=%s",compMap)
 
 	//Build a return object, filtering by xname.
 
@@ -226,7 +226,7 @@ func GetPowerStatus(xnames []string,
 		mp,mapok := compMap[name]
 		//TODO
 		glogger.Infof("mp=%s",mp)
-		glogger.Infof("mapok=%s",mapok)
+		//glogger.Infof("mapok=%s",mapok)
 		if (!mapok) {
 			//Get the type.  If it has no support for power status, make the
 			//error message reflect that.  Otherwise give a generic error.
