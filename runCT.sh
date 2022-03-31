@@ -22,16 +22,6 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-set -x
-
-# Configure docker compose
-export COMPOSE_PROJECT_NAME=$RANDOM
-export COMPOSE_FILE=docker-compose.test.ct.yaml
-ephCertDir=ephemeral_cert
-
-echo "COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}"
-echo "COMPOSE_FILE: $COMPOSE_FILE"
-
 DASHN=false
 # parse command-line options
 while getopts "hn" opt; do
@@ -48,6 +38,16 @@ while getopts "hn" opt; do
            ;;
     esac
 done
+
+set -x
+
+# Configure docker compose
+export COMPOSE_PROJECT_NAME=$RANDOM
+export COMPOSE_FILE=docker-compose.test.ct.yaml
+ephCertDir=ephemeral_cert
+
+echo "COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}"
+echo "COMPOSE_FILE: $COMPOSE_FILE"
 
 
 function cleanup() {

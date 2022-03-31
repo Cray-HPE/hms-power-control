@@ -52,7 +52,6 @@ LABEL maintainer="Hewlett Packard Enterprise"
 EXPOSE 28007
 STOPSIGNAL SIGTERM
 
-#TODO
 RUN set -ex \
     && apk -U upgrade \
     && apk add curl jq

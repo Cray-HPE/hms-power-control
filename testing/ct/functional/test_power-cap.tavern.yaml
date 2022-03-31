@@ -41,12 +41,7 @@ test_name: Verify the PCS power-cap resource
 stages:
   - name: Get compute node xname from HSM Components to use in upcoming stages
     request:
-      #TODO: I think compute nodes need to be booted in order for power capping to work
-      # which should not be assumed to be the case when running the CT tests during installs
-      #TODO: Might want two versions of this test, one for installs that allows power-cap
-      # errors and a second that doesn't allow errors and doesn't run during installs
-      #url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute&state=Ready"
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
       method: GET
       verify: !bool "{verify}"
     response:
@@ -95,8 +90,6 @@ stages:
             type: map
             required: True
             mapping:
-              #TODO: CASMHMS-5473
-              #taskInfo:
               taskID:
                 type: str
                 required: True

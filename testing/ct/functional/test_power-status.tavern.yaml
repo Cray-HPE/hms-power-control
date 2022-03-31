@@ -24,7 +24,7 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
-# HMS test metrics test cases: 6
+# HMS test metrics test cases: 8
 # 1. GET /power-status?xname={xname} Node API response code
 # 2. GET /power-status?xname={xname} Node API response body
 # 3. GET /power-status?xname={xname} NodeBMC API response code
@@ -41,8 +41,6 @@ test_name: Verify the PCS power-status resource
 stages:
   - name: Get Node xname from HSM Components to use in upcoming stages
     request:
-      #TODO: I don't think this actually needs to be a Compute node
-      #url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
       url: "{hsm_base_url}/hsm/v2/State/Components?type=Node"
       method: GET
       verify: !bool "{verify}"
@@ -59,7 +57,7 @@ stages:
       #TODO: CASMHMS-5453
       #url: "{pcs_base_url}/power-status?xname={node_xname}"
       url: "{pcs_base_url}/power-status?powerStateFilter=on&xname={node_xname}"
-      #TODO: remove example call from outside service mesh below
+      #TODO: remove example call from outside service mesh below, keeping it now for reference
       # https://api-gw-service-nmn.local/apis/power-control/v1/power-status?powerStateFilter=on\&xname=x3000c0s19b1n0
       method: GET
       verify: !bool "{verify}"
@@ -112,7 +110,6 @@ stages:
                             required: True
                             # no enum here since supportedPowerTransitions come
                             # from Redfish and vary depending on hardware
-                      #TODO: CASMHMS-5454
                       LastUpdated:
                         type: str
                         required: True
@@ -135,7 +132,7 @@ stages:
       #TODO: CASMHMS-5453
       #url: "{pcs_base_url}/power-status?xname={bmc_xname}"
       url: "{pcs_base_url}/power-status?powerStateFilter=on&xname={bmc_xname}"
-      #TODO: remove example call from outside service mesh below
+      #TODO: remove example call from outside service mesh below, keeping it now for reference
       # https://api-gw-service-nmn.local/apis/power-control/v1/power-status?powerStateFilter=on\&xname=x3000c0s19b1n0
       method: GET
       verify: !bool "{verify}"
@@ -188,7 +185,6 @@ stages:
                             required: True
                             # no enum here since supportedPowerTransitions come
                             # from Redfish and vary depending on hardware
-                      #TODO: CASMHMS-5454
                       LastUpdated:
                         type: str
                         required: True
