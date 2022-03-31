@@ -81,6 +81,16 @@ echo "Starting containers..."
 docker-compose build --no-cache
 docker-compose up -d cray-power-control #this will stand up everything except for the integration test container
 
+# Give PCS, HSM, and ETCD time to be fully initialized before running CT tests
+docker-compose up -d ct-tests-functional-wait-for-smd
+docker wait ${COMPOSE_PROJECT_NAME}_ct-tests-functional-wait-for-smd_1
+DOCKER_WAIT_FOR_SMD_LOGS=$(docker logs ${COMPOSE_PROJECT_NAME}_ct-tests-functional-wait-for-smd_1)
+DOCKER_WAIT_CHECK=$(echo "${DOCKER_WAIT_FOR_SMD_LOGS}" | grep -E "Failed to connect for [0-9]+, exiting")
+if [[ -n "${DOCKER_WAIT_CHECK}" ]]; then
+    echo "Timed out waiting for HSM to be populated, exiting..."
+    cleanup 1
+fi
+
 # Run the CT smoke tests
 docker-compose up --exit-code-from ct-tests-smoke ct-tests-smoke
 test_result=$?
@@ -91,19 +101,10 @@ if [[ $test_result -ne 0 ]]; then
 fi
 
 # Run the CT functional tests
-docker-compose up -d ct-tests-functional-wait-for-smd
-docker wait ${COMPOSE_PROJECT_NAME}_ct-tests-functional-wait-for-smd_1
-DOCKER_WAIT_FOR_SMD_LOGS=$(docker logs ${COMPOSE_PROJECT_NAME}_ct-tests-functional-wait-for-smd_1)
-DOCKER_WAIT_CHECK=$(echo "${DOCKER_WAIT_FOR_SMD_LOGS}" | grep -E "Failed to connect for [0-9]+, exiting")
-if [[ -n "${DOCKER_WAIT_CHECK}" ]]; then
-    echo "Timed out waiting for SMD to be populated, exiting..."
-    cleanup 1
-fi
-
 docker-compose up --exit-code-from ct-tests-functional ct-tests-functional
 test_result=$?
 
-# Clean up
+# Cleanup
 echo "Cleaning up containers..."
 if [[ $test_result -ne 0 ]]; then
   echo "CT functional tests FAILED!"

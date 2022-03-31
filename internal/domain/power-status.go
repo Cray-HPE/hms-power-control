@@ -183,15 +183,11 @@ func PowerStatusMonitorChangeInterval(newInterval time.Duration) error {
 func GetPowerStatus(xnames []string,
                     pwrStateFilter pcsmodel.PowerStateFilter,
                     mgmtStateFilter pcsmodel.ManagementStateFilter) (pb pcsmodel.Passback) {
-	//TODO
-	glogger.Infof("in GetPowerStatus()")
 	//Grab all KVs from ETCD, cycle through them to make a map, then
 	//match the xnames in the passed-in array.  Grab pertinent data and create
 	//a pcsmodel.PowerStatus object 'pstatus', and return it.
 
 	statusObj,err := (*kvStore).GetAllPowerStatus()
-	//TODO: CASMHMS-5470: statusObj is empty when running from Tavern container
-	glogger.Infof("statusObj=%s",statusObj)
 	if (err != nil) {
 		//TODO: we don't have an HTTP status code from a failed 
 		//GetAllPowerStatus() call; might need to pass that back in a 
@@ -206,8 +202,6 @@ func GetPowerStatus(xnames []string,
 	for ix,comp := range(statusObj.Status) {
 		compMap[comp.XName] = &statusObj.Status[ix]
 	}
-	//TODO
-	//glogger.Infof("compMap=%s",compMap)
 
 	//Build a return object, filtering by xname.
 
@@ -220,20 +214,13 @@ func GetPowerStatus(xnames []string,
 			    (mgmtStateFilter == pcsmodel.ManagementStateFilter_undefined))
 
 	for _,name := range(xnames) {
-		//TODO
-		glogger.Infof("name=%s",name)
 		stateMatch := true
 		mp,mapok := compMap[name]
-		//TODO
-		glogger.Infof("mp=%s",mp)
-		//glogger.Infof("mapok=%s",mapok)
 		if (!mapok) {
 			//Get the type.  If it has no support for power status, make the
 			//error message reflect that.  Otherwise give a generic error.
 			pcomp := pcsmodel.PowerStatusComponent{XName: name}
 			htype := xnametypes.GetHMSType(name)
-			//TODO
-			glogger.Infof("htype=%s",string(htype))
 			switch (htype) {
 				case xnametypes.Chassis:       fallthrough
 				case xnametypes.ChassisBMC:    fallthrough

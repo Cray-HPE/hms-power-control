@@ -41,7 +41,12 @@ test_name: Verify the PCS power-cap resource
 stages:
   - name: Get compute node xname from HSM Components to use in upcoming stages
     request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&Role=Compute"
+      #TODO: I think compute nodes need to be booted in order for power capping to work
+      # which should not be assumed to be the case when running the CT tests during installs
+      #TODO: Might want two versions of this test, one for installs that allows power-cap
+      # errors and a second that doesn't allow errors and doesn't run during installs
+      #url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute&state=Ready"
       method: GET
       verify: !bool "{verify}"
     response:
@@ -90,7 +95,7 @@ stages:
             type: map
             required: True
             mapping:
-              #TODO: this field from the Swagger is not actually present
+              #TODO: CASMHMS-5473
               #taskInfo:
               taskID:
                 type: str
@@ -154,7 +159,7 @@ stages:
                       error:
                         type: str
                         required: True
-                        #TODO: remove these
+                        #TODO: remove these, keeping them now for reference
                         #enum:
                         #  - "Type, NodeBMC unsupported for power capping"
                         #TODO: seeing this vvv on real hardware and in build environment
@@ -241,7 +246,7 @@ stages:
       method: PUT
       verify: !bool "{verify}"
     response:
-      # TODO: Swagger file is missing this response
+      # TODO: CASMHMS-5473
       status_code: 405
 
   # 8. DELETE /power-cap API response code
@@ -251,5 +256,5 @@ stages:
       method: DELETE
       verify: !bool "{verify}"
     response:
-      # TODO: Swagger file is missing this response
+      # TODO: CASMHMS-5473
       status_code: 405

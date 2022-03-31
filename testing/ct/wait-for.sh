@@ -23,15 +23,15 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 # wait-for.sh; used by runCT.sh to make sure HSM has been populated with data before running.
-echo "Initiating..."
+echo "Waiting for data in HSM /State/Components..."
 URL="http://cray-smd:27779/hsm/v2/State/Components"
 sentry=1
 limit=200
 while :; do
   length=$(curl --silent ${URL} | jq '.Components | length')
 
-  if [ ! -z "$length" ] && [ "$length" -gt "0" ]; then
-    echo $URL" is available"
+  if [ -n "$length" ] && [ "$length" -gt "0" ]; then
+    echo "$URL is available"
     break
   fi
 
@@ -42,7 +42,11 @@ while :; do
 
   ((sentry++))
 
-  echo $URL" is unavailable - sleeping"
+  echo "$URL is unavailable - sleeping"
   sleep 1
 
 done
+
+# additional wait time for ETCD to actually be ready to serve data,
+# ETCD's /health endpoint is not an indicator of this ability
+sleep 20
