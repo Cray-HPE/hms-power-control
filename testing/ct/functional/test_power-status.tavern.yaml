@@ -1,0 +1,233 @@
+# MIT License
+#
+# (C) Copyright [2022] Hewlett Packard Enterprise Development LP
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+
+# Tavern test cases for the PCS power-status API
+# Author: Mitch Schooler
+# Service: Power Control Service
+
+#TODO: Add these cases when CASMHMS-5476 is resolved
+# X. GET /power-status all API response code
+# X. GET /power-status all API response body
+
+# HMS test metrics test cases: 8
+# 1. GET /power-status?xname={xname} Node API response code
+# 2. GET /power-status?xname={xname} Node API response body
+# 3. GET /power-status?xname={xname} NodeBMC API response code
+# 4. GET /power-status?xname={xname} NodeBMC API response body
+
+# Negative tests
+# 5. POST /power-status API response code
+# 6. PUT /power-status API response code
+# 7. PATCH /power-status API response code
+# 8. DELETE /power-status API response code
+---
+test_name: Verify the PCS power-status resource
+
+stages:
+  - name: Get Node xname from HSM Components to use in upcoming stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          node_xname: Components[0].ID
+
+  # 1. GET /power-status?xname={xname} Node API response code
+  # 2. GET /power-status?xname={xname} Node API response body
+  - name: Ensure that the PCS power status for a Node can be retrieved
+    request:
+      #TODO: CASMHMS-5453
+      #url: "{pcs_base_url}/power-status?xname={node_xname}"
+      url: "{pcs_base_url}/power-status?powerStateFilter=on&xname={node_xname}"
+      #TODO: remove example call from outside service mesh below, keeping it now for reference
+      # https://api-gw-service-nmn.local/apis/power-control/v1/power-status?powerStateFilter=on\&xname=x3000c0s19b1n0
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      #TODO: CASMHMS-5454
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        pattern: "^[xs].+"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - "on"
+                          - "off"
+                          - "undefined"
+                      managementState:
+                        type: str
+                        required: True
+                        enum:
+                          - "available"
+                          - "unavailable"
+                      error:
+                        type: str
+                        required: True
+                      supportedPowerTransitions:
+                        type: seq
+                        matching: all
+                        required: True
+                        sequence:
+                          - type: str
+                            required: True
+                            # no enum here since supportedPowerTransitions come
+                            # from Redfish and vary depending on hardware
+                      LastUpdated:
+                        type: str
+                        required: True
+
+  - name: Get NodeBMC xname from HSM Components to use in upcoming stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=NodeBMC"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          bmc_xname: Components[0].ID
+
+  # 3. GET /power-status?xname={xname} NodeBMC API response code
+  # 4. GET /power-status?xname={xname} NodeBMC API response body
+  - name: Ensure that the PCS power status for a NodeBMC can be retrieved
+    request:
+      #TODO: CASMHMS-5453
+      #url: "{pcs_base_url}/power-status?xname={bmc_xname}"
+      url: "{pcs_base_url}/power-status?powerStateFilter=on&xname={bmc_xname}"
+      #TODO: remove example call from outside service mesh below, keeping it now for reference
+      # https://api-gw-service-nmn.local/apis/power-control/v1/power-status?powerStateFilter=on\&xname=x3000c0s19b1n0
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      #TODO: CASMHMS-5454
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        pattern: "^[xs].+"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - "on"
+                          - "off"
+                          - "undefined"
+                      managementState:
+                        type: str
+                        required: True
+                        enum:
+                          - "available"
+                          - "unavailable"
+                      error:
+                        type: str
+                        required: True
+                      supportedPowerTransitions:
+                        type: seq
+                        matching: all
+                        required: True
+                        sequence:
+                          - type: str
+                            required: True
+                            # no enum here since supportedPowerTransitions come
+                            # from Redfish and vary depending on hardware
+                      LastUpdated:
+                        type: str
+                        required: True
+---
+test_name: Verify the PCS power-status resource negative cases
+
+stages:
+  # 5. POST /power-status API response code
+  - name: Ensure that the PCS power-status resource correctly handles unsupported POST operations
+    request:
+      url: "{pcs_base_url}/power-status"
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      # TODO: CASMHMS-5454
+      status_code: 405
+
+  # 6. PUT /power-status API response code
+  - name: Ensure that the PCS power-status resource correctly handles unsupported PUT operations
+    request:
+      url: "{pcs_base_url}/power-status"
+      method: PUT
+      verify: !bool "{verify}"
+    response:
+      # TODO: CASMHMS-5454
+      status_code: 405
+
+  # 7. PATCH /power-status API response code
+  - name: Ensure that the PCS power-status resource correctly handles unsupported PATCH operations
+    request:
+      url: "{pcs_base_url}/power-status"
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      # TODO: CASMHMS-5454
+      status_code: 405
+
+  # 8. DELETE /power-status API response code
+  - name: Ensure that the PCS power-status resource correctly handles unsupported DELETE operations
+    request:
+      url: "{pcs_base_url}/power-status"
+      method: DELETE
+      verify: !bool "{verify}"
+    response:
+      # TODO: CASMHMS-5454
+      status_code: 405
