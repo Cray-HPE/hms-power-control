@@ -24,6 +24,10 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
+#TODO: Add these cases when CASMHMS-5476 is resolved
+# X. GET /power-status all API response code
+# X. GET /power-status all API response body
+
 # HMS test metrics test cases: 8
 # 1. GET /power-status?xname={xname} Node API response code
 # 2. GET /power-status?xname={xname} Node API response body
@@ -64,8 +68,6 @@ stages:
     response:
       #TODO: CASMHMS-5454
       status_code: 200
-      #TODO: {"status":null} being returned unless xname parameter is supplied. Is this the intended behavior? Will probably want a 'power-status-all' operation.
-      #TODO: Try this with an xname of 's0', if that doesn't work then open an RFE.
       verify_response_with:
         function: tavern.testutils.helpers:validate_pykwalify
         extra_kwargs:
@@ -139,8 +141,6 @@ stages:
     response:
       #TODO: CASMHMS-5454
       status_code: 200
-      #TODO: {"status":null} being returned unless xname parameter is supplied. Is this the intended behavior? Will probably want a 'power-status-all' operation.
-      #TODO: Try this with an xname of 's0', if that doesn't work then open an RFE.
       verify_response_with:
         function: tavern.testutils.helpers:validate_pykwalify
         extra_kwargs:

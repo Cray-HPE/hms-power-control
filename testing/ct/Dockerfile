@@ -1,6 +1,4 @@
-#TODO: build/tag/use stable hms-test:3.1.0 image after PR is merged
-#FROM artifactory.algol60.net/csm-docker/stable/hms-test:3.1.0
-FROM artifactory.algol60.net/csm-docker/unstable/hms-test:3.1.0-20220331211520.329a922
+FROM artifactory.algol60.net/csm-docker/stable/hms-test:3.0.0
 
 COPY smoke/ /src/app
 COPY functional/ /src/app
