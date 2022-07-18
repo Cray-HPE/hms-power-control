@@ -54,7 +54,6 @@ RUN go env -w GO111MODULE=auto
 COPY cmd $GOPATH/src/github.com/Cray-HPE/hms-power-control/cmd
 COPY configs configs
 COPY scripts scripts
-COPY ephemeral_cert configs
 COPY vendor $GOPATH/src/github.com/Cray-HPE/hms-power-control/vendor
 COPY internal $GOPATH/src/github.com/Cray-HPE/hms-power-control/internal
 COPY .version $GOPATH/src/github.com/Cray-HPE/hms-power-control/.version

@@ -178,10 +178,10 @@ services:
     networks:
       - pcs
   redfish-simulator:
-    image: artifactory.algol60.net/csm-docker/stable/hms-redfish-translation-service:1.13.3
+    image: artifactory.algol60.net/csm-docker/stable/hms-redfish-translation-service:1.20.0
     environment:
       - SCHEMA_VERSION=2019.1
-      - LOG_LEVEL=TRACE
+      - LOG_LEVEL=INFO
       - PRIVILEGE_REGISTRY_VERSION=1.0.4
       - SCRIPT_DIR_PREFIX=/tmp/redfish
       - VAULT_TOKEN=hms
@@ -191,8 +191,8 @@ services:
       - CRAY_VAULT_JWT_FILE=configs/token
       - CRAY_VAULT_ROLE_FILE=configs/namespace
       - CRAY_VAULT_AUTH_PATH=auth/token/create
-      - HTTPS_CERT=configs/rts.crt
-      - HTTPS_KEY=configs/rts.key
+      - HTTPS_CERT=/ephemeral_cert/rts.crt
+      - HTTPS_KEY=/ephemeral_cert/rts.key
       - BACKEND_HELPER=RFSimulator
       - PERIODIC_SLEEP=120
       - COLLECTOR_URL=http://cray-hms-hmcollector
@@ -205,6 +205,8 @@ services:
       - redis
       - vault
       - cray-smd
+    volumes:
+      - ./ephemeral_cert:/ephemeral_cert
     networks:
       pcs:
         aliases:
