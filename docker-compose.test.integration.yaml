@@ -73,11 +73,6 @@ services:
       - vault
     networks:
       - pcs
-  redis:
-    image: artifactory.algol60.net/docker.io/library/redis:5.0-alpine3.12
-    hostname: hms-redfish-redis
-    networks:
-      - pcs
   hmsds-postgres:
     hostname: hmsds-postgres
     image: artifactory.algol60.net/docker.io/library/postgres:11-alpine
@@ -158,36 +153,5 @@ services:
       - ./configs/token:/configs/token
     networks:
       - pcs
-  redfish-simulator:
-    image: artifactory.algol60.net/csm-docker/stable/hms-redfish-translation-service:1.13.3
-    environment:
-      - SCHEMA_VERSION=2019.1
-      - LOG_LEVEL=TRACE
-      - PRIVILEGE_REGISTRY_VERSION=1.0.4
-      - SCRIPT_DIR_PREFIX=/tmp/redfish
-      - VAULT_TOKEN=hms
-      - REDIS_HOSTNAME=redis
-      - REDIS_PORT=6379
-      - VAULT_ADDR=http://vault:8200
-      - CRAY_VAULT_JWT_FILE=configs/token
-      - CRAY_VAULT_ROLE_FILE=configs/namespace
-      - CRAY_VAULT_AUTH_PATH=auth/token/create
-      - HTTPS_CERT=configs/rts.crt
-      - HTTPS_KEY=configs/rts.key
-      - BACKEND_HELPER=RFSimulator
-      - PERIODIC_SLEEP=120
-      - COLLECTOR_URL=http://cray-hms-hmcollector
-      - HSM_URL=http://cray-smd:27779
-      - HMS_VAULT_KEYPATH=hms-creds
-      - RF_USERNAME=root
-      - RF_PASSWORD=testpassword
-      - RF_SIMULATOR_XNAMES=x0c0s1b0,x0c0s2b0
-    depends_on:
-      - redis
-      - vault
-      - cray-smd
-    networks:
-      pcs:
-        aliases:
-          - x0c0s1b0
-          - x0c0s2b0
+
+# TODO replace simulated BMC with RIE
