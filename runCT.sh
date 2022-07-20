@@ -70,11 +70,15 @@ function cleanup() {
 mkdir -p $ephCertDir
 openssl req -newkey rsa:4096 \
     -x509 -sha256 \
-    -days 3650 \
+    -days 1 \
     -nodes \
     -subj "/C=US/ST=Minnesota/L=Bloomington/O=HPE/OU=Engineering/CN=hpe.com" \
-    -out $ephCertDir/tls.crt \
-    -keyout $ephCertDir/tls.key
+    -out $ephCertDir/rts.crt \
+    -keyout $ephCertDir/rts.key
+
+# When running in github actions the rts.key gets created with u+rw permissions.
+# This prevents RTS which runs as nobody to read the key as it doesn't have permission.
+chmod o+r $ephCertDir/rts.crt $ephCertDir/rts.key
 
 # Get the base containers running
 echo "Starting containers..."
