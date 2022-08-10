@@ -75,7 +75,7 @@ services:
     networks:
       - pcs
   cray-smd-init:
-    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.30.9
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.57.0
     environment:
       - SMD_DBHOST=hmsds-postgres
       - SMD_DBPORT=5432
@@ -85,7 +85,7 @@ services:
       - pcs
     command: /entrypoint.sh smd-init
   cray-smd:
-    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.30.9
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.57.0
     environment:
       - POSTGRES_HOST=hmsds-postgres
       - POSTGRES_PORT=5432
@@ -153,3 +153,81 @@ services:
       - pcs
 
 # TODO replace simulated BMC with RIE
+  #
+  # Emulator
+  #
+  emulator-loader:
+    image: artifactory.algol60.net/docker.io/library/golang:1.16-alpine
+    command: >
+      sh -c "apk add curl && sleep 10 &&
+      curl -X POST -d '{\"RedfishEndpoints\":[{
+        \"ID\":\"x0c0b0\",
+        \"FQDN\":\"x0c0b0\",
+        \"RediscoverOnUpdate\":true,
+        \"User\":\"root\",
+        \"Password\":\"root_password\"
+      },{
+        \"ID\":\"x0c0s1b0\",
+        \"FQDN\":\"x0c0s1b0\",
+        \"RediscoverOnUpdate\":true,
+        \"User\":\"root\",
+        \"Password\":\"root_password\"
+      },{
+        \"ID\":\"x0c0r2b0\",
+        \"FQDN\":\"x0c0r2b0\",
+        \"RediscoverOnUpdate\":true,
+        \"User\":\"root\",
+        \"Password\":\"root_password\"}]}' http://cray-smd:27779/hsm/v2/Inventory/RedfishEndpoints"
+    depends_on:
+      - cray-smd
+      - rfemulator0
+      - rfemulator1
+      - rfemulator2
+    networks:
+      - pcs
+
+  rfemulator0:
+    hostname: x0c0b0
+    image: artifactory.algol60.net/csm-docker/stable/csm-rie:1.3.0
+    environment:
+      - MOCKUPFOLDER=CMM
+      - XNAME=x0c0b0
+      # - "AUTH_CONFIG=root:root_password:Administrator"
+      - PORT=443
+    ports:
+      - "5000:443"
+    networks:
+      pcs:
+        aliases:
+          - x0c0b0
+
+  rfemulator1:
+    hostname: x0c0s1b0
+    image: artifactory.algol60.net/csm-docker/stable/csm-rie:1.3.0
+    environment:
+      - MOCKUPFOLDER=EX235a
+      - MAC_SCHEMA=Mountain
+      - XNAME=x0c0s1b0
+      # - "AUTH_CONFIG=root:root_password:Administrator"
+      - PORT=443
+    ports:
+      - "5001:443"
+    networks:
+      pcs:
+        aliases:
+          - x0c0s1b0
+
+  rfemulator2:
+    hostname: x0c0r2b0
+    image: artifactory.algol60.net/csm-docker/stable/csm-rie:1.3.0
+    environment:
+      - MOCKUPFOLDER=Slingshot_Switch_Blade
+      - XNAME=x0c0r2b0
+      # - "AUTH_CONFIG=root:root_password:Administrator"
+      - PORT=443
+    ports:
+      - "5002:443"
+    networks:
+      pcs:
+        aliases:
+          - x0c0r2b0
