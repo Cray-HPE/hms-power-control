@@ -28,6 +28,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -199,8 +200,9 @@ func doSetup() error {
 	logger.Init()
 	logger.Log.Error()
 
-	RFServer = httptest.NewServer(http.HandlerFunc(rfHandler))
-	RFServerUrl = RFServer.URL
+	RFServer = httptest.NewTLSServer(http.HandlerFunc(rfHandler))
+	rfUrl, _ := url.Parse(RFServer.URL)
+	RFServerUrl = rfUrl.Host
 
 	HSMServer = httptest.NewServer(http.HandlerFunc(hsmHandler))
 	StateManagerServer = HSMServer.URL
