@@ -30,6 +30,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
 
@@ -66,6 +67,10 @@ type Power struct {
 
 	// Redfish Control.v1_0_0.Control
 	RFControl
+}
+
+type RFControlsDeep struct {
+	Members []RFControl `json:"Members"`
 }
 
 // Structs used to [un]marshal HPE Redfish
@@ -123,6 +128,7 @@ type StatusRF struct {
 
 // RFControl struct used to unmarshal the Redfish Control.v1_0_0.Control data
 type RFControl struct {
+	Oid                 string    `json:"@odata.id,omitempty"`
 	ControlDelaySeconds *int      `json:"ControlDelaySeconds,omitempty"`
 	ControlMode         string    `json:"ControlMode,omitempty"`
 	ControlType         string    `json:"ControlType,omitempty"`
@@ -494,7 +500,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 			}
 		}
 		tempOps := []model.PowerCapOperation{}
-		if comp.PowerCapControlsCount > 0 {
+		if comp.PowerCapControlsCount > 0 && !taskIsPatch {
 			// When a component is using the Controls schema, it is because each available power control
 			// is located at a different URL. Make an operation for each URL.
 			for name, pwrCtl := range comp.PowerCaps {
@@ -512,7 +518,14 @@ func doPowerCapTask(taskID uuid.UUID) {
 			}
 		} else {
 			op := model.NewPowerCapOperation(task.TaskID, task.Type)
-			op.PowerCapURI = comp.PowerCapURI
+			if comp.PowerCapControlsCount > 0 {
+				// Use Controls.Deep URL for Cray EX hardware. 
+				pwrURL := comp.PowerCapURI
+				url := path.Dir(pwrURL)
+				op.PowerCapURI = url + "/Controls.Deep"
+			} else {
+				op.PowerCapURI = comp.PowerCapURI
+			}
 			op.PowerCaps = comp.PowerCaps
 			tempOps = append(tempOps, op)
 		}
@@ -649,11 +662,11 @@ func doPowerCapTask(taskID uuid.UUID) {
 				path = op.RfFQDN + op.PowerCapURI
 			}
 			payload, _ := generatePowerCapPayload(op)
-			trsTaskList[trsTaskIdx].Request, _ = http.NewRequest(method, path, bytes.NewBuffer(payload))
+			trsTaskList[trsTaskIdx].Request, _ = http.NewRequest(method, "https://" +  path, bytes.NewBuffer(payload))
 			trsTaskList[trsTaskIdx].Request.Header.Set("Content-Type", "application/json")
 			trsTaskList[trsTaskIdx].Request.Header.Add("HMS-Service", GLOB.BaseTRSTask.ServiceName)
 		} else {
-			trsTaskList[trsTaskIdx].Request.URL, _ = url.Parse(op.RfFQDN + op.PowerCapURI)
+			trsTaskList[trsTaskIdx].Request.URL, _ = url.Parse("https://" + op.RfFQDN + op.PowerCapURI)
 		}
 		// Vault enabled?
 		if GLOB.VaultEnabled {
@@ -745,9 +758,25 @@ func doPowerCapTask(taskID uuid.UUID) {
 // Generates a POST/PATCH payload for the specified operation
 func generatePowerCapPayload(op model.PowerCapOperation) ([]byte, error) {
 	if op.PowerCapControlsCount > 0 {
-		// Newer bard peak power capping schema
-		p := RFControl{
-			SetPoint: op.Component.PowerCapLimits[0].CurrentValue,
+		// Newer bard peak power capping schema deep patch
+		p := RFControlsDeep{
+			Members: make([]RFControl, 0, 1),
+		}
+		for _, limit := range op.Component.PowerCapLimits {
+			var ctl RFControl
+			if *op.Component.PowerCapLimits[0].CurrentValue > 0 {
+				ctl = RFControl{
+					Oid: op.PowerCaps[limit.Name].Path,
+					SetPoint: op.Component.PowerCapLimits[0].CurrentValue,
+					ControlMode: "Automatic",
+				}
+			} else {
+				ctl = RFControl{
+					Oid: op.PowerCaps[limit.Name].Path,
+					ControlMode: "Disabled",
+				}
+			}
+			p.Members = append(p.Members, ctl)
 		}
 		return json.Marshal(p)
 	} else if isHpeApollo6500(op.PowerCapURI) {

@@ -25,6 +25,11 @@
 
 set -x
 
+# Add .exe if running in a WSL environment
+if $(uname -r | grep -q "Microsoft"); then
+    shopt -s expand_aliases
+    alias docker-compose=docker-compose.exe
+fi
 
 # Configure docker compose
 export COMPOSE_PROJECT_NAME=$RANDOM
@@ -33,9 +38,10 @@ export COMPOSE_FILE=docker-compose.test.integration.yaml
 echo "COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}"
 echo "COMPOSE_FILE: $COMPOSE_FILE"
 
+args="-f $COMPOSE_FILE -p $COMPOSE_PROJECT_NAME"
 
 function cleanup() {
-  docker-compose down
+  docker-compose $args down
   if ! [[ $? -eq 0 ]]; then
     echo "Failed to decompose environment!"
     exit 1
@@ -44,9 +50,9 @@ function cleanup() {
 }
 
 echo "Starting containers..."
-docker-compose build
-docker-compose up  -d cray-power-control #this will stand up everythin except for the integration test container
-docker-compose up --exit-code-from integration-tests integration-tests
+docker-compose $args build
+docker-compose $args up  -d cray-power-control #this will stand up everythin except for the integration test container
+docker-compose $args up --exit-code-from integration-tests integration-tests
 
 test_result=$?
 
