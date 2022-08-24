@@ -264,12 +264,6 @@ func GetPowerStatus(xnames []string,
 		}
 
 		if (stateMatch) {
-			// var cmp pcsmodel.PowerStatusComponent
-			// cmp.SupportedPowerTransitions = make([]string,len(mp.SupportedPowerTransitions))
-			// cmp.XName = name
-			// cmp.PowerState = mp.PowerState
-			// cmp.ManagementState = mp.ManagementState
-			
 			cmp := pcsmodel.PowerStatusComponent{
 				SupportedPowerTransitions: make([]string, len(mp.SupportedPowerTransitions)),
 				XName: name,
