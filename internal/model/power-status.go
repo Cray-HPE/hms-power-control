@@ -44,8 +44,8 @@ const (
 func ToPowerStateFilter(psf string) (PSF PowerStateFilter, err error) {
 
 	if len(psf) == 0 {
-		err = errors.New("invalid powerStateFilter type: " + psf)
 		PSF = PowerStateFilter_Nil
+		err = nil
 		return
 	}
 	if strings.ToLower(psf) == "on" {
@@ -123,7 +123,7 @@ type PowerStatusComponent struct {
 	ManagementState           string   `json:"managementState"`
 	Error                     string   `json:"error"`
 	SupportedPowerTransitions []string `json:"supportedPowerTransitions"`
-	LastUpdated               string   `json:"LastUpdated"` //RFC3339Nano
+	LastUpdated               string   `json:"lastUpdated"` //RFC3339Nano
 }
 
 type PowerStatus struct {

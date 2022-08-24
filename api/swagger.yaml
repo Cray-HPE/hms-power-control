@@ -78,7 +78,7 @@ tags:
     description: Endpoints that perform power operations to a set of xnames
   - name: power-status
     description: Endpoints that retreive power status of xnames
-  - name: powercap
+  - name: power-cap
     description: Endpoints that retrieve or set power cap parameters
 
 servers:
@@ -218,14 +218,20 @@ paths:
           style: form
           explode: true
       responses:
-        202:
-          description: Accepted
+        200:
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/power_status_all'
         400:
           description: Bad Request
+          content:
+            application/error:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
+        500:
+          description: Database error
           content:
             application/error:
               schema:
@@ -237,7 +243,7 @@ paths:
   /power-cap/snapshot:
     post:
       tags:
-        - powercap
+        - power-cap
       summary: Take a power cap snapshot for a set of targets
       description: >-
         Get power cap value snapshot for a set of targets.  This operation
@@ -256,18 +262,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/op_task_start_response'
-        '404':
-          description: Endpoint not found
+        '400':
+          description: Bad Request
+          content:
+            application/error:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
+        '500':
+          description: Database error
           content:
             application/error:
               schema:
                 $ref: '#/components/schemas/Problem7807'
 
-
   /power-cap:
     patch:
       tags:
-        - powercap
+        - power-cap
       summary: Set power capping parameters on a set of targets
       description: >-
         Set power cap parameters for a list of targets.  The PATCH payload
@@ -287,15 +298,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/op_task_start_response'
-        '404':
-          description: Endpoint not found
+        '400':
+          description: Bad Request
+          content:
+            application/error:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
+        '500':
+          description: Database error
           content:
             application/error:
               schema:
                 $ref: '#/components/schemas/Problem7807'
     get:
       tags:
-        - powercap
+        - power-cap
       summary: Get a list of power-cap tasks (snapshots or sets)
       responses:
         '200':
@@ -304,11 +321,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/power_cap_task_list'
-  /power-cap/{taskID}:
+        '500':
+          description: Database error
+          content:
+            application/error:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
 
+  /power-cap/{taskID}:
     get:
       tags:
-        - powercap
+        - power-cap
       summary: Get power cap or snapshot information
       description: >-
         Queries the current status for the task (returned from a `PATCH /power-cap`
@@ -319,7 +342,6 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/task_id'
-
       responses:
         '200':
           description: OK.  The data was succesfully retrieved.  Task Info is only present for task status operations (PATCH power-cap or POST power-cap/snapshot)
@@ -328,11 +350,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/power_caps_retdata'
         '404':
-          description: Endpoint not found
+          description: TaskID not found
           content:
             application/error:
               schema:
                 $ref: '#/components/schemas/Problem7807'
+        '500':
+          description: Database error
+          content:
+            application/error:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
+
   /liveness:
     get:
       tags:
@@ -439,6 +468,11 @@ components:
               - init
               - force-off
           example: [ soft-restart]
+        lastUpdated:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2022-08-24T16:45:53.953811137Z'
 
     power_status_all:
       type: object
@@ -695,14 +729,14 @@ components:
 
     power_caps_retdata:
       type: object
-      properties:
-
-        taskInfo:
-          $ref: '#/components/schemas/power_cap_task_info'
-        components:
-          type: array
-          items:
-            $ref: '#/components/schemas/rsp_power_cap_components'
+      allOf:
+        - $ref: '#/components/schemas/power_cap_task_info'
+        - type: object
+          properties:
+            components:
+              type: array
+              items:
+                $ref: '#/components/schemas/rsp_power_cap_components'
 
 
     power_cap_task_list:
