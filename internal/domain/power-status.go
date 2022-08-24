@@ -199,14 +199,23 @@ func GetPowerStatus(xnames []string,
 
 	compMap := make(map[string]*pcsmodel.PowerStatusComponent)
 
+	allComps := false
+	if len(xnames) == 0 {
+		allComps = true
+	}
+
 	for ix,comp := range(statusObj.Status) {
 		compMap[comp.XName] = &statusObj.Status[ix]
+		if allComps {
+			xnames = append(xnames, comp.XName)
+		}
 	}
 
 	//Build a return object, filtering by xname.
 
 	var rcomps pcsmodel.PowerStatus
 	var robj pcsmodel.Passback
+	rcomps.Status = make([]pcsmodel.PowerStatusComponent, 0, len(xnames))
 
 	psUndef := ((pwrStateFilter == pcsmodel.PowerStateFilter_Nil) ||
 			    (pwrStateFilter == pcsmodel.PowerStateFilter_Undefined))
@@ -255,13 +264,15 @@ func GetPowerStatus(xnames []string,
 		}
 
 		if (stateMatch) {
-			var cmp pcsmodel.PowerStatusComponent
-			cmp.SupportedPowerTransitions = make([]string,len(mp.SupportedPowerTransitions))
-			cmp.XName = name
-			cmp.PowerState = mp.PowerState
-			cmp.ManagementState = mp.ManagementState
-			copy(cmp.SupportedPowerTransitions,mp.SupportedPowerTransitions)
-			rcomps.Status = append(rcomps.Status,cmp)
+			cmp := pcsmodel.PowerStatusComponent{
+				SupportedPowerTransitions: make([]string, len(mp.SupportedPowerTransitions)),
+				XName: name,
+				PowerState: mp.PowerState,
+				ManagementState: mp.ManagementState,
+				LastUpdated: mp.LastUpdated,
+			}
+			copy(cmp.SupportedPowerTransitions, mp.SupportedPowerTransitions)
+			rcomps.Status = append(rcomps.Status, cmp)
 		}
 	}
 

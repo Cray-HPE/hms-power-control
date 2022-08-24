@@ -112,7 +112,7 @@ stages:
                             required: True
                             # no enum here since supportedPowerTransitions come
                             # from Redfish and vary depending on hardware
-                      LastUpdated:
+                      lastUpdated:
                         type: str
                         required: True
 
@@ -185,7 +185,7 @@ stages:
                             required: True
                             # no enum here since supportedPowerTransitions come
                             # from Redfish and vary depending on hardware
-                      LastUpdated:
+                      lastUpdated:
                         type: str
                         required: True
 ---
