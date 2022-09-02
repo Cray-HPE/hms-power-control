@@ -24,18 +24,38 @@ package model
 
 import (
 	"errors"
-	"github.com/google/uuid"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 )
 
-//INPUT
+///////////////////////////
+// Transitions Definitions
+///////////////////////////
+
+const (
+	TransitionStatusNew           = "new"
+	TransitionStatusInProgress    = "in-progress"
+	TransitionStatusCompleted     = "completed"
+	TransitionStatusAborted       = "aborted"
+	TransitionStatusAbortSignaled = "abort-signaled"
+)
+
+const (
+	TransitionTaskStatusNew         = "new"
+	TransitionTaskStatusInProgress  = "in-progress"
+	TransitionTaskStatusFailed      = "failed"
+	TransitionTaskStatusSucceeded   = "Succeeded"
+	TransitionTaskStatusUnsupported = "Unsupported"
+)
+
+///////////////////////////
+//INPUT - Generally from the API layer
+///////////////////////////
+
 type TransitionParameter struct {
 	Operation string              `json:"operation"`
-	Location  []LocationParameter `json:"location"`
-}
-
-type Transition struct {
-	Operation Operation           `json:"operation"`
 	Location  []LocationParameter `json:"location"`
 }
 
@@ -45,17 +65,126 @@ type LocationParameter struct {
 }
 
 func ToTransition(parameter TransitionParameter) (TR Transition, err error) {
-	TR.Location = parameter.Location
+	TR.TransitionID = uuid.New()
 	TR.Operation, err = ToOperationFilter(parameter.Operation)
+	TR.Location = parameter.Location
+	TR.CreateTime = time.Now()
+	TR.AutomaticExpirationTime = time.Now().Add(time.Hour * 24)
+	TR.Status = TransitionStatusNew
+	TR.TaskIDs = []uuid.UUID{}
 	return
 }
 
-//OUTPUT
+//////////////
+// INTERNAL - Generally passed around /internal/* packages
+//////////////
+
+type Transition struct {
+	TransitionID            uuid.UUID            `json:"transitionID"`
+	Operation               Operation            `json:"operation"`
+	Location                []LocationParameter  `json:"location"`
+	CreateTime              time.Time            `json:"createTime"`
+	AutomaticExpirationTime time.Time            `json:"automaticExpirationTime"`
+	Status                  string               `json:"transitionStatus"`
+	TaskIDs                 []uuid.UUID
+}
+
+type TransitionTask struct {
+	TaskID       uuid.UUID `json:"taskID"`
+	TransitionID uuid.UUID `json:"transitionID"`
+	Operation    Operation `json:"operation"`
+	Xname        string    `json:"xname"`
+	DeputyKey    uuid.UUID `json:"deputyKey,omitempty"`
+	Status       string    `json:"taskStatus"`
+	StatusDesc   string    `json:"taskStatusDescription"`
+	Error        string    `json:"error,omitempty"`
+}
+
+//////////////
+// OUTPUT - Generally passed back to the API layer.
+//////////////
 
 type TransitionCreation struct {
 	TransitionID uuid.UUID `json:"transitionID"`
 	Operation    string    `json:"operation"`
 }
+
+type TransitionRespArray struct {
+	Transitions []TransitionResp `json:"transitions"`
+}
+
+type TransitionResp struct {
+	TransitionID            uuid.UUID            `json:"transitionID"`
+	Operation               string               `json:"operation"`
+	CreateTime              time.Time            `json:"createTime"`
+	AutomaticExpirationTime time.Time            `json:"automaticExpirationTime"`
+	TransitionStatus        string               `json:"transitionStatus"`
+	TaskCounts              TransitionTaskCounts `json:"taskCounts"`
+	Tasks                   []TransitionTaskResp `json:"tasks,omitempty"`
+}
+
+type TransitionTaskCounts struct {
+	Total       int `json:"total"`
+	New         int `json:"new"`
+	InProgress  int `json:"in-progress"`
+	Failed      int `json:"failed"`
+	Succeeded   int `json:"succeeded"`
+	Unsupported int `json:"un-supported"`
+}
+
+type TransitionTaskResp struct {
+	Xname          string `json:"xname"`
+	TaskStatus     string `json:"taskStatus"`
+	TaskStatusDesc string `json:"taskStatusDescription"`
+	Error          string `json:"error,omitempty"`
+}
+
+// Assembles a TransitionResp struct from a transition and an array of its tasks.
+// If 'full' == true, full task information is included (xname, taskStatus, errors, etc).
+func ToTransitionResp(transition Transition, tasks []TransitionTask, full bool) TransitionResp {
+	// Build the response struct
+	rsp := TransitionResp{
+		TransitionID: transition.TransitionID,
+		Operation: transition.Operation.String(),
+		CreateTime: transition.CreateTime,
+		AutomaticExpirationTime: transition.AutomaticExpirationTime,
+		TransitionStatus: transition.Status,
+	}
+
+	counts := TransitionTaskCounts{}
+	for _, task := range tasks {
+		// Get the count of tasks with each status type.
+		switch(task.Status) {
+		case TransitionTaskStatusNew:
+			counts.New++
+		case TransitionTaskStatusInProgress:
+			counts.InProgress++
+		case TransitionTaskStatusFailed:
+			counts.Failed++
+		case TransitionTaskStatusSucceeded:
+			counts.Succeeded++
+		case TransitionTaskStatusUnsupported:
+			counts.Unsupported++
+		}
+		counts.Total++
+		// Include information about individual tasks if full == true
+		if full {
+			taskRsp := TransitionTaskResp{
+				Xname: task.Xname,
+				TaskStatus: task.Status,
+				TaskStatusDesc: task.StatusDesc,
+				Error: task.Error,
+			}
+			rsp.Tasks = append(rsp.Tasks, taskRsp)
+		}
+	}
+	rsp.TaskCounts = counts
+	return rsp
+}
+
+//////////////
+// FUNCTIONS
+//////////////
 
 // ToOperationFilter - Will return a valid Operation from string
 func ToOperationFilter(op string) (OP Operation, err error) {

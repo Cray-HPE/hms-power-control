@@ -495,7 +495,7 @@ components:
           type: string
           format: date-time
           description: when the record will be deleted
-        transitionState:
+        transitionStatus:
           type: string
           example: in-progress
           enum:
@@ -541,7 +541,7 @@ components:
           type: string
           format: date-time
           description: when the record will be deleted
-        transitionState:
+        transitionStatus:
           type: string
           example: in-progress
           enum:
@@ -583,7 +583,7 @@ components:
       properties:
         xname:
           $ref: '#/components/schemas/xname'
-        taskState:
+        taskStatus:
           type: string
           enum:
             - new
@@ -592,7 +592,7 @@ components:
             - succeeded
             - un-supported
           example: failed
-        taskStateDescription:
+        taskStatusDescription:
           type: string
           example: "the device did not respond in a timely manner"
         error:

@@ -41,15 +41,17 @@ import (
 // implementations.
 
 const (
-	kvUrlMemDefault  = "mem:"
-	kvUrlDefault     = kvUrlMemDefault //Default to in-memory implementation
-	kvRetriesDefault = 5
-	keyPrefix        = "/pcs/"
-	keySegPowerState = "/powerstate"
-	keySegPowerCap   = "/powercaptask"
-	keySegPowerCapOp = "/powercapop"
-	keyMin           = " "
-	keyMax           = "~"
+	kvUrlMemDefault      = "mem:"
+	kvUrlDefault         = kvUrlMemDefault //Default to in-memory implementation
+	kvRetriesDefault     = 5
+	keyPrefix            = "/pcs/"
+	keySegPowerState     = "/powerstate"
+	keySegPowerCap       = "/powercaptask"
+	keySegPowerCapOp     = "/powercapop"
+	keySegTransition     = "/transition"
+	keySegTransitionTask = "/transitiontask"
+	keyMin               = " "
+	keyMax               = "~"
 )
 
 type ETCDStorage struct {
@@ -317,6 +319,111 @@ func (e *ETCDStorage) DeletePowerCapTask(taskID uuid.UUID) error {
 
 func (e *ETCDStorage) DeletePowerCapOperation(taskID uuid.UUID, opID uuid.UUID) error {
 	key := fmt.Sprintf("%s/%s/%s", keySegPowerCapOp, taskID.String(), opID.String())
+	err := e.kvDelete(key)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return err
+}
+
+///////////////////////
+// Transitions
+///////////////////////
+
+func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
+	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
+	err := e.kvStore(key, transition)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return err
+}
+
+func (e *ETCDStorage) StoreTransitionTask(task model.TransitionTask) error {
+	// Store TransitionTasks using their parent transition's key so it will be
+	// easier to get all of them when needed.
+	key := fmt.Sprintf("%s/%s/%s", keySegTransitionTask, task.TransitionID.String(), task.TaskID.String())
+	err := e.kvStore(key, task)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return err
+}
+
+func (e *ETCDStorage) GetTransition(transitionID uuid.UUID) (model.Transition, error) {
+	var transition model.Transition
+	key := fmt.Sprintf("%s/%s", keySegTransition, transitionID.String())
+
+	err := e.kvGet(key, &transition)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return transition, err
+}
+
+func (e *ETCDStorage) GetTransitionTask(transitionID, taskID uuid.UUID) (model.TransitionTask, error) {
+	var task model.TransitionTask
+	key := fmt.Sprintf("%s/%s/%s", keySegTransitionTask, transitionID.String(), taskID.String())
+
+	err := e.kvGet(key, &task)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return task, err
+}
+
+func (e *ETCDStorage) GetAllTasksForTransition(transitionID uuid.UUID) ([]model.TransitionTask, error) {
+	tasks := []model.TransitionTask{}
+	key := fmt.Sprintf("%s/%s", keySegTransitionTask, transitionID.String())
+	k := e.fixUpKey(key)
+	kvl, err := e.kvHandle.GetRange(k+keyMin, k+keyMax)
+	if err == nil {
+		for _, kv := range kvl {
+			var task model.TransitionTask
+			err = json.Unmarshal([]byte(kv.Value), &task)
+			if err != nil {
+				e.Logger.Error(err)
+			} else {
+				tasks = append(tasks, task)
+			}
+		}
+	} else {
+		e.Logger.Error(err)
+	}
+	return tasks, err
+}
+
+func (e *ETCDStorage) GetAllTransitions() ([]model.Transition, error) {
+	transitions := []model.Transition{}
+	k := e.fixUpKey(keySegTransition)
+	kvl, err := e.kvHandle.GetRange(k+keyMin, k+keyMax)
+	if err == nil {
+		for _, kv := range kvl {
+			var transition model.Transition
+			err = json.Unmarshal([]byte(kv.Value), &transition)
+			if err != nil {
+				e.Logger.Error(err)
+			} else {
+				transitions = append(transitions, transition)
+			}
+		}
+	} else {
+		e.Logger.Error(err)
+	}
+	return transitions, err
+}
+
+func (e *ETCDStorage) DeleteTransition(transitionID uuid.UUID) error {
+	key := fmt.Sprintf("%s/%s", keySegTransition, transitionID.String())
+	err := e.kvDelete(key)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return err
+}
+
+func (e *ETCDStorage) DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.UUID) error {
+	key := fmt.Sprintf("%s/%s/%s", keySegTransitionTask, transitionID.String(), taskID.String())
 	err := e.kvDelete(key)
 	if err != nil {
 		e.Logger.Error(err)

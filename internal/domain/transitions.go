@@ -23,20 +23,76 @@
 package domain
 
 import (
+	"errors"
+	"net/http"
+	"strings"
+
+	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 func GetTransition(transitionID uuid.UUID) (pb model.Passback) {
-	//TODO stuff here!
-	pb = model.BuildSuccessPassback(501, "GetTransition")
-	return pb
+	// Get the transition
+	transition, err := (*GLOB.DSP).GetTransition(transitionID)
+	if err != nil {
+		if strings.Contains(err.Error(), "does not exist") {
+			pb = model.BuildErrorPassback(http.StatusNotFound, err)
+		} else {
+			pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
+		}
+		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition")
+		return
+	}
+	if transition.TransitionID.String() != transitionID.String() {
+		err := errors.New("TransitionID does not exist")
+		pb = model.BuildErrorPassback(http.StatusNotFound, err)
+		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition")
+	}
+	// Get the operations for the task
+	tasks, err := (*GLOB.DSP).GetAllTasksForTransition(transitionID)
+	if err != nil {
+		pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
+		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition tasks")
+		return
+	}
+
+	// Build the response struct
+	rsp := model.ToTransitionResp(transition, tasks, true)
+
+	pb = model.BuildSuccessPassback(http.StatusOK, rsp)
+	return
 }
 
 func GetTransitionStatuses() (pb model.Passback) {
-	//TODO stuff here!
-	pb = model.BuildSuccessPassback(501, "GetTransitionStatuses")
-	return pb
+
+	// Get all transitions
+	transitions, err := (*GLOB.DSP).GetAllTransitions()
+	if err != nil {
+		pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
+		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transitions")
+		return
+	}
+
+	rsp := model.TransitionRespArray{
+		Transitions: []model.TransitionResp{},
+	}
+	// Get the tasks for each transition
+	for _, transition := range transitions {
+		tasks, err := (*GLOB.DSP).GetAllTasksForTransition(transition.TransitionID)
+		if err != nil {
+			pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
+			logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition tasks")
+			return
+		}
+		// Build the response struct
+		transitionRsp := model.ToTransitionResp(transition, tasks, false)
+		rsp.Transitions = append(rsp.Transitions, transitionRsp)
+	}
+
+	pb = model.BuildSuccessPassback(http.StatusOK, rsp)
+	return
 }
 
 func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
@@ -46,8 +102,28 @@ func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
 }
 
 func TriggerTransition(transition model.Transition) (pb model.Passback) {
-	//TODO stuff here!
-	//TODO need to make sure you return the model.TransitionCreation!
-	pb = model.BuildSuccessPassback(501, "TriggerTransition")
-	return pb
+
+	// Store transition
+	err := (*GLOB.DSP).StoreTransition(transition)
+	if err != nil {
+		pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
+		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error storing new transition")
+		return
+	}
+
+	// // Start transition
+	// go doTransitionTask(transition.TransitionID)
+
+	rsp := model.TransitionCreation{
+		TransitionID: transition.TransitionID,
+		Operation: transition.Operation.String(),
+	}
+	pb = model.BuildSuccessPassback(http.StatusOK, rsp)
+	return
 }
+
+///////////////////////////
+// Non-exported functions (helpers, utils, etc)
+///////////////////////////
+
+
