@@ -60,8 +60,8 @@ type TransitionParameter struct {
 }
 
 type LocationParameter struct {
-	Xname     string    `json:"xname"`
-	DeputyKey uuid.UUID `json:"deputyKey,omitempty"`
+	Xname     string `json:"xname"`
+	DeputyKey string `json:"deputyKey,omitempty"`
 }
 
 func ToTransition(parameter TransitionParameter) (TR Transition, err error) {
@@ -84,6 +84,7 @@ type Transition struct {
 	Operation               Operation            `json:"operation"`
 	Location                []LocationParameter  `json:"location"`
 	CreateTime              time.Time            `json:"createTime"`
+	LastActiveTime          time.Time            `json:"lastActiveTime"`
 	AutomaticExpirationTime time.Time            `json:"automaticExpirationTime"`
 	Status                  string               `json:"transitionStatus"`
 	TaskIDs                 []uuid.UUID
@@ -185,6 +186,15 @@ func ToTransitionResp(transition Transition, tasks []TransitionTask, full bool) 
 //////////////
 // FUNCTIONS
 //////////////
+
+func NewTransitionTask(transitionID uuid.UUID, op Operation) (TransitionTask){
+	return TransitionTask{
+		TaskID:       uuid.New(),
+		TransitionID: transitionID,
+		Operation:    op,
+		Status:       TransitionTaskStatusNew,
+	}
+}
 
 // ToOperationFilter - Will return a valid Operation from string
 func ToOperationFilter(op string) (OP Operation, err error) {

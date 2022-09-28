@@ -38,6 +38,7 @@ type StorageProvider interface {
 	DeletePowerStatus(xname string) error
 	GetPowerStatus(xname string) (model.PowerStatusComponent, error)
 	GetAllPowerStatus() (model.PowerStatus, error)
+	GetPowerStatusHierarchy(xname string) (model.PowerStatus, error)
 
 	StorePowerCapTask(task model.PowerCapTask) error
 	StorePowerCapOperation(op model.PowerCapOperation) error

@@ -92,6 +92,11 @@ func (m *MEMStorage) GetAllPowerStatus() (model.PowerStatus, error) {
 	return e.GetAllPowerStatus()
 }
 
+func (m *MEMStorage) GetPowerStatusHierarchy(xname string) (model.PowerStatus, error) {
+	e := toETCDStorage(m)
+	return e.GetPowerStatusHierarchy(xname)
+}
+
 ///////////////////////
 // Power Capping
 ///////////////////////

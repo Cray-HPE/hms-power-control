@@ -221,6 +221,30 @@ func (e *ETCDStorage) GetAllPowerStatus() (model.PowerStatus, error) {
 	return pstats, err
 }
 
+func (e *ETCDStorage) GetPowerStatusHierarchy(xname string) (model.PowerStatus, error) {
+	var pstats model.PowerStatus
+	if !(xnametypes.IsHMSCompIDValid(xname)) {
+		return pstats, fmt.Errorf("Error parsing '%s': invalid xname format.", xname)
+	}
+	key := fmt.Sprintf("%s/%s", keySegPowerState, xname)
+	k := e.fixUpKey(key)
+	kvl, err := e.kvHandle.GetRange(k+keyMin, k+keyMax)
+	if err == nil {
+		for _, kv := range kvl {
+			var pcomp model.PowerStatusComponent
+			err = json.Unmarshal([]byte(kv.Value), &pcomp)
+			if err != nil {
+				e.Logger.Error(err)
+			} else {
+				pstats.Status = append(pstats.Status, pcomp)
+			}
+		}
+	} else {
+		e.Logger.Error(err)
+	}
+	return pstats, err
+}
+
 ///////////////////////
 // Power Capping
 ///////////////////////

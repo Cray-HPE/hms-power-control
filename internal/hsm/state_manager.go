@@ -160,7 +160,7 @@ func (b *HSMv2) Ping() (err error) {
 
 func (b *HSMv2) ReserveComponents(compList []ReservationData) ([]*ReservationData,error) {
 	var retData []*ReservationData
-	var xnList,aquireList []string
+	var aquireList []string
 	var depKeys []reservation.Key
 
 	if (!b.HSMGlobals.LockEnabled) {
@@ -200,23 +200,6 @@ func (b *HSMv2) ReserveComponents(compList []ReservationData) ([]*ReservationDat
 			compMap[comp.ID].ReservationKey = ""
 			compMap[comp.ID].ExpirationTime = ""
 			compMap[comp.ID].needRsv = false
-		}
-
-		//For any components that have no valid deputy key, check to insure we
-		//aren't already reserved.
-
-		for _,comp := range(depList.Failure) {
-			xnList = append(xnList,comp.ID)
-		}
-
-		rsv,_ := b.HSMGlobals.Reservation.FlexCheck(xnList)
-
-		for _,comp := range(rsv.Success) {
-			compMap[comp.ID].ReservationOwner = true
-			compMap[comp.ID].needRsv = false
-			compMap[comp.ID].ReservationKey = comp.ReservationKey
-			compMap[comp.ID].DeputyKey = comp.DeputyKey
-			compMap[comp.ID].ExpirationTime = comp.ExpirationTime
 			retData = append(retData,compMap[comp.ID])
 		}
 	}

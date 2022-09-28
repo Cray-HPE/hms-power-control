@@ -374,7 +374,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 		return
 	}
 
-	defer logger.Log.Debugf("Power Capping Snapshot Task %s Completed", task.TaskID.String())
+	defer logger.Log.Debugf("Power Capping Task %s Completed", task.TaskID.String())
 
 	if task.Type == model.PowerCapTaskTypePatch {
 		logger.Log.Debugf("Starting Power Capping Patch Task %s - %v", task.TaskID.String(), *task.PatchParameters)
