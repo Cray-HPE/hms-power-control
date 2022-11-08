@@ -354,6 +354,13 @@ func (e *ETCDStorage) DeletePowerCapOperation(taskID uuid.UUID, opID uuid.UUID) 
 // Transitions
 ///////////////////////
 
+type TransitionWatchCBFunc func(Transition model.Transition, wasDeleted bool, err error, userdata interface{}) bool
+
+type WatchTransitionCBHandle struct {
+	watchHandlePut    hmetcd.WatchCBHandle
+	watchHandleDelete hmetcd.WatchCBHandle
+}
+
 func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
 	err := e.kvStore(key, transition)
@@ -453,4 +460,50 @@ func (e *ETCDStorage) DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.U
 		e.Logger.Error(err)
 	}
 	return err
+}
+
+type transitionWatchData struct {
+	Cb         TransitionWatchCBFunc
+	UserData   interface{}
+}
+
+func watchTransitionCBHelper(key string, val string, op int, userdata interface{}) bool {
+	var transition model.Transition
+	watchData := userdata.(transitionWatchData)
+	switch(op) {
+	case hmetcd.KVC_KEYCHANGE_PUT:
+		err := json.Unmarshal([]byte(val), &transition)
+		return watchData.Cb(transition, false, err, watchData.UserData)
+	case hmetcd.KVC_KEYCHANGE_DELETE:
+		return watchData.Cb(transition, true, nil, watchData.UserData)
+	}
+	// Should never happen
+	return false
+}
+
+func (e *ETCDStorage) WatchTransitionCB(transitionID uuid.UUID, cb TransitionWatchCBFunc, userdata interface{}) (WatchTransitionCBHandle, error) {
+	var cbHandle WatchTransitionCBHandle
+	var err error
+	cbData := transitionWatchData{
+		Cb: cb,
+		UserData: userdata,
+	}
+	key := fmt.Sprintf("%s/%s", keySegTransition, transitionID.String())
+	k := e.fixUpKey(key)
+
+	cbHandle.watchHandlePut, err = e.kvHandle.WatchWithCB(k, hmetcd.KVC_KEYCHANGE_PUT, hmetcd.WatchCBFunc(watchTransitionCBHelper), cbData)
+	if err != nil {
+		return cbHandle, err
+	}
+	cbHandle.watchHandleDelete, err = e.kvHandle.WatchWithCB(k, hmetcd.KVC_KEYCHANGE_DELETE, hmetcd.WatchCBFunc(watchTransitionCBHelper), cbData)
+	if err != nil {
+		e.kvHandle.WatchCBCancel(cbHandle.watchHandlePut)
+		return cbHandle, err
+	}
+	return cbHandle, nil
+}
+
+func (e *ETCDStorage) WatchTransitionCBCancel(cbh WatchTransitionCBHandle) {
+	e.kvHandle.WatchCBCancel(cbh.watchHandlePut)
+	e.kvHandle.WatchCBCancel(cbh.watchHandleDelete)
 }

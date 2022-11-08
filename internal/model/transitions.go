@@ -50,13 +50,16 @@ const (
 	TransitionTaskStatusUnsupported = "Unsupported"
 )
 
+const DefaultTaskDeadline = 5
+
 ///////////////////////////
 //INPUT - Generally from the API layer
 ///////////////////////////
 
 type TransitionParameter struct {
-	Operation string              `json:"operation"`
-	Location  []LocationParameter `json:"location"`
+	Operation    string              `json:"operation"`
+	TaskDeadline *int                `json:"taskDeadlineMinutes"`
+	Location     []LocationParameter `json:"location"`
 }
 
 type LocationParameter struct {
@@ -67,6 +70,11 @@ type LocationParameter struct {
 func ToTransition(parameter TransitionParameter) (TR Transition, err error) {
 	TR.TransitionID = uuid.New()
 	TR.Operation, err = ToOperationFilter(parameter.Operation)
+	if parameter.TaskDeadline != nil {
+		TR.TaskDeadline = *parameter.TaskDeadline
+	} else {
+		TR.TaskDeadline = DefaultTaskDeadline
+	}
 	TR.Location = parameter.Location
 	TR.CreateTime = time.Now()
 	TR.AutomaticExpirationTime = time.Now().Add(time.Hour * 24)
@@ -82,6 +90,7 @@ func ToTransition(parameter TransitionParameter) (TR Transition, err error) {
 type Transition struct {
 	TransitionID            uuid.UUID            `json:"transitionID"`
 	Operation               Operation            `json:"operation"`
+	TaskDeadline            int                  `json:"taskDeadlineMinutes"`
 	Location                []LocationParameter  `json:"location"`
 	CreateTime              time.Time            `json:"createTime"`
 	LastActiveTime          time.Time            `json:"lastActiveTime"`
@@ -221,6 +230,9 @@ func ToOperationFilter(op string) (OP Operation, err error) {
 	} else if strings.ToLower(op) == "forceoff" {
 		OP = Operation_ForceOff
 		err = nil
+	} else if strings.ToLower(op) == "softoff" {
+		OP = Operation_SoftOff
+		err = nil
 	} else {
 		err = errors.New("invalid Operation type " + op)
 		OP = Operation_Nil
@@ -235,15 +247,16 @@ type Operation int
 const (
 	Operation_Nil         Operation = iota - 1
 	Operation_On                    // On = 0
-	Operation_Off                   //  1
+	Operation_Off                   // 1
 	Operation_SoftRestart           // 2
-	Operation_HardRestart           //  3
+	Operation_HardRestart           // 3
 	Operation_Init                  // 4
 	Operation_ForceOff              // 5
+	Operation_SoftOff               // 6
 )
 
 func (op Operation) String() string {
-	return [...]string{"On", "Off", "SoftRestart", "HardRestart", "Init", "ForceOff"}[op]
+	return [...]string{"On", "Off", "SoftRestart", "HardRestart", "Init", "ForceOff", "SoftOff"}[op]
 }
 
 func (op Operation) EnumIndex() int {

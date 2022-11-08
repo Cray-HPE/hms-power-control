@@ -184,3 +184,13 @@ func (m *MEMStorage) DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.UU
 	e := toETCDStorage(m)
 	return e.DeleteTransitionTask(transitionID, taskID)
 }
+
+func (m *MEMStorage) WatchTransitionCB(transitionID uuid.UUID, cb TransitionWatchCBFunc, userdata interface{}) (WatchTransitionCBHandle, error) {
+	e := toETCDStorage(m)
+	return e.WatchTransitionCB(transitionID, cb, userdata)
+}
+
+func (m *MEMStorage) WatchTransitionCBCancel(cbh WatchTransitionCBHandle) {
+	e := toETCDStorage(m)
+	e.WatchTransitionCBCancel(cbh)
+}

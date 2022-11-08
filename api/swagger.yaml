@@ -619,13 +619,20 @@ components:
           enum:
             - on
             - off
+            - soft-off
             - soft-restart
             - hard-restart
             - init
             - force-off
 
-          description: The operation that should be applied to the hardware
+          description: The operation that should be applied to the hardware.
           example: force-off
+        taskDeadlineMinutes:
+          type: int
+          description: >-
+            The duration in minutes any one transition task should be given to
+            complete before moving on. Defaults to 5 minutes if unspecified.
+            Specify 0 to disable waiting. Specify -1 to wait as long as it takes.
         location:
           type: array
           items:
