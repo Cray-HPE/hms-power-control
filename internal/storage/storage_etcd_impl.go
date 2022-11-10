@@ -426,7 +426,8 @@ func (e *ETCDStorage) GetAllTasksForTransition(transitionID uuid.UUID) ([]model.
 
 func (e *ETCDStorage) GetAllTransitions() ([]model.Transition, error) {
 	transitions := []model.Transition{}
-	k := e.fixUpKey(keySegTransition)
+	key := fmt.Sprintf("%s/", keySegTransition)
+	k := e.fixUpKey(key)
 	kvl, err := e.kvHandle.GetRange(k+keyMin, k+keyMax)
 	if err == nil {
 		for _, kv := range kvl {
