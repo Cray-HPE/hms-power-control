@@ -102,7 +102,8 @@ type Transition struct {
 type TransitionTask struct {
 	TaskID       uuid.UUID `json:"taskID"`
 	TransitionID uuid.UUID `json:"transitionID"`
-	Operation    Operation `json:"operation"`
+	Operation    Operation `json:"operation"` // != Transition.Operation Tasks the redfish power command being issued (for recovery purposes)
+	State        TaskState `json:"TaskState"`
 	Xname        string    `json:"xname"`
 	DeputyKey    uuid.UUID `json:"deputyKey,omitempty"`
 	Status       string    `json:"taskStatus"`
@@ -201,6 +202,7 @@ func NewTransitionTask(transitionID uuid.UUID, op Operation) (TransitionTask){
 		TaskID:       uuid.New(),
 		TransitionID: transitionID,
 		Operation:    op,
+		State:        TaskState_GatherData,
 		Status:       TransitionTaskStatusNew,
 	}
 }
@@ -212,28 +214,30 @@ func ToOperationFilter(op string) (OP Operation, err error) {
 		OP = Operation_Nil
 		return
 	}
-	if strings.ToLower(op) == "on" {
+	operation := strings.ToLower(op)
+	switch(operation) {
+	case "on":
 		OP = Operation_On
 		err = nil
-	} else if strings.ToLower(op) == "off" {
+	case "off":
 		OP = Operation_Off
 		err = nil
-	} else if strings.ToLower(op) == "softrestart" {
+	case "soft-restart":
 		OP = Operation_SoftRestart
 		err = nil
-	} else if strings.ToLower(op) == "hardrestart" {
+	case "hard-restart":
 		OP = Operation_HardRestart
 		err = nil
-	} else if strings.ToLower(op) == "init" {
+	case "init":
 		OP = Operation_Init
 		err = nil
-	} else if strings.ToLower(op) == "forceoff" {
+	case "force-off":
 		OP = Operation_ForceOff
 		err = nil
-	} else if strings.ToLower(op) == "softoff" {
+	case "soft-off":
 		OP = Operation_SoftOff
 		err = nil
-	} else {
+	default:
 		err = errors.New("invalid Operation type " + op)
 		OP = Operation_Nil
 	}
@@ -247,12 +251,12 @@ type Operation int
 const (
 	Operation_Nil         Operation = iota - 1
 	Operation_On                    // On = 0
-	Operation_Off                   // 1
-	Operation_SoftRestart           // 2
-	Operation_HardRestart           // 3
-	Operation_Init                  // 4
-	Operation_ForceOff              // 5
-	Operation_SoftOff               // 6
+	Operation_Off                   // 1 GracfulShutdown/Off->ForceOff
+	Operation_SoftRestart           // 2 GracefulRestart->ForceRestart Or GracfulShutdown/Off->ForceOff->On
+	Operation_HardRestart           // 3 GracfulShutdown/Off->ForceOff->On
+	Operation_Init                  // 4 GracfulShutdown/Off->ForceOff->On does not require the initial power state to be "on"
+	Operation_ForceOff              // 5 ForceOff
+	Operation_SoftOff               // 6 GracfulShutdown/Off
 )
 
 func (op Operation) String() string {
@@ -261,4 +265,22 @@ func (op Operation) String() string {
 
 func (op Operation) EnumIndex() int {
 	return int(op)
+}
+
+type TaskState int
+
+const (
+	TaskState_Nil         TaskState = iota - 1
+	TaskState_GatherData            // GatherData = 0
+	TaskState_Sending               // 1 Command MAY have been sent. Can't confirm it was received.
+	TaskState_Waiting               // 2 Command received. Waiting to confirm power state
+	TaskState_Confirmed             // 3 Power state confirmed
+)
+
+func (ts TaskState) String() string {
+	return [...]string{"Gathering Data", "Sending Command", "Waiting to Confirm", "Confired Transition", "Failed", "Complete"}[ts]
+}
+
+func (ts TaskState) EnumIndex() int {
+	return int(ts)
 }
