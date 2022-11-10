@@ -167,8 +167,31 @@ func GetTransitionStatuses() (pb model.Passback) {
 }
 
 func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
-	//TODO stuff here!
-	pb = model.BuildSuccessPassback(501, "AbortTransitionID")
+	// Get the transition
+	transition, err := (*GLOB.DSP).GetTransition(transitionID)
+	if err != nil {
+		if strings.Contains(err.Error(), "does not exist") {
+			pb = model.BuildErrorPassback(http.StatusNotFound, err)
+		} else {
+			pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
+		}
+		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition")
+		return
+	}
+	if transition.TransitionID.String() != transitionID.String() {
+		err := errors.New("TransitionID does not exist")
+		pb = model.BuildErrorPassback(http.StatusNotFound, err)
+		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition")
+	}
+	transition.Status = model.TransitionStatusAbortSignaled
+	err = (*GLOB.DSP).StoreTransition(transition)
+	if err != nil {
+		pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
+		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error storing new transition")
+		return
+	}
+
+	pb = model.BuildSuccessPassback(202, "Accepted - abort initiated")
 	return pb
 }
 
