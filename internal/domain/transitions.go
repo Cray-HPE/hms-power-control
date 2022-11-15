@@ -104,6 +104,8 @@ var PowerSequenceFull = []PowerSeqElem{
 	},
 }
 
+var TransitionKeepAliveInterval int = 10
+
 func GetTransition(transitionID uuid.UUID) (pb model.Passback) {
 	// Get the transition
 	transition, err := (*GLOB.DSP).GetTransition(transitionID)
@@ -307,6 +309,9 @@ func doTransition(transitionID uuid.UUID) {
 		// logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error starting abort watcher")
 	// }
 	// defer (*GLOB.DSP).WatchTransitionCBCancel(cbHandle)
+
+	// Start the Keep Alive thread
+	go transitionKeepAlive(tr.TransitionID)
 
 	if tr.Operation == model.Operation_SoftOff {
 		isSoft = true
@@ -606,6 +611,20 @@ func doTransition(transitionID uuid.UUID) {
 	for xname, comp := range xnameMap {
 		if comp.Task.Status != model.TransitionTaskStatusNew &&
 		   comp.Task.Status != model.TransitionTaskStatusInProgress {
+			continue
+		}
+
+		if comp.PState == nil {
+			// TODO: Find out why this happens. It shouldn't because all elements in xnameMap should either
+			//       have all the required information or have an error.
+			logger.Log.Debugf("Found task without PState, Comp: %v, Task: %v", comp, comp.Task)
+			comp.Task.Status = model.TransitionTaskStatusFailed
+			comp.Task.StatusDesc = "Component is missing power state information"
+			comp.Task.Error = "Component does not exist in PCS /power-status"
+			err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
+			if err != nil {
+				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
+			}
 			continue
 		}
 
@@ -1213,21 +1232,21 @@ func storeTransition(tr model.Transition) (bool, error) {
 
 // Callback for watching for "Abort-signaled" on transitions to inform the main worker thread if it needs to abort.
 // Done this way so even if the "Abort-signaled" status gets overwritten, the desire to abort is still captured.
-func transitionAbortWatchCB(transition model.Transition, wasDeleted bool, err error, abortChan interface{}) bool {
-	if err == nil && !wasDeleted {
-		if transition.Status == model.TransitionStatusAbortSignaled {
-			// Tell the main thread to abort
-			abortChan.(chan bool) <- true
-		}
-		if transition.Status == model.TransitionStatusNew ||
-		   transition.Status == model.TransitionStatusInProgress {
-			// Continue watching
-			return true
-		}
-	}
-	// Stop watching
-	return false
-}
+// func transitionAbortWatchCB(transition model.Transition, wasDeleted bool, err error, abortChan interface{}) bool {
+	// if err == nil && !wasDeleted {
+		// if transition.Status == model.TransitionStatusAbortSignaled {
+			// // Tell the main thread to abort
+			// abortChan.(chan bool) <- true
+		// }
+		// if transition.Status == model.TransitionStatusNew ||
+		   // transition.Status == model.TransitionStatusInProgress {
+			// // Continue watching
+			// return true
+		// }
+	// }
+	// // Stop watching
+	// return false
+// }
 
 // Checks the channel for abort signals and returns true if atleast 1 was found.
 // Empties the channel if more than one was found.
@@ -1270,6 +1289,56 @@ func doAbort(tr model.Transition, xnameMap map[string]*TransitionComponent) {
 	err := (*GLOB.DSP).StoreTransition(tr)
 	if err != nil {
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
+	}
+}
+
+// Periodically updates the LastActiveTime field of the given transition. Will kill itself
+// if the transition moves to the Completed or Aborted state or gets deleted.
+func transitionKeepAlive(transitionID uuid.UUID) {
+	logger.Log.Debugf("Starting keep alive for Transition, %s.", transitionID.String())
+	keepAlive := time.NewTicker(time.Duration(TransitionKeepAliveInterval) * time.Second)
+	defer keepAlive.Stop()
+	for {
+		select {
+		case <-keepAlive.C:
+			for {
+				// Get the transition
+				transition, err := (*GLOB.DSP).GetTransition(transitionID)
+				if err != nil {
+					if strings.Contains(err.Error(), "does not exist") {
+						logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Transition, %s, does not exist, stopping keep alive thread", transitionID.String())
+						return
+					} else {
+						logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error retreiving Transition, %s, retrying...", transitionID.String())
+						continue
+					}
+				}
+				if transition.TransitionID.String() != transitionID.String() {
+					err := errors.New("TransitionID does not exist")
+					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Transition, %s, does not exist, stopping keep alive thread", transitionID.String())
+					return
+				}
+
+				// End states
+				if transition.Status == model.TransitionStatusAborted ||
+				   transition.Status == model.TransitionStatusCompleted {
+					logger.Log.Debugf("Transition %s is finished. Stopping keep alive thread", transitionID.String())
+					return
+				}
+				transitionOld := transition
+				// Only change the LastActiveTime
+				transition.LastActiveTime = time.Now()
+				// Use test and set to prevent overwriting another thread's store operation.
+				ok, err := (*GLOB.DSP).TASTransition(transition, transitionOld)
+				if err != nil {
+					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error storing Transition, %s, retrying...", transitionID.String())
+					continue
+				}
+				if ok {
+					break
+				}
+			}
+		}
 	}
 }
 
@@ -1499,4 +1568,83 @@ func failDependentComps(xnameMap map[string]*TransitionComponent, powerAction st
 	}
 }
 
+func transitionsReaper() {
+	logger.Log.Debug("Starting transitions reaper thread.")
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			for {
+				// Get all transitions
+				transitions, err := (*GLOB.DSP).GetAllTransitions()
+				if err != nil {
+					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error retreiving transitions")
+					continue
+				}
+				if len(transitions) == 0 {
+					// No transitions to act upon
+					break
+				}
 
+				for _, transition := range transitions {
+					if transition.AutomaticExpirationTime.Before(time.Now()) {
+						if transition.Status == model.TransitionStatusAborted ||
+						   transition.Status == model.TransitionStatusCompleted {
+							deleteTransition(transition.TransitionID)
+						} else if transition.Status != model.TransitionStatusAbortSignaled {
+							transitionOld := transition
+							transition.Status = model.TransitionStatusAbortSignaled
+							// No need to check if the TAS succeeded because, if it didn't,
+							// it means someone else took care of it.
+							_, err := (*GLOB.DSP).TASTransition(transition, transitionOld)
+							if err != nil {
+								logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error aborting transition, %s.", transition.TransitionID.String())
+							}
+						}
+					} else if transition.LastActiveTime.Before(time.Now().Add(time.Duration(TransitionKeepAliveInterval) * -3 * time.Second)) &&
+					          transition.Status != model.TransitionStatusAborted && 
+					          transition.Status != model.TransitionStatusCompleted {
+						// Assume the transition has been abandoned if it has been 3 times
+						// the keep alive interval since it was last active.
+						// Pick up an abandoned transition by first refreshing its LastActiveTime
+						// so other instances know we got it first.
+						transitionOld := transition
+						transition.LastActiveTime = time.Now()
+						ok, err := (*GLOB.DSP).TASTransition(transition, transitionOld)
+						if err != nil {
+							logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error storing transition, %s.", transition.TransitionID.String())
+						}
+						// ok == true mean we got it first. Start the processing thread.
+						if ok {
+							go doTransition(transition.TransitionID)
+						}
+					}
+				}
+				break
+			}
+		}
+	}
+}
+
+func deleteTransition(transitionID uuid.UUID) error {
+	// Get the tasks for the transition
+	tasks, err := (*GLOB.DSP).GetAllTasksForTransition(transitionID)
+	if err != nil {
+		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error retreiving tasks for transition, %s.", transitionID.String())
+		return err
+	}
+	for _, task := range tasks {
+		err = (*GLOB.DSP).DeleteTransitionTask(transitionID, task.TaskID)
+		if err != nil {
+			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error deleting transition task, %s.", task.TaskID.String())
+			return err
+		}
+	}
+	err = (*GLOB.DSP).DeleteTransition(transitionID)
+	if err != nil {
+		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error deleting transition, %s.", transitionID.String())
+		return err
+	}
+	return nil
+}

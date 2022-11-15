@@ -38,6 +38,7 @@ var GLOB *DOMAIN_GLOBALS
 
 func Init(glob *DOMAIN_GLOBALS) {
 	GLOB = glob
+	go transitionsReaper()
 }
 
 type DOMAIN_GLOBALS struct {

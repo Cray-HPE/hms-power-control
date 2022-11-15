@@ -78,6 +78,7 @@ func ToTransition(parameter TransitionParameter) (TR Transition, err error) {
 	TR.Location = parameter.Location
 	TR.CreateTime = time.Now()
 	TR.AutomaticExpirationTime = time.Now().Add(time.Hour * 24)
+	TR.LastActiveTime = time.Now()
 	TR.Status = TransitionStatusNew
 	TR.TaskIDs = []uuid.UUID{}
 	return
