@@ -194,3 +194,8 @@ func (m *MEMStorage) WatchTransitionCBCancel(cbh WatchTransitionCBHandle) {
 	e := toETCDStorage(m)
 	e.WatchTransitionCBCancel(cbh)
 }
+
+func (m *MEMStorage) TASTransition(transition model.Transition, testVal model.Transition) (bool, error) {
+	e := toETCDStorage(m)
+	return e.TASTransition(transition, testVal)
+}

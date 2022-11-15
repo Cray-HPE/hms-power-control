@@ -59,6 +59,7 @@ type StorageProvider interface {
 	DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.UUID) error
 	WatchTransitionCB(transitionID uuid.UUID, cb TransitionWatchCBFunc, userdata interface{}) (WatchTransitionCBHandle, error)
 	WatchTransitionCBCancel(cbh WatchTransitionCBHandle)
+	TASTransition(transition model.Transition, testVal model.Transition) (bool, error)
 }
 
 type DistributedLockProvider interface {

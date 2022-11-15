@@ -50,6 +50,7 @@ const (
 	keySegPowerCapOp     = "/powercapop"
 	keySegTransition     = "/transition"
 	keySegTransitionTask = "/transitiontask"
+	keySegTransitionStat = "/transitionstat"
 	keyMin               = " "
 	keyMax               = "~"
 )
@@ -108,6 +109,23 @@ func (e *ETCDStorage) kvDelete(key string) error {
 	realKey := e.fixUpKey(key)
 	e.Logger.Trace("delete" + realKey)
 	return e.kvHandle.Delete(e.fixUpKey(key))
+}
+
+// Do an atomic Test-And-Set operation
+func (e *ETCDStorage) kvTAS(key string, testVal interface{}, setVal interface{}) (bool, error) {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	tdata, err := json.Marshal(testVal)
+	if err != nil {
+		return false, err
+	}
+	sdata, err := json.Marshal(setVal)
+	if err != nil {
+		return false, err
+	}
+	realKey := e.fixUpKey(key)
+	ok, err := e.kvHandle.TAS(realKey, string(tdata), string(sdata))
+	return ok, err
 }
 
 func (e *ETCDStorage) Init(Logger *logrus.Logger) error {
@@ -507,4 +525,13 @@ func (e *ETCDStorage) WatchTransitionCB(transitionID uuid.UUID, cb TransitionWat
 func (e *ETCDStorage) WatchTransitionCBCancel(cbh WatchTransitionCBHandle) {
 	e.kvHandle.WatchCBCancel(cbh.watchHandlePut)
 	e.kvHandle.WatchCBCancel(cbh.watchHandleDelete)
+}
+
+func (e *ETCDStorage) TASTransition(transition model.Transition, testVal model.Transition) (bool, error) {
+	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
+	ok, err := e.kvTAS(key, testVal, transition)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return ok, err
 }

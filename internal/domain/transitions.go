@@ -38,7 +38,7 @@ import (
 	"github.com/Cray-HPE/hms-power-control/internal/hsm"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
-	"github.com/Cray-HPE/hms-power-control/internal/storage"
+	// "github.com/Cray-HPE/hms-power-control/internal/storage"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -166,32 +166,44 @@ func GetTransitionStatuses() (pb model.Passback) {
 	return
 }
 
+// This uses Test-And-Set operations to signal an abort to prevent overwriting
+// another instance's store operation. Try a couple times before giving up.
 func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
-	// Get the transition
-	transition, err := (*GLOB.DSP).GetTransition(transitionID)
-	if err != nil {
-		if strings.Contains(err.Error(), "does not exist") {
-			pb = model.BuildErrorPassback(http.StatusNotFound, err)
-		} else {
-			pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
+	for retry := 0; retry < 3; retry++ {
+		// Get the transition
+		transition, err := (*GLOB.DSP).GetTransition(transitionID)
+		if err != nil {
+			if strings.Contains(err.Error(), "does not exist") {
+				pb = model.BuildErrorPassback(http.StatusNotFound, err)
+			} else {
+				pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
+			}
+			logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition")
+			return
 		}
-		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition")
-		return
-	}
-	if transition.TransitionID.String() != transitionID.String() {
-		err := errors.New("TransitionID does not exist")
-		pb = model.BuildErrorPassback(http.StatusNotFound, err)
-		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition")
-	}
-	transition.Status = model.TransitionStatusAbortSignaled
-	err = (*GLOB.DSP).StoreTransition(transition)
-	if err != nil {
-		pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
-		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error storing new transition")
-		return
+		if transition.TransitionID.String() != transitionID.String() {
+			err := errors.New("TransitionID does not exist")
+			pb = model.BuildErrorPassback(http.StatusNotFound, err)
+			logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition")
+		}
+		transitionOld := transition
+		transition.Status = model.TransitionStatusAbortSignaled
+		// Use test and set to prevent overwriting another thread's store operation.
+		ok, err := (*GLOB.DSP).TASTransition(transition, transitionOld)
+		if err != nil {
+			pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
+			logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error storing new transition")
+			return
+		}
+		if ok {
+			pb = model.BuildSuccessPassback(202, "Accepted - abort initiated")
+			return pb
+		}
 	}
 
-	pb = model.BuildSuccessPassback(202, "Accepted - abort initiated")
+	err := errors.New("Failed to signal abort")
+	pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
+	logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error storing abort-signaled status")
 	return pb
 }
 
@@ -288,13 +300,13 @@ func doTransition(transitionID uuid.UUID) {
 		logger.Log.Debugf("Starting Transition %s", tr.TransitionID.String())
 	}
 
-	// Start abort watcher
-	abortChan := make(chan bool)
-	cbHandle, err := (*GLOB.DSP).WatchTransitionCB(tr.TransitionID, storage.TransitionWatchCBFunc(transitionAbortWatchCB), abortChan)
-	if err != nil {
-		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error starting abort watcher")
-	}
-	defer (*GLOB.DSP).WatchTransitionCBCancel(cbHandle)
+	// // Start abort watcher
+	// abortChan := make(chan bool)
+	// cbHandle, err := (*GLOB.DSP).WatchTransitionCB(tr.TransitionID, storage.TransitionWatchCBFunc(transitionAbortWatchCB), abortChan)
+	// if err != nil {
+		// logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error starting abort watcher")
+	// }
+	// defer (*GLOB.DSP).WatchTransitionCBCancel(cbHandle)
 
 	if tr.Operation == model.Operation_SoftOff {
 		isSoft = true
@@ -373,17 +385,24 @@ func doTransition(transitionID uuid.UUID) {
 	// Finish up abort-signaled transitions. Shouldn't be picking
 	// up Aborted transitions but handle them just in case they're
 	// incompletely aborted.
-	if tr.Status == model.TransitionStatusAbortSignaled ||
-	   checkAbort(abortChan) {
-		doAbort(tr, xnameMap)
-		return
-	}
+	// if tr.Status == model.TransitionStatusAbortSignaled ||
+	   // checkAbort(abortChan) {
+		// doAbort(tr, xnameMap)
+		// return
+	// }
 
 	// Store the transition with its initial set of tasks. May have more added later.
 	tr.Status = model.TransitionStatusInProgress
-	err = (*GLOB.DSP).StoreTransition(tr)
+	// err = (*GLOB.DSP).StoreTransition(tr)
+	// if err != nil {
+		// logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
+	// }
+	abortSignaled, err := storeTransition(tr)
 	if err != nil {
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
+	}
+	if abortSignaled {
+		doAbort(tr, xnameMap)
 	}
 
 	///////////////////////////////////////////////////////////////////////////
@@ -441,11 +460,6 @@ func doTransition(transitionID uuid.UUID) {
 		if err != nil {
 			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
 		}
-		return
-	}
-
-	if checkAbort(abortChan) {
-		doAbort(tr, xnameMap)
 		return
 	}
 
@@ -571,14 +585,21 @@ func doTransition(transitionID uuid.UUID) {
 		}
 	}
 
-	if checkAbort(abortChan) {
-		doAbort(tr, xnameMap)
-		return
-	}
+	// if checkAbort(abortChan) {
+		// doAbort(tr, xnameMap)
+		// return
+	// }
 
-	err = (*GLOB.DSP).StoreTransition(tr)
+	// err = (*GLOB.DSP).StoreTransition(tr)
+	// if err != nil {
+		// logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
+	// }
+	abortSignaled, err = storeTransition(tr)
 	if err != nil {
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
+	}
+	if abortSignaled {
+		doAbort(tr, xnameMap)
 	}
 
 	// Sort components into groups so they can follow a proper power sequence
@@ -741,11 +762,6 @@ func doTransition(transitionID uuid.UUID) {
 		}
 	}
 
-	if checkAbort(abortChan) {
-		doAbort(tr, xnameMap)
-		return
-	}
-
 	///////////////////////////////////////////////////////////////////////////
 	// o Reserve components. This will make sure we aren't already operating on
 	//   any of the targets. The Go lib keeps these alive.
@@ -854,7 +870,8 @@ func doTransition(transitionID uuid.UUID) {
 			continue
 		}
 
-		if checkAbort(abortChan) {
+		abort, _ := checkAbort(tr)
+		if abort {
 			doAbort(tr, xnameMap)
 			return
 		}
@@ -1005,7 +1022,8 @@ func doTransition(transitionID uuid.UUID) {
 					endState = "on"
 				}
 				for {
-					if checkAbort(abortChan) {
+					abort, _ := checkAbort(tr)
+					if abort {
 						doAbort(tr, xnameMap)
 						return
 					}
@@ -1155,6 +1173,44 @@ func doTransition(transitionID uuid.UUID) {
 	return
 }
 
+func storeTransition(tr model.Transition) (bool, error) {
+	abort := false
+	for retry := 0; retry < 3; retry++ {
+		// Get the transition
+		trOld, err := (*GLOB.DSP).GetTransition(tr.TransitionID)
+		if err != nil {
+			if !strings.Contains(err.Error(), "does not exist") {
+				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error getting transition")
+				return abort, err
+			}
+		}
+		tr.LastActiveTime = time.Now()
+		if trOld.TransitionID.String() != tr.TransitionID.String() {
+			//Blank struct, do a normal store.
+			err = (*GLOB.DSP).StoreTransition(tr)
+			if err != nil {
+				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
+			}
+			return abort, err
+		}
+		if trOld.Status == model.TransitionStatusAbortSignaled {
+			tr.Status = model.TransitionStatusAbortSignaled
+			abort = true
+		}
+		// Use test and set to prevent overwriting another thread's store operation.
+		ok, err := (*GLOB.DSP).TASTransition(tr, trOld)
+		if err != nil {
+			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
+		}
+		if ok {
+			return abort, nil
+		}
+	}
+	err := errors.New("Retries expired storing transition")
+	logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
+	return abort, err
+}
+
 // Callback for watching for "Abort-signaled" on transitions to inform the main worker thread if it needs to abort.
 // Done this way so even if the "Abort-signaled" status gets overwritten, the desire to abort is still captured.
 func transitionAbortWatchCB(transition model.Transition, wasDeleted bool, err error, abortChan interface{}) bool {
@@ -1175,17 +1231,25 @@ func transitionAbortWatchCB(transition model.Transition, wasDeleted bool, err er
 
 // Checks the channel for abort signals and returns true if atleast 1 was found.
 // Empties the channel if more than one was found.
-func checkAbort(abortChan chan bool) bool {
-	abort := false
-	for {
-		select {
-		case <-abortChan:
-			abort = true
-		default:
-			break
+func checkAbort(tr model.Transition) (bool, error) {
+	transition, err := (*GLOB.DSP).GetTransition(tr.TransitionID)
+	if err != nil {
+		if !strings.Contains(err.Error(), "does not exist") {
+			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error getting transition")
+			return false, err
+		} else {
+			// No abort to check.
+			return false, nil
 		}
 	}
-	return abort
+	if transition.TransitionID.String() != tr.TransitionID.String() {
+		// No abort to check.
+		return false, nil
+	}
+	if transition.Status == model.TransitionStatusAbortSignaled {
+		return true, nil
+	}
+	return false, nil
 }
 
 // Fail any tasks that have not finished and mark the transition as "Aborted".
