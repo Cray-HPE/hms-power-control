@@ -375,6 +375,8 @@ func doTransition(transitionID uuid.UUID) {
 
 	xnameMap, xnames := setupTransitionTasks(&tr)
 
+	logger.Log.Debugf("xnameMap after setup: %v\nxnames after setup: %v", xnameMap, xnames)
+
 	if len(xnames) == 0 {
 		// All xnames were invalid
 		err = errors.New("No components to operate on")
@@ -426,6 +428,7 @@ func doTransition(transitionID uuid.UUID) {
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Cannot retrieve Power States, cannot continue")
 		return
 	}
+	logger.Log.Debugf("xnameMap after Power State: %v\nxnames Power State: %v\npStates: %v\nMissing xnames: %v", xnameMap, xnames, pStates, missingXnames)
 	// Finish out tasks for components that were not found or we cannot power control. 
 	if len(missingXnames) > 0 {
 		logrus.WithFields(logrus.Fields{"ERROR": err, "xnames": missingXnames}).Error("Missing xnames detected")
@@ -471,6 +474,8 @@ func doTransition(transitionID uuid.UUID) {
 	for xname, _ := range pStates {
 		xnameHierarchy = append(xnameHierarchy, xname)
 	}
+
+	logger.Log.Debugf("xnameMap after Power State: %v\nxnameHierarchy: %v", xnameMap, xnameHierarchy)
 
 	///////////////////////////////////////////////////////////////////////////
 	// o Get the component state and ComponentEndpoint data from HSM.
@@ -528,6 +533,8 @@ func doTransition(transitionID uuid.UUID) {
 			}
 		}
 	}
+
+	logger.Log.Debugf("xnameMap after hData: %v\nhData: %v", xnameMap, hsmData)
 
 	// Attach collected data and add any dependent components (i.e. Rosettas).
 	for _, xname := range xnames {
@@ -590,15 +597,8 @@ func doTransition(transitionID uuid.UUID) {
 		}
 	}
 
-	// if checkAbort(abortChan) {
-		// doAbort(tr, xnameMap)
-		// return
-	// }
+	logger.Log.Debugf("xnameMap after attach: %v", xnameMap)
 
-	// err = (*GLOB.DSP).StoreTransition(tr)
-	// if err != nil {
-		// logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
-	// }
 	abortSignaled, err = storeTransition(tr)
 	if err != nil {
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
@@ -609,6 +609,7 @@ func doTransition(transitionID uuid.UUID) {
 
 	// Sort components into groups so they can follow a proper power sequence
 	for xname, comp := range xnameMap {
+		logger.Log.Debugf("xnameMap entries at sort: %s, %v, %v, %v, %v", xname, comp, comp.Task, comp.PState, comp.HSMData)
 		if comp.Task.Status != model.TransitionTaskStatusNew &&
 		   comp.Task.Status != model.TransitionTaskStatusInProgress {
 			continue
@@ -798,13 +799,15 @@ func doTransition(transitionID uuid.UUID) {
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error acquiring reservations")
 		// An error occurred while reserving components. This does not include partial failure. Fail everything.
 		for _, comp := range xnameMap {
-			if comp.Task.Status != model.TransitionTaskStatusNew ||
+			if comp.Task.Status != model.TransitionTaskStatusNew &&
 			   comp.Task.Status != model.TransitionTaskStatusInProgress {
 				continue
 			}
 			comp.Task.Status = model.TransitionTaskStatusFailed
-			comp.Task.Error = "Error acquiring reservations"
-			comp.Task.StatusDesc = "Failed to achieve transition"
+			// comp.Task.Error = "Error acquiring reservations"
+			// comp.Task.StatusDesc = "Failed to achieve transition"
+			comp.Task.Error = err.Error()
+			comp.Task.StatusDesc = "Error acquiring reservations"
 			err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
 			if err != nil {
 				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
@@ -885,6 +888,7 @@ func doTransition(transitionID uuid.UUID) {
 			}
 			compList = append(compList, list...)
 		}
+		logger.Log.Debugf("compList: %v", compList)
 		if len(compList) == 0 {
 			continue
 		}
@@ -929,7 +933,7 @@ func doTransition(transitionID uuid.UUID) {
 			if comp.Task.Status == model.TransitionTaskStatusFailed {
 				continue
 			}
-			if comp.Task.State != model.TaskState_Waiting {
+			if comp.Task.State == model.TaskState_Waiting {
 				// Restarted task that we just need to wait to confirm transition.
 				// Add it to the trsTaskMap but don't add it to the trsTaskList to
 				// avoid resending the command.
@@ -1107,7 +1111,6 @@ func doTransition(transitionID uuid.UUID) {
 							}
 
 						}
-						comp.ActionCount--
 						if taskErr != nil {
 							comp.Task.Status = model.TransitionTaskStatusFailed
 							comp.Task.Error = taskErr.Error()
@@ -1137,7 +1140,7 @@ func doTransition(transitionID uuid.UUID) {
 						}
 					}
 					// The map is either empty because everything in this tier has been confirmed or has failed.
-					if len(trsWaitTaskMap) > 0 {
+					if len(trsWaitTaskMap) == 0 {
 						break
 					}
 					// Check to see if the time has expired.
