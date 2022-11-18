@@ -682,8 +682,6 @@ func doPowerCapTask(taskID uuid.UUID) {
 	}
 
 	if len(trsTaskList) > 0 {
-		//TODO: Is this really needed when using TRS?
-		// GLOB.RFClientLock.RLock()
 		rchan, err := (*GLOB.RFTloc).Launch(&trsTaskList)
 		if err != nil {
 			logrus.Error(err)
@@ -742,8 +740,6 @@ func doPowerCapTask(taskID uuid.UUID) {
 				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing power capping operation")
 			}
 		}
-		//TODO: Is this really needed when using TRS?
-		// GLOB.RFClientLock.RUnlock()
 	}
 
 	// Task Complete
@@ -764,10 +760,10 @@ func generatePowerCapPayload(op model.PowerCapOperation) ([]byte, error) {
 		}
 		for _, limit := range op.Component.PowerCapLimits {
 			var ctl RFControl
-			if *op.Component.PowerCapLimits[0].CurrentValue > 0 {
+			if *limit.CurrentValue > 0 {
 				ctl = RFControl{
 					Oid: op.PowerCaps[limit.Name].Path,
-					SetPoint: op.Component.PowerCapLimits[0].CurrentValue,
+					SetPoint: limit.CurrentValue,
 					ControlMode: "Automatic",
 				}
 			} else {

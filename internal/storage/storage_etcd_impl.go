@@ -246,7 +246,7 @@ func (e *ETCDStorage) GetPowerStatusHierarchy(xname string) (model.PowerStatus, 
 	}
 	key := fmt.Sprintf("%s/%s", keySegPowerState, xname)
 	k := e.fixUpKey(key)
-	kvl, err := e.kvHandle.GetRange(k+keyMin, k+keyMax)
+	kvl, err := e.kvHandle.GetRange(k, k+keyMax)
 	if err == nil {
 		for _, kv := range kvl {
 			var pcomp model.PowerStatusComponent
