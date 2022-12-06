@@ -212,6 +212,10 @@ func (b *HSMv2) ReserveComponents(compList []ReservationData) ([]*ReservationDat
 		}
 	}
 
+	if len(aquireList) == 0 {
+		return retData, nil
+	}
+
 	acList,acErr := b.HSMGlobals.Reservation.FlexAquire(aquireList)
 	if (acErr != nil) {
 		return retData,fmt.Errorf("ERROR aquiring needed reservations: %v",acErr)

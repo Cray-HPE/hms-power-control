@@ -1027,7 +1027,7 @@ func doAbort(tr model.Transition, xnameMap map[string]*TransitionComponent) {
 		   comp.Task.Status == model.TransitionTaskStatusInProgress {
 			comp.Task.Status = model.TransitionTaskStatusFailed
 			comp.Task.Error = "Transition aborted"
-			comp.Task.StatusDesc = "Failed to achieve transition"
+			comp.Task.StatusDesc = "Aborted. Last status - " + comp.Task.StatusDesc
 			err := (*GLOB.DSP).StoreTransitionTask(*comp.Task)
 			if err != nil {
 				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
