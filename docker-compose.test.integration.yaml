@@ -106,6 +106,8 @@ services:
       - VAULT_KEYPATH=hms-creds
       - SMD_WVAULT=true
       - SMD_RVAULT=true
+      - SMD_SLS_HOST=
+      - SMD_HBTD_HOST=
     hostname: cray-smd
     depends_on:
       - cray-smd-init

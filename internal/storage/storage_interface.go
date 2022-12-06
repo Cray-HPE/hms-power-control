@@ -57,8 +57,6 @@ type StorageProvider interface {
 	GetAllTransitions() ([]model.Transition, error)
 	DeleteTransition(transitionID uuid.UUID) error
 	DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.UUID) error
-	WatchTransitionCB(transitionID uuid.UUID, cb TransitionWatchCBFunc, userdata interface{}) (WatchTransitionCBHandle, error)
-	WatchTransitionCBCancel(cbh WatchTransitionCBHandle)
 	TASTransition(transition model.Transition, testVal model.Transition) (bool, error)
 }
 

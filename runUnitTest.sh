@@ -25,18 +25,10 @@
 
 set -x
 
-# Add .exe if running in a WSL environment
-if $(uname -r | grep -q "Microsoft"); then
-    shopt -s expand_aliases
-    alias docker-compose=docker-compose.exe
-fi
-
 # Configure docker compose
 export COMPOSE_PROJECT_NAME=$RANDOM
 export COMPOSE_FILE=docker-compose.test.unit.yaml
 ephCertDir=ephemeral_cert
-
-args="-f $COMPOSE_FILE -p $COMPOSE_PROJECT_NAME"
 
 echo "COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}"
 echo "COMPOSE_FILE: $COMPOSE_FILE"
@@ -45,7 +37,7 @@ echo "COMPOSE_FILE: $COMPOSE_FILE"
 function cleanup() {
   #docker-compose logs > /tmp/dockerLog_${COMPOSE_PROJECT_NAME}.txt
   rm -rf $ephCertDir
-  docker-compose $args down
+  docker-compose down
   if ! [[ $? -eq 0 ]]; then
     echo "Failed to decompose environment!"
     exit 1
@@ -69,10 +61,10 @@ openssl req -newkey rsa:4096 \
 chmod o+r $ephCertDir/rts.crt $ephCertDir/rts.key
 
 echo "Starting containers..."
-docker-compose $args build
-docker-compose $args up  -d dummy #we use dummy to make sure all our dependencies are up
-docker-compose $args ps # To improve debuggability display the current state of the conainers.
-docker-compose $args up --exit-code-from unit-tests unit-tests
+docker-compose build
+docker-compose up  -d dummy #we use dummy to make sure all our dependencies are up
+docker-compose ps # To improve debuggability display the current state of the conainers.
+docker-compose up --exit-code-from unit-tests unit-tests
 
 test_result=$?
 

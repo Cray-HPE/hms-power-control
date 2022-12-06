@@ -180,7 +180,37 @@ func removeComponent(xname string) error {
 	return nil
 }
 
+func rediscoverNode(xname string) error {
+	smURL := os.Getenv("SMS_SERVER")
+	if smURL == "" {
+		return fmt.Errorf("INFO: Can't get SM URL from env, nothing to do.")
+	}
+
+	bmc := xnametypes.GetHMSCompParent(xname)
+
+	pld := []byte(fmt.Sprintf("{\"xnames\":[\"%s\"]}", bmc))
+
+	_, scode, err := doHTTP(smURL + "/hsm/v2/Inventory/Discover", http.MethodPost, pld, nil)
+	if (err != nil) {
+		return fmt.Errorf("Error in HTTP POST request for HSM discover: %v",
+			err)
+	}
+	if scode != http.StatusOK {
+		return fmt.Errorf("Error rediscovering HSM component, bad rsp code: %d", scode)
+	}
+
+	return nil
+}
+
 func turnNodeOff(node *hsm.HsmData) error {
+	return nodePower(node, "Off")
+}
+
+func turnNodeOn(node *hsm.HsmData) error {
+	return nodePower(node, "On")
+}
+
+func nodePower(node *hsm.HsmData, action string) error {
 	var auth bAuth
 
 	//Get the creds from vault
@@ -194,8 +224,16 @@ func turnNodeOff(node *hsm.HsmData) error {
 		return fmt.Errorf("Can't get creds for %s: %v",node.BaseData.ID,cerr)
 	}
 
+	// Some nodes support GracefulShutdown some support Off
+	resetType := action
+	for _, action := range node.AllowableActions {
+		if action == "GracefulShutdown" {
+			resetType = action
+		}
+	}
+
 	url := "https://" + node.RfFQDN + node.PowerActionURI
-	pld := []byte(fmt.Sprintf("{\"ResetType\":\"GracefulShutdown\"}"))
+	pld := []byte(fmt.Sprintf("{\"ResetType\":\"%s\"}", resetType))
 	auth.username = un
 	auth.password = pw
 
@@ -270,6 +308,14 @@ func (suite *PwrStat_TS) Test_PowerStatusMonitor() {
 		"GetPowerStatus() failed, has 0 components.")
 
 	printCompList(t,"ALL COMPONENTS",rcomp)
+
+	//Filter out unsupported comptypes.
+	comps = []string{}
+	for _, comp := range rcomp.Status {
+		if len(comp.Error) == 0 {
+			comps = append(comps, comp.XName)
+		}
+	}
 
 	//Ask for Off nodes.  There should be none.
 
@@ -438,6 +484,13 @@ func (suite *PwrStat_TS) Test_PowerStatusMonitor() {
 
 	rcomp = pb.Obj.(pcsmodel.PowerStatus)
 	printCompList(t,"ALL COMPONENTS MINUS ONE",rcomp)
+
+	// Clean up
+	PowerStatusMonitorStop()
+	turnNodeOn(compMap[offNode])
+	time.Sleep(10 * time.Second)
+	rediscoverNode(offNode)
+	time.Sleep(5 * time.Second)
 }
 
 func Test_PowerStatusStuff(t *testing.T) {

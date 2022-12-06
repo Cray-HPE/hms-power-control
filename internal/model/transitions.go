@@ -46,11 +46,13 @@ const (
 	TransitionTaskStatusNew         = "new"
 	TransitionTaskStatusInProgress  = "in-progress"
 	TransitionTaskStatusFailed      = "failed"
-	TransitionTaskStatusSucceeded   = "Succeeded"
-	TransitionTaskStatusUnsupported = "Unsupported"
+	TransitionTaskStatusSucceeded   = "succeeded"
+	TransitionTaskStatusUnsupported = "unsupported"
 )
 
 const DefaultTaskDeadline = 5
+const TransitionExpireTimeHours = 24
+const TransitionKeepAliveInterval = 10
 
 ///////////////////////////
 //INPUT - Generally from the API layer
@@ -77,7 +79,7 @@ func ToTransition(parameter TransitionParameter) (TR Transition, err error) {
 	}
 	TR.Location = parameter.Location
 	TR.CreateTime = time.Now()
-	TR.AutomaticExpirationTime = time.Now().Add(time.Hour * 24)
+	TR.AutomaticExpirationTime = time.Now().Add(time.Hour * time.Duration(TransitionExpireTimeHours))
 	TR.LastActiveTime = time.Now()
 	TR.Status = TransitionStatusNew
 	TR.TaskIDs = []uuid.UUID{}

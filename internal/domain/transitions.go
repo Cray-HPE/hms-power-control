@@ -38,7 +38,6 @@ import (
 	"github.com/Cray-HPE/hms-power-control/internal/hsm"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
-	// "github.com/Cray-HPE/hms-power-control/internal/storage"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -104,8 +103,6 @@ var PowerSequenceFull = []PowerSeqElem{
 	},
 }
 
-var TransitionKeepAliveInterval int = 10
-
 func GetTransition(transitionID uuid.UUID) (pb model.Passback) {
 	// Get the transition
 	transition, err := (*GLOB.DSP).GetTransition(transitionID)
@@ -122,6 +119,7 @@ func GetTransition(transitionID uuid.UUID) (pb model.Passback) {
 		err := errors.New("TransitionID does not exist")
 		pb = model.BuildErrorPassback(http.StatusNotFound, err)
 		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition")
+		return
 	}
 	// Get the operations for the task
 	tasks, err := (*GLOB.DSP).GetAllTasksForTransition(transitionID)
@@ -139,7 +137,6 @@ func GetTransition(transitionID uuid.UUID) (pb model.Passback) {
 }
 
 func GetTransitionStatuses() (pb model.Passback) {
-
 	// Get all transitions
 	transitions, err := (*GLOB.DSP).GetAllTransitions()
 	if err != nil {
@@ -188,6 +185,15 @@ func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
 			pb = model.BuildErrorPassback(http.StatusNotFound, err)
 			logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition")
 		}
+		if transition.Status == model.TransitionStatusCompleted {
+			err := errors.New("Transition is already finished and cannot be aborted.")
+			pb = model.BuildErrorPassback(http.StatusBadRequest, err)
+			return
+		}
+		if transition.Status == model.TransitionStatusAborted {
+			pb = model.BuildSuccessPassback(http.StatusAccepted, "Accepted - abort initiated")
+			return
+		}
 		transitionOld := transition
 		transition.Status = model.TransitionStatusAbortSignaled
 		// Use test and set to prevent overwriting another thread's store operation.
@@ -198,15 +204,15 @@ func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
 			return
 		}
 		if ok {
-			pb = model.BuildSuccessPassback(202, "Accepted - abort initiated")
-			return pb
+			pb = model.BuildSuccessPassback(http.StatusAccepted, "Accepted - abort initiated")
+			return
 		}
 	}
 
 	err := errors.New("Failed to signal abort")
 	pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
 	logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error storing abort-signaled status")
-	return pb
+	return
 }
 
 func TriggerTransition(transition model.Transition) (pb model.Passback) {
@@ -237,21 +243,12 @@ func TriggerTransition(transition model.Transition) (pb model.Passback) {
 // Main worker for executing transitions
 func doTransition(transitionID uuid.UUID) {
 	var (
-		//xnames          []string
-		resData         []hsm.ReservationData
 		reservationData []*hsm.ReservationData
 		xnameHierarchy  []string
 		isSoft          bool
 		noWait          bool
 		waitForever     bool
 	)
-	//xnameMap := make(map[string]*TransitionComponent)
-	seqMap := map[string]map[base.HMSType][]*TransitionComponent{
-		"on":               make(map[base.HMSType][]*TransitionComponent),
-		"gracefulshutdown": make(map[base.HMSType][]*TransitionComponent),
-		"forceoff":         make(map[base.HMSType][]*TransitionComponent),
-		"gracefulrestart":  make(map[base.HMSType][]*TransitionComponent),
-	}
 
 	tr, err := (*GLOB.DSP).GetTransition(transitionID)
 	if err != nil {
@@ -318,6 +315,8 @@ func doTransition(transitionID uuid.UUID) {
 	//   HSM has plus a recently captured power state from hardware.
 	///////////////////////////////////////////////////////////////////////////
 
+	logger.Log.Errorf("Xnames %v\nxnameMap %v", xnames, xnameMap)
+
 	// Expand the list of xnames to include power controlled subcomponents. This way we
 	// already have the information for additional components we might need to add.
 	pStates, missingXnames, err := getPowerStateHierarchy(xnames)
@@ -325,7 +324,8 @@ func doTransition(transitionID uuid.UUID) {
 		// This failed to an ETCD error. Likely because we couldn't reach it
 		// which means we really don't have a way to inform anyone about this
 		// failed job because we'd need to do a STORE to mark the job as failed.
-		// TODO: Maybe retry indefinitely? For now exit.
+		// TODO: Maybe retry indefinitely? For now exit. Another instance
+		//       (possibly us) will restart this transition later.
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Cannot retrieve Power States, cannot continue")
 		cancelChan <- true
 		return
@@ -504,164 +504,7 @@ func doTransition(transitionID uuid.UUID) {
 	}
 
 	// Sort components into groups so they can follow a proper power sequence
-	for xname, comp := range xnameMap {
-		if comp.Task.Status != model.TransitionTaskStatusNew &&
-		   comp.Task.Status != model.TransitionTaskStatusInProgress {
-			continue
-		}
-
-		compType := base.GetHMSType(xname)
-		psf, _ := model.ToPowerStateFilter(comp.PState.PowerState)
-		switch(tr.Operation) {
-		case model.Operation_On:
-			if psf == model.PowerStateFilter_On {
-				// Already complete
-				comp.Task.Status = model.TransitionTaskStatusSucceeded
-				if comp.Task.State == model.TaskState_GatherData {
-					comp.Task.StatusDesc = "Component already in desired state"
-				} else {
-					comp.Task.StatusDesc = "Transition confirmed, On"
-				}
-			} else {
-				comp.ActionCount++
-				// Attempt to power on even if the last collected powerstate is "undefined".
-				// It may become available after powering on a parent component.
-				seqMap["on"][compType] = append(seqMap["on"][compType], comp)
-			}
-		case model.Operation_SoftOff: fallthrough
-		case model.Operation_Off:
-			if psf == model.PowerStateFilter_Off {
-				// Already complete
-				comp.Task.Status = model.TransitionTaskStatusSucceeded
-				if comp.Task.State == model.TaskState_GatherData {
-					comp.Task.StatusDesc = "Component already in desired state"
-				} else {
-					comp.Task.StatusDesc = "Transition confirmed, Off"
-				}
-			} else {
-				comp.ActionCount++
-				seqMap["gracefulshutdown"][compType] = append(seqMap["gracefulshutdown"][compType], comp)
-			}
-		case model.Operation_SoftRestart:
-			if psf != model.PowerStateFilter_On {
-				if comp.Task.State == model.TaskState_GatherData {
-					// Not a restarted task
-					comp.Task.Status = model.TransitionTaskStatusFailed
-					comp.Task.StatusDesc = "Component must be in the On state for Soft-Restart"
-					comp.Task.Error = "Component is in the wrong power state"
-				} else if comp.Task.Operation == model.Operation_On {
-					// Task restarted after we powered off the component but before we confirmed
-					// it powered back on. Let the logic below decide whether we will resend the
-					// command or just wait.
-					comp.ActionCount++
-					seqMap["on"][compType] = append(seqMap["on"][compType], comp)
-				} else if (comp.Task.Operation == model.Operation_Off ||
-				           comp.Task.Operation == model.Operation_ForceOff) {
-					// Restarted after the component was powered off but may still need to be powered on.
-					comp.ActionCount++
-					seqMap["on"][compType] = append(seqMap["on"][compType], comp)
-					comp.Task.State = model.TaskState_Confirmed
-				} else {
-					comp.Task.Status = model.TransitionTaskStatusFailed
-					if comp.Task.Operation == model.Operation_SoftRestart {
-						comp.Task.StatusDesc = "Failed to apply transition, GracefulRestart"
-					} else {
-						comp.Task.StatusDesc = "Failed to apply transition, ForceRestart"
-					}
-					comp.Task.Error = "Unknown error"
-				}
-			} else {
-				parentSupportsRestart := true
-				_, hasAction := comp.Actions["gracefulrestart"]
-				if hasAction {
-					// If a parent component has also been requested and it doesn't
-					// support gracefulrestart, power will be dropped. Do an off->on
-					// if power will be dropped.
-					id := base.GetHMSCompParent(xname)
-					for {
-						parentType := base.GetHMSType(id)
-						if parentType == base.HMSTypeInvalid {
-							break
-						}
-						if parent, ok := xnameMap[id]; ok {
-							if _, ok := parent.Actions["gracefulrestart"]; !ok {
-								parentSupportsRestart = false
-							}
-						} else {
-							id = base.GetHMSCompParent(id)
-						}
-					}
-				}
-				if hasAction && parentSupportsRestart {
-					comp.ActionCount++
-					seqMap["gracefulrestart"][compType] = append(seqMap["gracefulrestart"][compType], comp)
-				} else {
-					comp.ActionCount += 2
-					seqMap["gracefulshutdown"][compType] = append(seqMap["gracefulshutdown"][compType], comp)
-					seqMap["on"][compType] = append(seqMap["on"][compType], comp)
-				}
-			}
-		case model.Operation_HardRestart:
-			if psf != model.PowerStateFilter_On {
-				if comp.Task.State == model.TaskState_GatherData {
-					comp.Task.Status = model.TransitionTaskStatusFailed
-					comp.Task.StatusDesc = "Component must be in the On state for Hard-Restart"
-					comp.Task.Error = "Component is in the wrong power state"
-				} else if comp.Task.Operation == model.Operation_On {
-					// Task restarted after we powered off the component but before we confirmed
-					// it powered back on. Let the logic below decide whether we will resend the
-					// command or just wait.
-					comp.ActionCount++
-					seqMap["on"][compType] = append(seqMap["on"][compType], comp)
-				} else if (comp.Task.Operation == model.Operation_Off ||
-				           comp.Task.Operation == model.Operation_ForceOff) {
-					// Restarted after the component was powered off but may still need to be powered on.
-					comp.ActionCount++
-					seqMap["on"][compType] = append(seqMap["on"][compType], comp)
-					comp.Task.State = model.TaskState_Confirmed
-				}
-			} else {
-				comp.ActionCount += 2
-				seqMap["gracefulshutdown"][compType] = append(seqMap["gracefulshutdown"][compType], comp)
-				seqMap["on"][compType] = append(seqMap["on"][compType], comp)
-			}
-		case model.Operation_Init:
-			if psf == model.PowerStateFilter_On {
-				comp.ActionCount += 2
-				seqMap["gracefulshutdown"][compType] = append(seqMap["gracefulshutdown"][compType], comp)
-				seqMap["on"][compType] = append(seqMap["on"][compType], comp)
-			} else {
-				comp.ActionCount++
-				seqMap["on"][compType] = append(seqMap["on"][compType], comp)
-			}
-		case model.Operation_ForceOff:
-			if psf == model.PowerStateFilter_Off {
-				// Already complete
-				comp.Task.Status = model.TransitionTaskStatusSucceeded
-				if comp.Task.State == model.TaskState_GatherData {
-					comp.Task.StatusDesc = "Component already in desired state"
-				} else {
-					comp.Task.StatusDesc = "Transition confirmed, ForceOff"
-				}
-			} else {
-				comp.ActionCount++
-				seqMap["forceoff"][compType] = append(seqMap["forceoff"][compType], comp)
-			}
-		}
-		// Form the ReservationData array for use with the HSM API for acquiring component reservations.
-		if comp.Task.Status == model.TransitionTaskStatusNew ||
-		   comp.Task.Status == model.TransitionTaskStatusInProgress {
-			res := hsm.ReservationData{
-				XName: xname,
-				DeputyKey: comp.DeputyKey,
-			}
-			resData = append(resData, res)
-		}
-		err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
-		if err != nil {
-			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
-		}
-	}
+	seqMap, resData := sequenceComponents(tr.Operation, xnameMap)
 
 	///////////////////////////////////////////////////////////////////////////
 	// o Reserve components. This will make sure we aren't already operating on
@@ -760,6 +603,7 @@ func doTransition(transitionID uuid.UUID) {
 	for _, elm := range PowerSequenceFull {
 		var compList []*TransitionComponent
 		powerAction := elm.Action
+		powerActionOp := getOpForPowerAction(powerAction)
 		compTypes := elm.CompTypes
 		// Get the list of components we'll be acting on
 		for _, compType := range compTypes {
@@ -813,7 +657,8 @@ func doTransition(transitionID uuid.UUID) {
 			if comp.Task.Status == model.TransitionTaskStatusFailed {
 				continue
 			}
-			if comp.Task.State == model.TaskState_Waiting {
+			if comp.Task.State == model.TaskState_Waiting &&
+			   comp.Task.Operation == powerActionOp {
 				// Restarted task that we just need to wait to confirm transition.
 				// Add it to the trsTaskMap but don't add it to the trsTaskList to
 				// avoid resending the command.
@@ -834,7 +679,7 @@ func doTransition(transitionID uuid.UUID) {
 
 			comp.Task.StatusDesc = "Applying transition, " + powerAction
 			comp.Task.State = model.TaskState_Sending
-			setTaskOperation(comp.Task, powerAction)
+			comp.Task.Operation = powerActionOp
 			trsTaskMap[trsTaskList[trsTaskIdx].GetID()] = comp
 			trsTaskList[trsTaskIdx].RetryPolicy.Retries = 3
 			trsTaskList[trsTaskIdx].Request, _ = http.NewRequest("POST", "https://" + comp.HSMData.RfFQDN + comp.HSMData.PowerActionURI, bytes.NewBuffer([]byte(payload)))
@@ -890,7 +735,6 @@ func doTransition(transitionID uuid.UUID) {
 					}
 
 				}
-				comp.ActionCount--
 				if taskErr != nil {
 					comp.Task.Status = model.TransitionTaskStatusFailed
 					comp.Task.Error = taskErr.Error()
@@ -900,6 +744,7 @@ func doTransition(transitionID uuid.UUID) {
 					depErrMsg := fmt.Sprintf("Failed to apply transition, %s, to dependency, %s.", powerAction, comp.Task.Xname)
 					failDependentComps(xnameMap, powerAction, comp.Task.Xname, depErrMsg)
 				} else if noWait {
+					comp.ActionCount--
 					if comp.ActionCount == 0 {
 						comp.Task.Status = model.TransitionTaskStatusSucceeded
 						comp.Task.StatusDesc = fmt.Sprintf("Transition applied, %s. Not confirming.", powerAction)
@@ -908,6 +753,17 @@ func doTransition(transitionID uuid.UUID) {
 						comp.Task.Status = model.TransitionTaskStatusInProgress
 						comp.Task.StatusDesc = fmt.Sprintf("Transition applied, %s. Waiting for next transition.", powerAction)
 						comp.Task.State = model.TaskState_Confirmed
+						if base.GetHMSType(comp.Task.Xname) == base.HSNBoard {
+							// The next operation will be a power on and
+							// we only need to wait and confirm power status
+							// for HSNBoard components.
+							parentId := base.GetHMSCompParent(comp.Task.Xname)
+							if _, ok := xnameMap[parentId]; ok {
+								comp.Task.Operation = model.Operation_On
+								comp.Task.State = model.TaskState_Waiting
+								comp.Task.StatusDesc = "Confirming successful transition, On"
+							}
+						}
 					}
 				} else {
 					comp.Task.Status = model.TransitionTaskStatusInProgress
@@ -920,6 +776,7 @@ func doTransition(transitionID uuid.UUID) {
 				}
 			}
 		}
+		// TRS section for getting power state for confirmation.
 		if (len(trsTaskMap) > 0) || !noWait {
 			var waitExpireTime time.Time
 			trsWaitTaskMap := trsTaskMap
@@ -1016,13 +873,25 @@ func doTransition(transitionID uuid.UUID) {
 						}
 					}
 					if strings.ToLower(hwStatus.PowerState) == endState {
+						comp.ActionCount--
+						comp.Task.State = model.TaskState_Confirmed
 						if comp.ActionCount == 0 {
 							comp.Task.Status = model.TransitionTaskStatusSucceeded
 							comp.Task.StatusDesc = "Transition confirmed, " + powerAction
 						} else {
 							comp.Task.StatusDesc = "Transition confirmed, " + powerAction + ". Waiting for next transition"
+							if base.GetHMSType(comp.Task.Xname) == base.HSNBoard {
+								// The next operation will be a power on and
+								// we only need to wait and confirm power status
+								// for HSNBoard components.
+								parentId := base.GetHMSCompParent(comp.Task.Xname)
+								if _, ok := xnameMap[parentId]; ok {
+									comp.Task.Operation = model.Operation_On
+									comp.Task.State = model.TaskState_Waiting
+									comp.Task.StatusDesc = "Confirming successful transition, On"
+								}
+							}
 						}
-						comp.Task.State = model.TaskState_Confirmed
 						delete(trsWaitTaskMap, tdone.GetID())
 						err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
 						if err != nil {
@@ -1042,7 +911,6 @@ func doTransition(transitionID uuid.UUID) {
 							comp.ActionCount++
 							compType := base.GetHMSType(comp.Task.Xname)
 							seqMap["forceoff"][compType] = append(seqMap["forceoff"][compType], comp)
-							comp.Task.State = model.TaskState_Confirmed
 						}
 						continue
 					}
@@ -1085,6 +953,11 @@ func doTransition(transitionID uuid.UUID) {
 	return
 }
 
+// Checks for AbortSignaled before storing the transition using test-and-set to
+// avoid overwriting statuses set by other instances. Retries the TAS operation
+// a few times upon failure so it may eventually happen.
+//
+// Returns true if an abort was signaled.
 func storeTransition(tr model.Transition) (bool, error) {
 	abort := false
 	for retry := 0; retry < 3; retry++ {
@@ -1171,7 +1044,7 @@ func doAbort(tr model.Transition, xnameMap map[string]*TransitionComponent) {
 // if the transition moves to the Completed or Aborted state or gets deleted.
 func transitionKeepAlive(transitionID uuid.UUID, cancelChan chan bool) {
 	logger.Log.Debugf("Starting keep alive for Transition, %s.", transitionID.String())
-	keepAlive := time.NewTicker(time.Duration(TransitionKeepAliveInterval) * time.Second)
+	keepAlive := time.NewTicker(time.Duration(model.TransitionKeepAliveInterval) * time.Second)
 	defer keepAlive.Stop()
 	for {
 		select {
@@ -1288,9 +1161,9 @@ func setupTransitionTasks(tr *model.Transition) (map[string]*TransitionComponent
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error retrieving tasks for transition, " + tr.TransitionID.String())
 	}
 	// Rebuild our xnameMap based on the previous tasks
-	for _, task := range tasks {
+	for i, task := range tasks {
 		xnameMap[task.Xname] = &TransitionComponent{
-			Task:      &task,
+			Task:      &tasks[i],
 		}
 	}
 	// Make sure all the previously created tasks are in the transition's task array.
@@ -1342,7 +1215,7 @@ func setupTransitionTasks(tr *model.Transition) (map[string]*TransitionComponent
 			task.Error = "Invalid xname"
 			task.StatusDesc = "Failed to achieve transition"
 		default:
-			task.Status = model.TransitionTaskStatusFailed
+			task.Status = model.TransitionTaskStatusUnsupported
 			task.Error = "No power control for component type " + compType.String()
 			task.StatusDesc = "Failed to achieve transition"
 		}
@@ -1355,13 +1228,255 @@ func setupTransitionTasks(tr *model.Transition) (map[string]*TransitionComponent
 			Task:      &task,
 			DeputyKey: loc.DeputyKey,
 		}
-		if task.Status != model.TransitionTaskStatusFailed {
+		if task.Status == model.TransitionTaskStatusNew {
 			xnames = append(xnames, loc.Xname)
 		}
 	}
 	return xnameMap, xnames
 }
 
+// Sorts components into groups by power action then comptype so they can follow a proper power sequence.
+func sequenceComponents(operation model.Operation, xnameMap map[string]*TransitionComponent) (map[string]map[base.HMSType][]*TransitionComponent, []hsm.ReservationData) {
+	var resData []hsm.ReservationData
+	seqMap := map[string]map[base.HMSType][]*TransitionComponent{
+		"on":               make(map[base.HMSType][]*TransitionComponent),
+		"gracefulshutdown": make(map[base.HMSType][]*TransitionComponent),
+		"forceoff":         make(map[base.HMSType][]*TransitionComponent),
+		"gracefulrestart":  make(map[base.HMSType][]*TransitionComponent),
+	}
+
+	for xname, comp := range xnameMap {
+		if comp.Task.Status != model.TransitionTaskStatusNew &&
+		   comp.Task.Status != model.TransitionTaskStatusInProgress {
+			continue
+		}
+
+		// HSNBoard components automatically power on when power is supplied to
+		// the slot. If we're powering on the slot, sending the HSNBoard a
+		// power on command will cause an error. Tell the task to only wait and
+		// confirm power.
+		compType := base.GetHMSType(xname)
+		waitOnly := false
+		if compType == base.HSNBoard {
+			parentId := base.GetHMSCompParent(xname)
+			if _, ok := xnameMap[parentId]; ok {
+				waitOnly = true
+			}
+		}
+
+		psf, _ := model.ToPowerStateFilter(comp.PState.PowerState)
+		switch(operation) {
+		case model.Operation_On:
+			if psf == model.PowerStateFilter_On {
+				// Already complete
+				comp.Task.Status = model.TransitionTaskStatusSucceeded
+				if comp.Task.State == model.TaskState_GatherData {
+					comp.Task.StatusDesc = "Component already in desired state"
+				} else {
+					comp.Task.StatusDesc = "Transition confirmed, On"
+				}
+			} else {
+				comp.ActionCount++
+				// Attempt to power on even if the last collected powerstate is "undefined".
+				// It may become available after powering on a parent component.
+				seqMap["on"][compType] = append(seqMap["on"][compType], comp)
+				if waitOnly {
+					// We only need to wait and confirm power status for HSNBoard components.
+					comp.Task.Status = model.TransitionTaskStatusInProgress
+					comp.Task.Operation = model.Operation_On
+					comp.Task.State = model.TaskState_Waiting
+					comp.Task.StatusDesc = "Confirming successful transition, On"
+				}
+			}
+		case model.Operation_SoftOff: fallthrough
+		case model.Operation_Off:
+			if psf == model.PowerStateFilter_Off {
+				// Already complete
+				comp.Task.Status = model.TransitionTaskStatusSucceeded
+				if comp.Task.State == model.TaskState_GatherData {
+					comp.Task.StatusDesc = "Component already in desired state"
+				} else {
+					comp.Task.StatusDesc = "Transition confirmed, Off"
+				}
+			} else {
+				comp.ActionCount++
+				seqMap["gracefulshutdown"][compType] = append(seqMap["gracefulshutdown"][compType], comp)
+			}
+		case model.Operation_SoftRestart:
+			if psf != model.PowerStateFilter_On {
+				if comp.Task.State == model.TaskState_GatherData {
+					// Not a restarted task
+					comp.Task.Status = model.TransitionTaskStatusFailed
+					comp.Task.StatusDesc = "Component must be in the On state for Soft-Restart"
+					comp.Task.Error = "Component is in the wrong power state"
+				} else if comp.Task.Operation == model.Operation_On {
+					// Task restarted after we powered off the component but before we confirmed
+					// it powered back on. Let the logic below decide whether we will resend the
+					// command or just wait.
+					comp.ActionCount++
+					seqMap["on"][compType] = append(seqMap["on"][compType], comp)
+				} else if (comp.Task.Operation == model.Operation_Off ||
+				           comp.Task.Operation == model.Operation_ForceOff) {
+					// Restarted after the component was powered off but may still need to be powered on.
+					comp.ActionCount++
+					seqMap["on"][compType] = append(seqMap["on"][compType], comp)
+					comp.Task.State = model.TaskState_Confirmed
+				} else {
+					comp.Task.Status = model.TransitionTaskStatusFailed
+					if comp.Task.Operation == model.Operation_SoftRestart {
+						comp.Task.StatusDesc = "Failed to apply transition, GracefulRestart"
+					} else {
+						comp.Task.StatusDesc = "Failed to apply transition, ForceRestart"
+					}
+					comp.Task.Error = "Unknown error"
+				}
+			} else {
+				parentSupportsRestart := true
+				_, hasAction := comp.Actions["gracefulrestart"]
+				if hasAction {
+					// If a parent component has also been requested and it doesn't
+					// support gracefulrestart, power will be dropped. Do an off->on
+					// if power will be dropped.
+					id := base.GetHMSCompParent(xname)
+					for {
+						parentType := base.GetHMSType(id)
+						if parentType == base.HMSTypeInvalid {
+							break
+						}
+						if parent, ok := xnameMap[id]; ok {
+							if _, ok := parent.Actions["gracefulrestart"]; !ok {
+								parentSupportsRestart = false
+							}
+						} else {
+							id = base.GetHMSCompParent(id)
+						}
+					}
+				}
+				if hasAction && parentSupportsRestart {
+					if comp.Task.State == model.TaskState_Waiting {
+						comp.Task.Status = model.TransitionTaskStatusSucceeded
+						comp.Task.StatusDesc = "Transition confirmed, gracefulrestart"
+					} else {
+						comp.ActionCount++
+						seqMap["gracefulrestart"][compType] = append(seqMap["gracefulrestart"][compType], comp)
+					}
+				} else {
+					if comp.Task.Operation == model.Operation_On {
+						comp.Task.Status = model.TransitionTaskStatusSucceeded
+						comp.Task.StatusDesc = "Transition confirmed, On"
+					} else {
+						comp.ActionCount += 2
+						seqMap["gracefulshutdown"][compType] = append(seqMap["gracefulshutdown"][compType], comp)
+						seqMap["on"][compType] = append(seqMap["on"][compType], comp)
+					}
+				}
+			}
+		case model.Operation_HardRestart:
+			if psf != model.PowerStateFilter_On {
+				if comp.Task.State == model.TaskState_GatherData {
+					comp.Task.Status = model.TransitionTaskStatusFailed
+					comp.Task.StatusDesc = "Component must be in the On state for Hard-Restart"
+					comp.Task.Error = "Component is in the wrong power state"
+				} else if comp.Task.Operation == model.Operation_On {
+					// Task restarted after we powered off the component but before we confirmed
+					// it powered back on. Let the logic below decide whether we will resend the
+					// command or just wait.
+					comp.ActionCount++
+					seqMap["on"][compType] = append(seqMap["on"][compType], comp)
+				} else if (comp.Task.Operation == model.Operation_Off ||
+				           comp.Task.Operation == model.Operation_ForceOff) {
+					// Restarted after the component was powered off but may still need to be powered on.
+					comp.ActionCount++
+					seqMap["on"][compType] = append(seqMap["on"][compType], comp)
+					comp.Task.State = model.TaskState_Confirmed
+					if waitOnly {
+						// We only need to wait and confirm power status for HSNBoard components.
+						comp.Task.Status = model.TransitionTaskStatusInProgress
+						comp.Task.Operation = model.Operation_On
+						comp.Task.State = model.TaskState_Waiting
+						comp.Task.StatusDesc = "Confirming successful transition, On"
+					}
+				}
+			} else {
+				if comp.Task.Operation == model.Operation_On {
+					comp.Task.Status = model.TransitionTaskStatusSucceeded
+					comp.Task.StatusDesc = "Transition confirmed, On"
+				} else {
+					comp.ActionCount += 2
+					seqMap["gracefulshutdown"][compType] = append(seqMap["gracefulshutdown"][compType], comp)
+					seqMap["on"][compType] = append(seqMap["on"][compType], comp)
+				}
+			}
+		case model.Operation_Init:
+			if psf == model.PowerStateFilter_On {
+				if comp.Task.Operation == model.Operation_On ||
+				   ((comp.Task.Operation == model.Operation_Off ||
+				     comp.Task.Operation == model.Operation_ForceOff) &&
+				    comp.Task.State == model.TaskState_Confirmed) {
+					// We previously confirmed an off command but was restarted before we could send the On command.
+					// However, upon restarting, the component is On. Success?
+					comp.Task.Status = model.TransitionTaskStatusSucceeded
+					comp.Task.StatusDesc = "Transition confirmed, on"
+				} else if comp.Task.Operation == model.Operation_ForceOff {
+					// Restarted ForceOff stage either Sending or waiting.
+					comp.ActionCount += 2
+					seqMap["forceoff"][compType] = append(seqMap["forceoff"][compType], comp)
+					seqMap["on"][compType] = append(seqMap["on"][compType], comp)
+				} else {
+					comp.ActionCount += 2
+					seqMap["gracefulshutdown"][compType] = append(seqMap["gracefulshutdown"][compType], comp)
+					seqMap["on"][compType] = append(seqMap["on"][compType], comp)
+				}
+			} else {
+				if comp.Task.Operation == model.Operation_Off ||
+				   comp.Task.Operation == model.Operation_ForceOff {
+					comp.Task.StatusDesc = "Transition confirmed, off. Waiting for next transition"
+					comp.Task.State = model.TaskState_Confirmed
+				}
+				comp.ActionCount++
+				seqMap["on"][compType] = append(seqMap["on"][compType], comp)
+				if waitOnly {
+					// We only need to wait and confirm power status for HSNBoard components.
+					comp.Task.Status = model.TransitionTaskStatusInProgress
+					comp.Task.Operation = model.Operation_On
+					comp.Task.State = model.TaskState_Waiting
+					comp.Task.StatusDesc = "Confirming successful transition, On"
+				}
+			}
+		case model.Operation_ForceOff:
+			if psf == model.PowerStateFilter_Off {
+				// Already complete
+				comp.Task.Status = model.TransitionTaskStatusSucceeded
+				if comp.Task.State == model.TaskState_GatherData {
+					comp.Task.StatusDesc = "Component already in desired state"
+				} else {
+					comp.Task.StatusDesc = "Transition confirmed, ForceOff"
+				}
+			} else {
+				comp.ActionCount++
+				seqMap["forceoff"][compType] = append(seqMap["forceoff"][compType], comp)
+			}
+		}
+		// Form the ReservationData array for use with the HSM API for acquiring component reservations.
+		if comp.Task.Status == model.TransitionTaskStatusNew ||
+		   comp.Task.Status == model.TransitionTaskStatusInProgress {
+			res := hsm.ReservationData{
+				XName: xname,
+				DeputyKey: comp.DeputyKey,
+			}
+			resData = append(resData, res)
+		}
+		err := (*GLOB.DSP).StoreTransitionTask(*comp.Task)
+		if err != nil {
+			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
+		}
+	}
+	return seqMap, resData
+}
+
+// Builds a json payload for the redfish command to apply the given power action.
+// The power action comes from the sequence array and gets translated into a redfish
+// value the hardware supports.
 func generateTransitionPayload(comp *TransitionComponent, action string) (string, error) {
 	var body string
 	compType := base.GetHMSType(comp.PState.XName)
@@ -1392,19 +1507,23 @@ func generateTransitionPayload(comp *TransitionComponent, action string) (string
 	return body, nil
 }
 
-func setTaskOperation(task *model.TransitionTask, powerAction string) {
+// Translate sequence power actions into TaskOperations for database
+// retention if the transition gets restarted.
+func getOpForPowerAction(powerAction string) model.Operation {
+	op := model.Operation_Nil
 	switch(powerAction) {
 	case "gracefulshutdown":
-		task.Operation = model.Operation_Off
+		op = model.Operation_Off
 	case "gracefulrestart":
-		task.Operation = model.Operation_SoftRestart
+		op = model.Operation_SoftRestart
 	case "forceoff":
-		task.Operation = model.Operation_ForceOff
+		op = model.Operation_ForceOff
 	case "forcerestart":
-		task.Operation = model.Operation_HardRestart
+		op = model.Operation_HardRestart
 	case "on":
-		task.Operation = model.Operation_On
+		op = model.Operation_On
 	}
+	return op
 }
 
 // Checks if the failed component has components that depend on it having
@@ -1446,65 +1565,91 @@ func failDependentComps(xnameMap map[string]*TransitionComponent, powerAction st
 	}
 }
 
-func transitionsReaper() {
-	logger.Log.Debug("Starting transitions reaper thread.")
-	ticker := time.NewTicker(60 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			for {
-				// Get all transitions
-				transitions, err := (*GLOB.DSP).GetAllTransitions()
-				if err != nil {
-					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error retreiving transitions")
-					continue
-				}
-				if len(transitions) == 0 {
-					// No transitions to act upon
-					break
-				}
-
-				for _, transition := range transitions {
-					if transition.AutomaticExpirationTime.Before(time.Now()) {
-						if transition.Status == model.TransitionStatusAborted ||
-						   transition.Status == model.TransitionStatusCompleted {
-							deleteTransition(transition.TransitionID)
-						} else if transition.Status != model.TransitionStatusAbortSignaled {
-							transitionOld := transition
-							transition.Status = model.TransitionStatusAbortSignaled
-							// No need to check if the TAS succeeded because, if it didn't,
-							// it means someone else took care of it.
-							_, err := (*GLOB.DSP).TASTransition(transition, transitionOld)
-							if err != nil {
-								logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error aborting transition, %s.", transition.TransitionID.String())
-							}
-						}
-					} else if transition.LastActiveTime.Before(time.Now().Add(time.Duration(TransitionKeepAliveInterval) * -3 * time.Second)) &&
-					          transition.Status != model.TransitionStatusAborted && 
-					          transition.Status != model.TransitionStatusCompleted {
-						// Assume the transition has been abandoned if it has been 3 times
-						// the keep alive interval since it was last active.
-						// Pick up an abandoned transition by first refreshing its LastActiveTime
-						// so other instances know we got it first.
-						transitionOld := transition
-						transition.LastActiveTime = time.Now()
-						ok, err := (*GLOB.DSP).TASTransition(transition, transitionOld)
-						if err != nil {
-							logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error storing transition, %s.", transition.TransitionID.String())
-						}
-						// ok == true mean we got it first. Start the processing thread.
-						if ok {
-							go doTransition(transition.TransitionID)
-						}
-					}
-				}
-				break
+// Periodically runs the transition reaper to prune expired records and restart abandoned ones.
+func StartTransitionsReaper() {
+	go func() {
+		logger.Log.Debug("Starting transitions reaper thread.")
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				transitionsReaper()
 			}
 		}
+	}()
+}
+
+// Checks all of the transition records in etcd and does the following:
+//
+// - Deletes completed (completed/aborted) records that have expired (AutomaticExpirationTime).
+//
+// - Restarts incomplete transitions (new/in-progress) that have been abandoned (LastActiveTime > 3*TransitionKeepAliveInterval).
+//
+// - Aborts incomplete transitions (new/in-progress) that have expired (AutomaticExpirationTime).
+func transitionsReaper() {
+	for {
+		// Get all transitions
+		transitions, err := (*GLOB.DSP).GetAllTransitions()
+		if err != nil {
+			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error retreiving transitions")
+			continue
+		}
+		if len(transitions) == 0 {
+			// No transitions to act upon
+			break
+		}
+
+		for _, transition := range transitions {
+			expired := transition.AutomaticExpirationTime.Before(time.Now())
+			abandoned := transition.LastActiveTime.Before(time.Now().Add(time.Duration(model.TransitionKeepAliveInterval) * -3 * time.Second))
+			if expired {
+				if transition.Status == model.TransitionStatusAborted ||
+				   transition.Status == model.TransitionStatusCompleted {
+					deleteTransition(transition.TransitionID)
+				} else {
+					transitionOld := transition
+					transition.Status = model.TransitionStatusAbortSignaled
+					if abandoned {
+						transition.LastActiveTime = time.Now()
+					}
+					// No need to check if the TAS succeeded because, if it didn't,
+					// it means someone else took care of it.
+					ok, err := (*GLOB.DSP).TASTransition(transition, transitionOld)
+					if err != nil {
+						logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error aborting transition, %s.", transition.TransitionID.String())
+						continue
+					}
+					// Pick it up to process the abort if it has been abandoned.
+					if ok && abandoned {
+						go doTransition(transition.TransitionID)
+					}
+				}
+			} else if abandoned &&
+					  transition.Status != model.TransitionStatusAborted && 
+					  transition.Status != model.TransitionStatusCompleted {
+				// Assume the transition has been abandoned if it has been 3 times
+				// the keep alive interval since it was last active.
+				// Pick up an abandoned transition by first refreshing its LastActiveTime
+				// so other instances know we got it first.
+				transitionOld := transition
+				transition.LastActiveTime = time.Now()
+				ok, err := (*GLOB.DSP).TASTransition(transition, transitionOld)
+				if err != nil {
+					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error storing transition, %s.", transition.TransitionID.String())
+					continue
+				}
+				// ok == true mean we got it first. Start the processing thread.
+				if ok {
+					go doTransition(transition.TransitionID)
+				}
+			}
+		}
+		break
 	}
 }
 
+// Deletes the transition and any associated tasks. 
 func deleteTransition(transitionID uuid.UUID) error {
 	// Get the tasks for the transition
 	tasks, err := (*GLOB.DSP).GetAllTasksForTransition(transitionID)

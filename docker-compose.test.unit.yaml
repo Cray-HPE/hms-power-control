@@ -23,7 +23,7 @@ services:
       - etcd
       - cray-smd
       - cray-hms-hmcollector
-      - redfish-simulator
+      - emulator-loader
       - vault-kv-enabler
     networks:
       - pcs     
@@ -60,11 +60,6 @@ services:
       - vault
     networks:
       - pcs
-  redis:
-    image: artifactory.algol60.net/docker.io/library/redis:5.0-alpine3.12
-    hostname: hms-redfish-redis
-    networks:
-      - pcs
   hmsds-postgres:
     hostname: hmsds-postgres
     image: artifactory.algol60.net/docker.io/library/postgres:11-alpine
@@ -75,7 +70,7 @@ services:
     networks:
       - pcs
   cray-smd-init:
-    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.30.9
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.58.0
     environment:
       - SMD_DBHOST=hmsds-postgres
       - SMD_DBPORT=5432
@@ -85,7 +80,7 @@ services:
       - pcs
     command: /entrypoint.sh smd-init
   cray-smd:
-    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.30.9
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.58.0
     environment:
       - POSTGRES_HOST=hmsds-postgres
       - POSTGRES_PORT=5432
@@ -98,10 +93,14 @@ services:
       - VAULT_KEYPATH=hms-creds
       - SMD_WVAULT=true
       - SMD_RVAULT=true
+      - SMD_SLS_HOST=
+      - SMD_HBTD_HOST=
     hostname: cray-smd
     depends_on:
       - cray-smd-init
       - vault
+    ports:
+      - "27779:27779"
     networks:
       - pcs
   zookeeper:
@@ -146,38 +145,105 @@ services:
       - ./configs/token:/configs/token
     networks:
       - pcs
-  redfish-simulator:
-    image: artifactory.algol60.net/csm-docker/stable/hms-redfish-translation-service:1.20.0
-    environment:
-      - SCHEMA_VERSION=2019.1
-      - LOG_LEVEL=INFO
-      - PRIVILEGE_REGISTRY_VERSION=1.0.4
-      - SCRIPT_DIR_PREFIX=/tmp/redfish
-      - VAULT_TOKEN=hms
-      - REDIS_HOSTNAME=redis
-      - REDIS_PORT=6379
-      - VAULT_ADDR=http://vault:8200
-      - CRAY_VAULT_JWT_FILE=configs/token
-      - CRAY_VAULT_ROLE_FILE=configs/namespace
-      - CRAY_VAULT_AUTH_PATH=auth/token/create
-      - HTTPS_CERT=/ephemeral_cert/rts.crt
-      - HTTPS_KEY=/ephemeral_cert/rts.key
-      - BACKEND_HELPER=RFSimulator
-      - PERIODIC_SLEEP=120
-      - COLLECTOR_URL=http://cray-hms-hmcollector
-      - HSM_URL=http://cray-smd:27779
-      - HMS_VAULT_KEYPATH=hms-creds
-      - RF_USERNAME=root
-      - RF_PASSWORD=rts
-      - RF_SIMULATOR_XNAMES=x0c0s1b0,x0c0s2b0
+
+  #
+  # Emulator
+  #
+  emulator-loader:
+    image: artifactory.algol60.net/docker.io/library/golang:1.16-alpine
+    command: >
+      sh -c "apk add curl && sleep 10 &&
+      curl -X POST -d '{\"RedfishEndpoints\":[{
+        \"ID\":\"x0c0b0\",
+        \"FQDN\":\"x0c0b0\",
+        \"RediscoverOnUpdate\":true,
+        \"User\":\"root\",
+        \"Password\":\"root_password\"
+      },{
+        \"ID\":\"x0c0s1b0\",
+        \"FQDN\":\"x0c0s1b0\",
+        \"RediscoverOnUpdate\":true,
+        \"User\":\"root\",
+        \"Password\":\"root_password\"
+      },{
+        \"ID\":\"x0c0s2b0\",
+        \"FQDN\":\"x0c0s2b0\",
+        \"RediscoverOnUpdate\":true,
+        \"User\":\"root\",
+        \"Password\":\"root_password\"
+      },{
+        \"ID\":\"x0c0r2b0\",
+        \"FQDN\":\"x0c0r2b0\",
+        \"RediscoverOnUpdate\":true,
+        \"User\":\"root\",
+        \"Password\":\"root_password\"}]}' http://cray-smd:27779/hsm/v2/Inventory/RedfishEndpoints"
     depends_on:
-      - redis
-      - vault
       - cray-smd
-    volumes:
-      - ./ephemeral_cert:/ephemeral_cert
+      - rfemulator0
+      - rfemulator1
+      - rfemulator2
+      - rfemulator3
+    networks:
+      - pcs
+
+  rfemulator0:
+    hostname: x0c0b0
+    image: artifactory.algol60.net/csm-docker/stable/csm-rie:1.3.0
+    environment:
+      - MOCKUPFOLDER=CMM
+      - XNAME=x0c0b0
+      # - "AUTH_CONFIG=root:root_password:Administrator"
+      - PORT=443
+    ports:
+      - "5000:443"
+    networks:
+      pcs:
+        aliases:
+          - x0c0b0
+
+  rfemulator1:
+    hostname: x0c0s1b0
+    image: artifactory.algol60.net/csm-docker/stable/csm-rie:1.3.0
+    environment:
+      - MOCKUPFOLDER=EX235a
+      - MAC_SCHEMA=Mountain
+      - XNAME=x0c0s1b0
+      # - "AUTH_CONFIG=root:root_password:Administrator"
+      - PORT=443
+    ports:
+      - "5001:443"
     networks:
       pcs:
         aliases:
           - x0c0s1b0
+
+  rfemulator2:
+    hostname: x0c0s2b0
+    image: artifactory.algol60.net/csm-docker/stable/csm-rie:1.3.0
+    environment:
+      - MOCKUPFOLDER=EX235a
+      - MAC_SCHEMA=Mountain
+      - XNAME=x0c0s2b0
+      # - "AUTH_CONFIG=root:root_password:Administrator"
+      - PORT=443
+    ports:
+      - "5002:443"
+    networks:
+      pcs:
+        aliases:
           - x0c0s2b0
+
+  rfemulator3:
+    hostname: x0c0r2b0
+    image: artifactory.algol60.net/csm-docker/stable/csm-rie:1.3.0
+    environment:
+      - MOCKUPFOLDER=Slingshot_Switch_Blade
+      - XNAME=x0c0r2b0
+      # - "AUTH_CONFIG=root:root_password:Administrator"
+      - PORT=443
+    ports:
+      - "5003:443"
+    networks:
+      pcs:
+        aliases:
+          - x0c0r2b0

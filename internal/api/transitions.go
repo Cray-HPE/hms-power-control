@@ -83,25 +83,6 @@ func CreateTransition(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// //validates the schema of the xname, not that the xname actually exists; that requires a HSM call.
-	// var xnamesReq []string
-	// for _, locations := range transition.Location {
-		// xnamesReq = append(xnamesReq, locations.Xname)
-	// }
-	// _, badXnames := base.ValidateCompIDs(xnamesReq, true)
-	// if len(badXnames) > 0 {
-
-		// errormsg := "invalid xnames detected "
-		// for _, badxname := range badXnames {
-			// errormsg += badxname + " "
-		// }
-		// err := errors.New(errormsg)
-		// pb = model.BuildErrorPassback(http.StatusBadRequest, err)
-		// logrus.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode, "xnames": badXnames}).Error("Invalid xnames detected")
-		// WriteHeaders(w, pb)
-		// return
-	// }
-
 	//Call the domain logic to do something!
 	pb = domain.TriggerTransition(transition)
 
