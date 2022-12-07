@@ -867,14 +867,6 @@ components:
           type: integer
           example: 360
           description: Node minimum power draw, measured in watts, as reported by underlying redfish implemention
-        staticPower:
-          type: integer
-          example: 0
-          description: Static per node power overhead, specified in watts, which is unreported (e.g. not measured by a system telemetry)
-        supplyPower:
-          type: integer
-          example: 0
-          description: Maximum capacity of each node level power supply for the given hardware type, specified in watts
         powerupPower:
           type: integer
           example: 250
