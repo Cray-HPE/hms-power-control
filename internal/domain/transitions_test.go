@@ -260,9 +260,17 @@ func (ts *Transitions_TS) TestDoTransition() {
 	}
 	testTransition, _ = model.ToTransition(testParams)
 	(*GLOB.DSP).StoreTransition(testTransition)
-	doTransition(testTransition.TransitionID)
-	resultsPb = GetTransition(testTransition.TransitionID)
-	results = resultsPb.Obj.(model.TransitionResp)
+	go doTransition(testTransition.TransitionID)
+	// Wait for completion
+	for i := 0; i < 60; i++ {
+		time.Sleep(5 * time.Second)
+		getHWStatesFromHW()
+		resultsPb = GetTransition(testTransition.TransitionID)
+		results = resultsPb.Obj.(model.TransitionResp)
+		if results.TransitionStatus == model.TransitionStatusCompleted {
+			break
+		}
+	}
 	ts.Assert().Equal(model.TransitionStatusCompleted, results.TransitionStatus,
 	                  "Test 4 failed with transition status, %s. Expected %s",
 	                  results.TransitionStatus, model.TransitionStatusCompleted)
@@ -321,9 +329,17 @@ func (ts *Transitions_TS) TestDoTransition() {
 	testTransition.TaskIDs = append(testTransition.TaskIDs, task.TaskID)
 	(*GLOB.DSP).StoreTransitionTask(task)
 	(*GLOB.DSP).StoreTransition(testTransition)
-	doTransition(testTransition.TransitionID)
-	resultsPb = GetTransition(testTransition.TransitionID)
-	results = resultsPb.Obj.(model.TransitionResp)
+	go doTransition(testTransition.TransitionID)
+	// Wait for completion
+	for i := 0; i < 60; i++ {
+		time.Sleep(5 * time.Second)
+		getHWStatesFromHW()
+		resultsPb = GetTransition(testTransition.TransitionID)
+		results = resultsPb.Obj.(model.TransitionResp)
+		if results.TransitionStatus == model.TransitionStatusCompleted {
+			break
+		}
+	}
 	ts.Assert().Equal(model.TransitionStatusCompleted, results.TransitionStatus,
 	                  "Test 5 failed with transition status, %s. Expected %s",
 	                  results.TransitionStatus, model.TransitionStatusCompleted)
