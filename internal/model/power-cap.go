@@ -90,11 +90,11 @@ type PowerCapTask struct {
 }
 
 type PowerCapOperation struct {
-	OperationID  uuid.UUID         `json:"operationID"`
-	TaskID       uuid.UUID         `json:"taskID"`
-	Type         string            `json:"type"`
-	Status       string            `json:"status"`
-	Component    PowerCapComponent `json:"Component"`
+	OperationID uuid.UUID         `json:"operationID"`
+	TaskID      uuid.UUID         `json:"taskID"`
+	Type        string            `json:"type"`
+	Status      string            `json:"status"`
+	Component   PowerCapComponent `json:"Component"`
 
 	// From HSM /Inventory/ComponentEndpoints
 	RfFQDN                string                  `json:"RfFQDN"`
@@ -146,8 +146,6 @@ type PowerCapComponent struct {
 type PowerCapabilities struct {
 	HostLimitMax *int `json:"hostLimitMax,omitempty"`
 	HostLimitMin *int `json:"hostLimitMin,omitempty"`
-	StaticPower  *int `json:"staticPower,omitempty"`
-	SupplyPower  *int `json:"supplyPower,omitempty"`
 	PowerupPower *int `json:"powerupPower,omitempty"`
 }
 
@@ -162,21 +160,21 @@ type PowerCapControls struct {
 // FUNCTIONS
 //////////////
 
-func NewPowerCapSnapshotTask(parameters PowerCapSnapshotParameter) (PowerCapTask) {
+func NewPowerCapSnapshotTask(parameters PowerCapSnapshotParameter) PowerCapTask {
 	task := newPowerCapTask()
 	task.Type = PowerCapTaskTypeSnapshot
 	task.SnapshotParameters = &parameters
 	return task
 }
 
-func NewPowerCapPatchTask(parameters PowerCapPatchParameter) (PowerCapTask) {
+func NewPowerCapPatchTask(parameters PowerCapPatchParameter) PowerCapTask {
 	task := newPowerCapTask()
 	task.Type = PowerCapTaskTypePatch
 	task.PatchParameters = &parameters
 	return task
 }
 
-func newPowerCapTask() (PowerCapTask) {
+func newPowerCapTask() PowerCapTask {
 	return PowerCapTask{
 		TaskID:                  uuid.New(),
 		TaskCreateTime:          time.Now(),
@@ -186,11 +184,71 @@ func newPowerCapTask() (PowerCapTask) {
 	}
 }
 
-func NewPowerCapOperation(taskID uuid.UUID, operationType string) (PowerCapOperation){
+func NewPowerCapOperation(taskID uuid.UUID, operationType string) PowerCapOperation {
 	return PowerCapOperation{
 		OperationID: uuid.New(),
 		TaskID:      taskID,
 		Type:        operationType,
 		Status:      PowerCapOpStatusNew,
 	}
+}
+
+func (a *PowerCapTaskResp) Equals(b PowerCapTaskResp) bool {
+	//Not comparing TaskID or any of the timestamp fields because we don't care.
+	if a.Type != b.Type ||
+		a.TaskStatus != b.TaskStatus ||
+		a.TaskCounts != b.TaskCounts ||
+		len(a.Components) != len(b.Components) {
+		return false
+	}
+	for _, compA := range a.Components {
+		found := false
+		for _, compB := range b.Components {
+			if compA.Xname != compB.Xname ||
+				compA.Error != compB.Error ||
+				(compA.Limits == nil) != (compB.Limits == nil) ||
+				len(compA.PowerCapLimits) != len(compB.PowerCapLimits) {
+				continue
+			}
+			if compA.Limits != nil {
+				if (compA.Limits.HostLimitMax == nil) != (compB.Limits.HostLimitMax == nil) ||
+					(compA.Limits.HostLimitMin == nil) != (compB.Limits.HostLimitMin == nil) ||
+					(compA.Limits.PowerupPower == nil) != (compB.Limits.PowerupPower == nil) {
+					continue
+				}
+				if ((compA.Limits.HostLimitMax != nil) && (*compA.Limits.HostLimitMax != *compB.Limits.HostLimitMax)) ||
+					((compA.Limits.HostLimitMin != nil) && (*compA.Limits.HostLimitMin != *compB.Limits.HostLimitMin)) ||
+					((compA.Limits.PowerupPower != nil) && (*compA.Limits.PowerupPower != *compB.Limits.PowerupPower)) {
+					continue
+				}
+			}
+			for _, ctlA := range compA.PowerCapLimits {
+				ctlFound := false
+				for _, ctlB := range compB.PowerCapLimits {
+					if ctlA.Name != ctlB.Name ||
+						(ctlA.CurrentValue == nil) != (ctlB.CurrentValue == nil) ||
+						(ctlA.MaximumValue == nil) != (ctlB.MaximumValue == nil) ||
+						(ctlA.MinimumValue == nil) != (ctlB.MinimumValue == nil) {
+						continue
+					}
+					if ((ctlA.CurrentValue != nil) && (*ctlA.CurrentValue != *ctlB.CurrentValue)) ||
+						((ctlA.MaximumValue != nil) && (*ctlA.MaximumValue != *ctlB.MaximumValue)) ||
+						((ctlA.MinimumValue != nil) && (*ctlA.MinimumValue != *ctlB.MinimumValue)) {
+						continue
+					}
+					ctlFound = true
+					break
+				}
+				if !ctlFound {
+					return false
+				}
+			}
+			found = true
+			break
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }

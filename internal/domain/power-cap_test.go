@@ -55,14 +55,14 @@ func TestDoPowerCapTask(t *testing.T) {
 	}
 	defer doShutdown()
 
-/////////
-// Test 1 - SnapShot Success
-// Tests:
-//   - doPowerCapTask(Snapshot Task Path)
-//   - GetPowerCapQuery()
-/////////
+	/////////
+	// Test 1 - SnapShot Success
+	// Tests:
+	//   - doPowerCapTask(Snapshot Task Path)
+	//   - GetPowerCapQuery()
+	/////////
 	params := model.PowerCapSnapshotParameter{
-		Xnames: []string{"x0c0s0b0n0","x0c0s1b0n0"},
+		Xnames: []string{"x0c0s0b0n0", "x0c0s1b0n0"},
 	}
 
 	task := model.NewPowerCapSnapshotTask(params)
@@ -85,31 +85,31 @@ func TestDoPowerCapTask(t *testing.T) {
 		t.Errorf("ERROR doPowerCapTask(1) failed - Unexpected passback %v", pb)
 	}
 
-	if !comparePowerCapTaskResp(pctc, expectedPowerCapTaskResp1) {
+	if !pctc.Equals(expectedPowerCapTaskResp1) {
 		pctcJSON, _ := json.MarshalIndent(pctc, "", "   ")
 		expectedJSON, _ := json.MarshalIndent(expectedPowerCapTaskResp1, "", "   ")
 		t.Errorf("ERROR doPowerCapTask(1) failed - Unexpected PowerCapTaskResp %s; Expected %s", pctcJSON, expectedJSON)
 	}
 
-/////////
-// Test 2 - Patch Success
-// Tests:
-//   - doPowerCapTask(Patch Task Path)
-//   - GetPowerCapQuery()
-/////////
+	/////////
+	// Test 2 - Patch Success
+	// Tests:
+	//   - doPowerCapTask(Patch Task Path)
+	//   - GetPowerCapQuery()
+	/////////
 	params2 := model.PowerCapPatchParameter{Components: []model.PowerCapComponentParameter{{
 		Xname: "x0c0s0b0n0",
 		Controls: []model.PowerCapControlParameter{{
-			Name: "Node Power Control",
+			Name:  "Node Power Control",
 			Value: 450,
-		},{
-			Name: "Accelerator0 Power Control",
+		}, {
+			Name:  "Accelerator0 Power Control",
 			Value: 300,
 		}},
-	},{
+	}, {
 		Xname: "x0c0s1b0n0",
 		Controls: []model.PowerCapControlParameter{{
-			Name: "Node Power Control",
+			Name:  "Node Power Control",
 			Value: 500,
 		}},
 	}}}
@@ -134,20 +134,20 @@ func TestDoPowerCapTask(t *testing.T) {
 		t.Errorf("ERROR doPowerCapTask(2) failed - Unexpected passback %v", pb2)
 	}
 
-	if !comparePowerCapTaskResp(pctc2, expectedPowerCapTaskResp2) {
+	if !pctc2.Equals(expectedPowerCapTaskResp2) {
 		pctc2JSON, _ := json.MarshalIndent(pctc2, "", "   ")
 		expected2JSON, _ := json.MarshalIndent(expectedPowerCapTaskResp2, "", "   ")
 		t.Errorf("ERROR doPowerCapTask(2) failed - Unexpected PowerCapTaskResp %s; Expected %s", pctc2JSON, expected2JSON)
 	}
 
-/////////
-// Test 3 - Get All Tasks.
-// Tests:
-//   - GetPowerCap()
-// NOTE: Doing this here in TestDoPowerCapTask()
-//       for the convenience of having 2 tasks
-//       already in storage.
-/////////
+	/////////
+	// Test 3 - Get All Tasks.
+	// Tests:
+	//   - GetPowerCap()
+	// NOTE: Doing this here in TestDoPowerCapTask()
+	//       for the convenience of having 2 tasks
+	//       already in storage.
+	/////////
 	// Fill our expected value with the results from the previous tests.
 	expectedPowerCapTaskResp3Map := make(map[string]model.PowerCapTaskResp)
 	expectedPowerCapTaskResp3Map[pctc.TaskID.String()] = expectedPowerCapTaskResp1
@@ -167,7 +167,7 @@ func TestDoPowerCapTask(t *testing.T) {
 		expected, _ := expectedPowerCapTaskResp3Map[pctc3.TaskID.String()]
 		// Minus the Components[] because they won't have that info.
 		expected.Components = nil
-		if !comparePowerCapTaskResp(pctc3, expected) {
+		if !pctc3.Equals(expected) {
 			pctc3JSON, _ := json.MarshalIndent(pctc3, "", "   ")
 			expected3JSON, _ := json.MarshalIndent(expected, "", "   ")
 			t.Errorf("ERROR doPowerCapTask(3) failed - Unexpected PowerCapTaskResp %s; Expected %s", pctc3JSON, expected3JSON)
@@ -183,18 +183,18 @@ func TestDoPowerCapTask(t *testing.T) {
 // httptest servers, HSM/storage/trs packages, etc.
 func doSetup() error {
 	var (
-		err error
-		Running bool = true
-		svcClient *hms_certs.HTTPClientPair
-		TLOC_rf, TLOC_svc trsapi.TrsAPI
-		rfClientLock *sync.RWMutex = &sync.RWMutex{}
-		serviceName string = "PCS-domain-power-cap-test"
-		DSP storage.StorageProvider
-		HSM hsm.HSMProvider
-		VaultEnabled  bool = false
+		err                error
+		Running            bool = true
+		svcClient          *hms_certs.HTTPClientPair
+		TLOC_rf, TLOC_svc  trsapi.TrsAPI
+		rfClientLock       *sync.RWMutex = &sync.RWMutex{}
+		serviceName        string        = "PCS-domain-power-cap-test"
+		DSP                storage.StorageProvider
+		HSM                hsm.HSMProvider
+		VaultEnabled       bool = false
 		StateManagerServer string
-		BaseTRSTask trsapi.HttpTask
-		domainGlobals DOMAIN_GLOBALS
+		BaseTRSTask        trsapi.HttpTask
+		domainGlobals      DOMAIN_GLOBALS
 	)
 
 	logger.Init()
@@ -207,8 +207,8 @@ func doSetup() error {
 	HSMServer = httptest.NewServer(http.HandlerFunc(hsmHandler))
 	StateManagerServer = HSMServer.URL
 
-	svcClient, err = hms_certs.CreateRetryableHTTPClientPair("",10,10,4)
-	if (err != nil) {
+	svcClient, err = hms_certs.CreateRetryableHTTPClientPair("", 10, 10, 4)
+	if err != nil {
 		return err
 	}
 
@@ -236,16 +236,16 @@ func doSetup() error {
 	HSM = &hsm.HSMv2{}
 
 	hsmGlob := hsm.HSM_GLOBALS{
-		SvcName: serviceName,
-		Logger: logger.Log,
-		Running: &Running,
-		SMUrl: StateManagerServer,
+		SvcName:       serviceName,
+		Logger:        logger.Log,
+		Running:       &Running,
+		SMUrl:         StateManagerServer,
 		SVCHttpClient: svcClient,
 	}
 	HSM.Init(&hsmGlob)
 
 	domainGlobals.NewGlobals(&BaseTRSTask, &TLOC_rf, &TLOC_svc, nil, nil,
-	                         rfClientLock, &Running, &DSP, &HSM, VaultEnabled, nil,nil)
+		rfClientLock, &Running, &DSP, &HSM, VaultEnabled, nil, nil)
 	Init(&domainGlobals)
 	return nil
 }
@@ -258,81 +258,19 @@ func doShutdown() {
 
 // Compare function for PowerCapTaskResp structs. Doesn't compare TaskID or any
 // of the timestamp fields because they will inevitably not match our test data.
-func comparePowerCapTaskResp(a model.PowerCapTaskResp, b model.PowerCapTaskResp) bool {
-	//Not comparing TaskID or any of the timestamp fields because we don't care.
-	if a.Type != b.Type ||
-	   a.TaskStatus != b.TaskStatus ||
-	   a.TaskCounts != b.TaskCounts ||
-	   len(a.Components) != len(b.Components) {
-		return false
-	}
-	for _, compA := range a.Components {
-		found := false
-		for _, compB := range b.Components {
-			if compA.Xname != compB.Xname ||
-			   compA.Error != compB.Error ||
-			   (compA.Limits == nil) != (compB.Limits == nil) ||
-			   len(compA.PowerCapLimits) != len(compB.PowerCapLimits) {
-			   continue
-			}
-			if compA.Limits != nil {
-				if (compA.Limits.HostLimitMax == nil) != (compB.Limits.HostLimitMax == nil) ||
-				   (compA.Limits.HostLimitMin == nil) != (compB.Limits.HostLimitMin == nil) ||
-				   (compA.Limits.StaticPower == nil) != (compB.Limits.StaticPower == nil) ||
-				   (compA.Limits.SupplyPower == nil) != (compB.Limits.SupplyPower == nil) ||
-				   (compA.Limits.PowerupPower == nil) != (compB.Limits.PowerupPower == nil) {
-					continue
-				}
-				if ((compA.Limits.HostLimitMax != nil) && (*compA.Limits.HostLimitMax != *compB.Limits.HostLimitMax)) ||
-				   ((compA.Limits.HostLimitMin != nil) && (*compA.Limits.HostLimitMin != *compB.Limits.HostLimitMin)) ||
-				   ((compA.Limits.StaticPower != nil) && (*compA.Limits.StaticPower != *compB.Limits.StaticPower)) ||
-				   ((compA.Limits.SupplyPower != nil) && (*compA.Limits.SupplyPower != *compB.Limits.SupplyPower)) ||
-				   ((compA.Limits.PowerupPower != nil) && (*compA.Limits.PowerupPower != *compB.Limits.PowerupPower)) {
-					continue
-				}
-			}
-			for _, ctlA := range compA.PowerCapLimits {
-				ctlFound := false
-				for _, ctlB := range compB.PowerCapLimits {
-					if ctlA.Name != ctlB.Name ||
-					   (ctlA.CurrentValue == nil) != (ctlB.CurrentValue == nil) ||
-					   (ctlA.MaximumValue == nil) != (ctlB.MaximumValue == nil) ||
-					   (ctlA.MinimumValue == nil) != (ctlB.MinimumValue == nil) {
-						continue
-					}
-					if ((ctlA.CurrentValue != nil) && (*ctlA.CurrentValue != *ctlB.CurrentValue)) ||
-					   ((ctlA.MaximumValue != nil) && (*ctlA.MaximumValue != *ctlB.MaximumValue)) ||
-					   ((ctlA.MinimumValue != nil) && (*ctlA.MinimumValue != *ctlB.MinimumValue)) {
-						continue
-					}
-					ctlFound = true
-					break
-				}
-				if !ctlFound {
-					return false
-				}
-			}
-			found = true
-			break
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
-}
+// TODO make this an equality function, put it in the models
 
 // Fake HSM http server
 func hsmHandler(w http.ResponseWriter, req *http.Request) {
 	switch req.URL.RequestURI() {
 	case testPathStateComps_PowerCap_1:
-		w.Header().Set("Content-Type","application/json")
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(testPayloadStateComps_PowerCap_1))
 	case testPathCompEPs_PowerCap_1:
 		fallthrough
 	case testPathCompEPs_PowerCap_1_var:
-		w.Header().Set("Content-Type","application/json")
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(genPayload(testPayloadCompEPs_PowerCap_1)))
 	default:
@@ -354,15 +292,15 @@ func rfHandler(w http.ResponseWriter, req *http.Request) {
 	case http.MethodGet:
 		switch req.URL.RequestURI() {
 		case testPathRF_x0c0s0b0_Power:
-			w.Header().Set("Content-Type","application/json")
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(testPayloadRF_x0c0s0b0_Power))
 		case testPathRF_x0c0s1b0_Power:
-			w.Header().Set("Content-Type","application/json")
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(testPayloadRF_x0c0s1b0_Power))
 		default:
-			w.Header().Set("Content-Type","application/json")
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"Message":"You suck at GETs"}`))
 		}
@@ -375,16 +313,16 @@ func rfHandler(w http.ResponseWriter, req *http.Request) {
 		case testPathRF_x0c0s1b0_PatchPower_Success:
 			fallthrough
 		case testPathRF_PatchPower_Success:
-			w.Header().Set("Content-Type","application/json")
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"Message":"Success"}`))
 		default:
-			w.Header().Set("Content-Type","application/json")
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"Message":"You suck at POST/PATCH"}`))
 		}
 	default:
-		w.Header().Set("Content-Type","application/json")
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(`{"Message":"You just plain suck"}`))
 	}
@@ -407,14 +345,14 @@ var expectedMaximumValue2Comp1Resp1 int = 350
 var expectedMinimumValue2Comp1Resp1 int = 200
 
 var expectedPowerCapTaskResp1 = model.PowerCapTaskResp{
-	Type: model.PowerCapTaskTypeSnapshot,
+	Type:       model.PowerCapTaskTypeSnapshot,
 	TaskStatus: model.PowerCapTaskStatusCompleted,
 	TaskCounts: model.PowerCapTaskCounts{
-		Total: 2,
-		New: 0,
-		InProgress: 0,
-		Failed: 0,
-		Succeeded: 2,
+		Total:       2,
+		New:         0,
+		InProgress:  0,
+		Failed:      0,
+		Succeeded:   2,
 		Unsupported: 0,
 	},
 	Components: []model.PowerCapComponent{{
@@ -423,36 +361,34 @@ var expectedPowerCapTaskResp1 = model.PowerCapTaskResp{
 		Limits: &model.PowerCapabilities{
 			HostLimitMax: &expectedHostLimitMaxComp1Resp1,
 			HostLimitMin: &expectedHostLimitMinComp1Resp1,
-			SupplyPower: &expectedSupplyPowerComp1Resp1,
 			PowerupPower: &expectedPowerupPowerComp1Resp1,
 		},
 		PowerCapLimits: []model.PowerCapControls{{
-			Name: "Node Power Control",
+			Name:         "Node Power Control",
 			CurrentValue: &expectedCurrentValue1Comp1Resp1,
 			MaximumValue: &expectedMaximumValue1Comp1Resp1,
 			MinimumValue: &expectedMinimumValue1Comp1Resp1,
 		}, {
-			Name: "Accelerator0 Power Control",
+			Name:         "Accelerator0 Power Control",
 			CurrentValue: &expectedCurrentValue2Comp1Resp1,
 			MaximumValue: &expectedMaximumValue2Comp1Resp1,
 			MinimumValue: &expectedMinimumValue2Comp1Resp1,
 		}},
-	},{
+	}, {
 		Xname: "x0c0s1b0n0",
 		Error: "",
 		Limits: &model.PowerCapabilities{
 			HostLimitMax: &expectedHostLimitMaxComp1Resp1,
 			HostLimitMin: &expectedHostLimitMinComp1Resp1,
-			SupplyPower: &expectedSupplyPowerComp1Resp1,
 			PowerupPower: &expectedPowerupPowerComp1Resp1,
 		},
 		PowerCapLimits: []model.PowerCapControls{{
-			Name: "Node Power Control",
+			Name:         "Node Power Control",
 			CurrentValue: &expectedCurrentValue1Comp1Resp1,
 			MaximumValue: &expectedMaximumValue1Comp1Resp1,
 			MinimumValue: &expectedMinimumValue1Comp1Resp1,
 		}, {
-			Name: "Accelerator0 Power Control",
+			Name:         "Accelerator0 Power Control",
 			CurrentValue: &expectedCurrentValue2Comp1Resp1,
 			MaximumValue: &expectedMaximumValue2Comp1Resp1,
 			MinimumValue: &expectedMinimumValue2Comp1Resp1,
@@ -469,35 +405,35 @@ var expectedMinimumValue2Comp1Resp2 int = 200
 var expectedCurrentValue1Comp2Resp2 int = 500
 
 var expectedPowerCapTaskResp2 = model.PowerCapTaskResp{
-	Type: model.PowerCapTaskTypePatch,
+	Type:       model.PowerCapTaskTypePatch,
 	TaskStatus: model.PowerCapTaskStatusCompleted,
 	TaskCounts: model.PowerCapTaskCounts{
-		Total: 2,
-		New: 0,
-		InProgress: 0,
-		Failed: 0,
-		Succeeded: 2,
+		Total:       2,
+		New:         0,
+		InProgress:  0,
+		Failed:      0,
+		Succeeded:   2,
 		Unsupported: 0,
 	},
 	Components: []model.PowerCapComponent{{
 		Xname: "x0c0s0b0n0",
 		Error: "",
 		PowerCapLimits: []model.PowerCapControls{{
-			Name: "Node Power Control",
+			Name:         "Node Power Control",
 			CurrentValue: &expectedCurrentValue1Comp1Resp2,
 			MaximumValue: &expectedMaximumValue1Comp1Resp2,
 			MinimumValue: &expectedMinimumValue1Comp1Resp2,
 		}, {
-			Name: "Accelerator0 Power Control",
+			Name:         "Accelerator0 Power Control",
 			CurrentValue: &expectedCurrentValue2Comp1Resp2,
 			MaximumValue: &expectedMaximumValue2Comp1Resp2,
 			MinimumValue: &expectedMinimumValue2Comp1Resp2,
 		}},
-	},{
+	}, {
 		Xname: "x0c0s1b0n0",
 		Error: "",
 		PowerCapLimits: []model.PowerCapControls{{
-			Name: "Node Power Control",
+			Name:         "Node Power Control",
 			CurrentValue: &expectedCurrentValue1Comp2Resp2,
 			MaximumValue: &expectedMaximumValue1Comp1Resp2,
 			MinimumValue: &expectedMinimumValue1Comp1Resp2,
