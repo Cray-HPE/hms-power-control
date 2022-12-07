@@ -195,7 +195,7 @@ services:
       # - "AUTH_CONFIG=root:root_password:Administrator"
       - PORT=443
     ports:
-      - "5000:443"
+      - "5004:443"
     networks:
       pcs:
         aliases:

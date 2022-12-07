@@ -334,7 +334,6 @@ func rfHandler(w http.ResponseWriter, req *http.Request) {
 
 var expectedHostLimitMaxComp1Resp1 int = 850
 var expectedHostLimitMinComp1Resp1 int = 350
-var expectedSupplyPowerComp1Resp1 int = 900
 var expectedPowerupPowerComp1Resp1 int = 250
 
 var expectedCurrentValue1Comp1Resp1 int = 500

@@ -895,7 +895,7 @@ func parsePowerCapRFData(op model.PowerCapOperation, rfPower Power) ([]model.Pow
 			controls = append(controls, control)
 			if i == 0 {
 				var hostLimitMax *int
-				var hostLimitMin int
+				var hostLimitMin *int
 				var powerupPower *int
 
 				if pc.OEM != nil && pc.OEM.Cray != nil {
@@ -903,7 +903,7 @@ func parsePowerCapRFData(op model.PowerCapOperation, rfPower Power) ([]model.Pow
 					if pc.OEM.Cray.PowerLimit != nil {
 						hostLimitMax = pc.OEM.Cray.PowerLimit.Max
 						if pc.OEM.Cray.PowerLimit.Min != nil {
-							hostLimitMin = *pc.OEM.Cray.PowerLimit.Min
+							hostLimitMin = pc.OEM.Cray.PowerLimit.Min
 						}
 					}
 				} else {
@@ -911,7 +911,7 @@ func parsePowerCapRFData(op model.PowerCapOperation, rfPower Power) ([]model.Pow
 				}
 				limits = &model.PowerCapabilities{
 					HostLimitMax: hostLimitMax,
-					HostLimitMin: &hostLimitMin,
+					HostLimitMin: hostLimitMin,
 					PowerupPower: powerupPower,
 				}
 			}
