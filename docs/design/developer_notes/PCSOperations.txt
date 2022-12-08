@@ -35,7 +35,7 @@ POST /transitions
 
    o Get the HW state of the targets. Use ETCD HW state records. If any targets
      are already at the destination state, remove these from the list and mark
-     the return data for that target as 'compete', or maybe 'already there' in
+     the return data for that target as 'complete', or maybe 'already there' in
      taskStatusDescription.
 
    o Fetch BMC creds for all target BMCs. (need to mod the pkg to do in 

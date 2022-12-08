@@ -875,7 +875,6 @@ func doTransition(transitionID uuid.UUID) {
 					// Add components that timed out to the ForceOff list (if we're doing ForceOff)
 					if powerAction == "gracefulshutdown" && !isSoft {
 						for _, comp := range trsTaskMap {
-							comp.ActionCount++
 							compType := base.GetHMSType(comp.Task.Xname)
 							seqMap["forceoff"][compType] = append(seqMap["forceoff"][compType], comp)
 						}
