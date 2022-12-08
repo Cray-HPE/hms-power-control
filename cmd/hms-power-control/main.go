@@ -349,7 +349,7 @@ func main() {
 		(time.Duration(dlockTimeout)*time.Second),
 		logger.Log,(time.Duration(pwrSampleInterval)*time.Second))
 
-	domain.StartTransitionsReaper()
+	domain.StartRecordsReaper()
 
 	///////////////////////////////
 	//SIGNAL HANDLING -- //TODO does this need to move up ^ so it happens sooner?

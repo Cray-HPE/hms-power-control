@@ -173,6 +173,36 @@ func TestDoPowerCapTask(t *testing.T) {
 			t.Errorf("ERROR doPowerCapTask(3) failed - Unexpected PowerCapTaskResp %s; Expected %s", pctc3JSON, expected3JSON)
 		}
 	}
+
+	/////////
+	// Test 4 - Test reaper function.
+	// Tests:
+	//   - powerCapReaper()
+	// NOTE: Doing this here in TestDoPowerCapTask()
+	//       for the convenience of having 2 tasks
+	//       already in storage.
+	/////////
+	expiredTask, err := (*GLOB.DSP).GetPowerCapTask(task2.TaskID)
+	if err != nil {
+		t.Errorf("ERROR powerCapReaper() failed - %s", err.Error())
+		return
+	}
+	expiredTask.AutomaticExpirationTime = time.Now().Add(-3 * time.Second)
+	err = (*GLOB.DSP).StorePowerCapTask(expiredTask)
+	if err != nil {
+		t.Errorf("ERROR powerCapReaper() failed - %s", err.Error())
+		return
+	}
+	powerCapReaper()
+	pb4 := GetPowerCapQuery(expiredTask.TaskID)
+	if !pb4.IsError {
+		t.Errorf("ERROR powerCapReaper() failed - Expected an error.")
+		return
+	}
+	if pb4.StatusCode != 404 {
+		t.Errorf("ERROR powerCapReaper() failed - Expected a 404 error, received %s.", pb4.Error.Detail)
+		return
+	}
 }
 
 /////////////////////////

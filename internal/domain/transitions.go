@@ -1532,21 +1532,6 @@ func failDependentComps(xnameMap map[string]*TransitionComponent, powerAction st
 	}
 }
 
-// Periodically runs the transition reaper to prune expired records and restart abandoned ones.
-func StartTransitionsReaper() {
-	go func() {
-		logger.Log.Debug("Starting transitions reaper thread.")
-		ticker := time.NewTicker(60 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				transitionsReaper()
-			}
-		}
-	}()
-}
-
 // Checks all of the transition records in etcd and does the following:
 //
 // - Deletes completed (completed/aborted) records that have expired (AutomaticExpirationTime).
@@ -1555,64 +1540,61 @@ func StartTransitionsReaper() {
 //
 // - Aborts incomplete transitions (new/in-progress) that have expired (AutomaticExpirationTime).
 func transitionsReaper() {
-	for {
-		// Get all transitions
-		transitions, err := (*GLOB.DSP).GetAllTransitions()
-		if err != nil {
-			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error retreiving transitions")
-			continue
-		}
-		if len(transitions) == 0 {
-			// No transitions to act upon
-			break
-		}
+	// Get all transitions
+	transitions, err := (*GLOB.DSP).GetAllTransitions()
+	if err != nil {
+		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error retreiving transitions")
+		return
+	}
+	if len(transitions) == 0 {
+		// No transitions to act upon
+		return
+	}
 
-		for _, transition := range transitions {
-			expired := transition.AutomaticExpirationTime.Before(time.Now())
-			abandoned := transition.LastActiveTime.Before(time.Now().Add(time.Duration(model.TransitionKeepAliveInterval) * -3 * time.Second))
-			if expired {
-				if transition.Status == model.TransitionStatusAborted ||
-				   transition.Status == model.TransitionStatusCompleted {
-					deleteTransition(transition.TransitionID)
-				} else {
-					transitionOld := transition
-					transition.Status = model.TransitionStatusAbortSignaled
-					if abandoned {
-						transition.LastActiveTime = time.Now()
-					}
-					// No need to check if the TAS succeeded because, if it didn't,
-					// it means someone else took care of it.
-					ok, err := (*GLOB.DSP).TASTransition(transition, transitionOld)
-					if err != nil {
-						logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error aborting transition, %s.", transition.TransitionID.String())
-						continue
-					}
-					// Pick it up to process the abort if it has been abandoned.
-					if ok && abandoned {
-						go doTransition(transition.TransitionID)
-					}
-				}
-			} else if abandoned &&
-					  transition.Status != model.TransitionStatusAborted && 
-					  transition.Status != model.TransitionStatusCompleted {
-				// Assume the transition has been abandoned if it has been 3 times
-				// the keep alive interval since it was last active.
-				// Pick up an abandoned transition by first refreshing its LastActiveTime
-				// so other instances know we got it first.
+	for _, transition := range transitions {
+		expired := transition.AutomaticExpirationTime.Before(time.Now())
+		abandoned := transition.LastActiveTime.Before(time.Now().Add(time.Duration(model.TransitionKeepAliveInterval) * -3 * time.Second))
+		if expired {
+			if transition.Status == model.TransitionStatusAborted ||
+			   transition.Status == model.TransitionStatusCompleted {
+				deleteTransition(transition.TransitionID)
+			} else {
 				transitionOld := transition
-				transition.LastActiveTime = time.Now()
+				transition.Status = model.TransitionStatusAbortSignaled
+				if abandoned {
+					transition.LastActiveTime = time.Now()
+				}
+				// No need to check if the TAS succeeded because, if it didn't,
+				// it means someone else took care of it.
 				ok, err := (*GLOB.DSP).TASTransition(transition, transitionOld)
 				if err != nil {
-					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error storing transition, %s.", transition.TransitionID.String())
+					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error aborting transition, %s.", transition.TransitionID.String())
 					continue
 				}
-				// ok == true mean we got it first. Start the processing thread.
-				if ok {
+				// Pick it up to process the abort if it has been abandoned.
+				if ok && abandoned {
 					go doTransition(transition.TransitionID)
 				}
 			}
+		} else if abandoned &&
+		          transition.Status != model.TransitionStatusAborted && 
+		          transition.Status != model.TransitionStatusCompleted {
+			// Assume the transition has been abandoned if it has been 3 times
+			// the keep alive interval since it was last active.
+			// Pick up an abandoned transition by first refreshing its LastActiveTime
+			// so other instances know we got it first.
+			transitionOld := transition
+			transition.LastActiveTime = time.Now()
+			ok, err := (*GLOB.DSP).TASTransition(transition, transitionOld)
+			if err != nil {
+				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error storing transition, %s.", transition.TransitionID.String())
+				continue
+			}
+			// ok == true mean we got it first. Start the processing thread.
+			if ok {
+				go doTransition(transition.TransitionID)
+			}
 		}
-		break
 	}
 }
 

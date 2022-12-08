@@ -33,6 +33,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/hsm"
@@ -936,4 +937,41 @@ func isHpeApollo6500(powerURL string) bool {
 	}
 
 	return false
+}
+
+// Checks all of the power cap records in etcd and does the following deletes
+// records that have expired.
+func powerCapReaper() {
+	// Get all power cap tasks
+	tasks, err := (*GLOB.DSP).GetAllPowerCapTasks()
+	if err != nil {
+		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error retreiving power cap tasks")
+		return
+	}
+	if len(tasks) == 0 {
+		// No power cap tasks to act upon
+		return
+	}
+
+	for _, task := range tasks {
+		expired := task.AutomaticExpirationTime.Before(time.Now())
+		if expired {
+			// Get the operations for the power cap task
+			ops, err := (*GLOB.DSP).GetAllPowerCapOperationsForTask(task.TaskID)
+			if err != nil {
+				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error retreiving operations for power cap task, %s.", task.TaskID.String())
+				continue
+			}
+			for _, op := range ops {
+				err = (*GLOB.DSP).DeletePowerCapOperation(task.TaskID, op.OperationID)
+				if err != nil {
+					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error deleting operation, %s, for power cap task, %s.", op.OperationID.String(), task.TaskID.String())
+				}
+			}
+			err = (*GLOB.DSP).DeletePowerCapTask(task.TaskID)
+			if err != nil {
+				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error deleting power cap task, %s.", task.TaskID.String())
+			}
+		}
+	}
 }
