@@ -41,18 +41,10 @@ done
 
 set -x
 
-# Add .exe if running in a WSL environment
-if $(uname -r | grep -q "Microsoft"); then
-    shopt -s expand_aliases
-    alias docker-compose=docker-compose.exe
-fi
-
 # Configure docker compose
 export COMPOSE_PROJECT_NAME=$RANDOM
 export COMPOSE_FILE=docker-compose.test.ct.yaml
 ephCertDir=ephemeral_cert
-
-args="-f $COMPOSE_FILE -p $COMPOSE_PROJECT_NAME"
 
 echo "COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}"
 echo "COMPOSE_FILE: $COMPOSE_FILE"
@@ -61,7 +53,7 @@ echo "COMPOSE_FILE: $COMPOSE_FILE"
 function cleanup() {
   if ! ${DASHN}; then
     rm -rf $ephCertDir
-    docker-compose $args down
+    docker-compose down
     if [[ $? -ne 0 ]]; then
       echo "Failed to decompose environment!"
       exit 1
@@ -90,21 +82,21 @@ chmod o+r $ephCertDir/rts.crt $ephCertDir/rts.key
 
 # Get the base containers running
 echo "Starting containers..."
-docker-compose $args build --no-cache
-docker-compose $args up -d cray-power-control #this will stand up everything except for the integration test container
+docker-compose build --no-cache
+docker-compose up -d cray-power-control #this will stand up everything except for the integration test container
 
 # Give PCS, HSM, and ETCD time to be fully initialized before running CT tests
-docker-compose $args up -d ct-tests-functional-wait-for-smd
-docker wait ${COMPOSE_PROJECT_NAME}_ct-tests-functional-wait-for-smd_1
-DOCKER_WAIT_FOR_SMD_LOGS=$(docker logs ${COMPOSE_PROJECT_NAME}_ct-tests-functional-wait-for-smd_1)
-DOCKER_WAIT_CHECK=$(echo "${DOCKER_WAIT_FOR_SMD_LOGS}" | grep -E "Failed to connect for [0-9]+, exiting")
-if [[ -n "${DOCKER_WAIT_CHECK}" ]]; then
-    echo "Timed out waiting for HSM to be populated, exiting..."
-    cleanup 1
-fi
+docker-compose up --exit-code-from ct-tests-functional-wait-for-smd ct-tests-functional-wait-for-smd
+# docker wait ${COMPOSE_PROJECT_NAME}_ct-tests-functional-wait-for-smd_1
+# DOCKER_WAIT_FOR_SMD_LOGS=$(docker logs ${COMPOSE_PROJECT_NAME}_ct-tests-functional-wait-for-smd_1)
+# DOCKER_WAIT_CHECK=$(echo "${DOCKER_WAIT_FOR_SMD_LOGS}" | grep -E "Failed to connect for [0-9]+, exiting")
+# if [[ -n "${DOCKER_WAIT_CHECK}" ]]; then
+    # echo "Timed out waiting for HSM to be populated, exiting..."
+    # cleanup 1
+# fi
 
 # Run the CT smoke tests
-docker-compose $args up --exit-code-from ct-tests-smoke ct-tests-smoke
+docker-compose up --exit-code-from ct-tests-smoke ct-tests-smoke
 test_result=$?
 echo "Cleaning up containers..."
 if [[ $test_result -ne 0 ]]; then
@@ -113,7 +105,7 @@ if [[ $test_result -ne 0 ]]; then
 fi
 
 # Run the CT functional tests
-docker-compose $args up --exit-code-from ct-tests-functional ct-tests-functional
+docker-compose up --exit-code-from ct-tests-functional ct-tests-functional
 test_result=$?
 
 # Cleanup

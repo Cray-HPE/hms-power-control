@@ -38,6 +38,7 @@ type StorageProvider interface {
 	DeletePowerStatus(xname string) error
 	GetPowerStatus(xname string) (model.PowerStatusComponent, error)
 	GetAllPowerStatus() (model.PowerStatus, error)
+	GetPowerStatusHierarchy(xname string) (model.PowerStatus, error)
 
 	StorePowerCapTask(task model.PowerCapTask) error
 	StorePowerCapOperation(op model.PowerCapOperation) error
@@ -47,6 +48,16 @@ type StorageProvider interface {
 	GetAllPowerCapTasks() ([]model.PowerCapTask, error)
 	DeletePowerCapTask(taskID uuid.UUID) error
 	DeletePowerCapOperation(taskID uuid.UUID, opID uuid.UUID) error
+
+	StoreTransition(transition model.Transition) error
+	StoreTransitionTask(task model.TransitionTask) error
+	GetTransition(transitionID uuid.UUID) (model.Transition, error)
+	GetTransitionTask(transitionID uuid.UUID, taskID uuid.UUID) (model.TransitionTask, error)
+	GetAllTasksForTransition(transitionID uuid.UUID) ([]model.TransitionTask, error)
+	GetAllTransitions() ([]model.Transition, error)
+	DeleteTransition(transitionID uuid.UUID) error
+	DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.UUID) error
+	TASTransition(transition model.Transition, testVal model.Transition) (bool, error)
 }
 
 type DistributedLockProvider interface {

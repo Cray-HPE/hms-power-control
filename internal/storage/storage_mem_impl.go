@@ -92,6 +92,11 @@ func (m *MEMStorage) GetAllPowerStatus() (model.PowerStatus, error) {
 	return e.GetAllPowerStatus()
 }
 
+func (m *MEMStorage) GetPowerStatusHierarchy(xname string) (model.PowerStatus, error) {
+	e := toETCDStorage(m)
+	return e.GetPowerStatusHierarchy(xname)
+}
+
 ///////////////////////
 // Power Capping
 ///////////////////////
@@ -134,4 +139,53 @@ func (m *MEMStorage) DeletePowerCapTask(taskID uuid.UUID) error {
 func (m *MEMStorage) DeletePowerCapOperation(taskID uuid.UUID, opID uuid.UUID) error {
 	e := toETCDStorage(m)
 	return e.DeletePowerCapOperation(taskID, opID)
+}
+
+///////////////////////
+// Transition
+///////////////////////
+
+func (m *MEMStorage) StoreTransition(transition model.Transition) error {
+	e := toETCDStorage(m)
+	return e.StoreTransition(transition)
+}
+
+func (m *MEMStorage) StoreTransitionTask(op model.TransitionTask) error {
+	e := toETCDStorage(m)
+	return e.StoreTransitionTask(op)
+}
+
+func (m *MEMStorage) GetTransition(transitionID uuid.UUID) (model.Transition, error) {
+	e := toETCDStorage(m)
+	return e.GetTransition(transitionID)
+}
+
+func (m *MEMStorage) GetTransitionTask(transitionID uuid.UUID, taskID uuid.UUID) (model.TransitionTask, error) {
+	e := toETCDStorage(m)
+	return e.GetTransitionTask(transitionID, taskID)
+}
+
+func (m *MEMStorage) GetAllTasksForTransition(transitionID uuid.UUID) ([]model.TransitionTask, error) {
+	e := toETCDStorage(m)
+	return e.GetAllTasksForTransition(transitionID)
+}
+
+func (m *MEMStorage) GetAllTransitions() ([]model.Transition, error) {
+	e := toETCDStorage(m)
+	return e.GetAllTransitions()
+}
+
+func (m *MEMStorage) DeleteTransition(transitionID uuid.UUID) error {
+	e := toETCDStorage(m)
+	return e.DeleteTransition(transitionID)
+}
+
+func (m *MEMStorage) DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.UUID) error {
+	e := toETCDStorage(m)
+	return e.DeleteTransitionTask(transitionID, taskID)
+}
+
+func (m *MEMStorage) TASTransition(transition model.Transition, testVal model.Transition) (bool, error) {
+	e := toETCDStorage(m)
+	return e.TASTransition(transition, testVal)
 }

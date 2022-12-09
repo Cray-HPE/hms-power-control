@@ -75,7 +75,7 @@ services:
     networks:
       - pcs
   cray-smd-init:
-    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.57.0
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.58.0
     environment:
       - SMD_DBHOST=hmsds-postgres
       - SMD_DBPORT=5432
@@ -85,7 +85,7 @@ services:
       - pcs
     command: /entrypoint.sh smd-init
   cray-smd:
-    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.57.0
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.58.0
     environment:
       - POSTGRES_HOST=hmsds-postgres
       - POSTGRES_PORT=5432
@@ -98,6 +98,8 @@ services:
       - VAULT_KEYPATH=hms-creds
       - SMD_WVAULT=true
       - SMD_RVAULT=true
+      - SMD_SLS_HOST=
+      - SMD_HBTD_HOST=
     hostname: cray-smd
     depends_on:
       - cray-smd-init
@@ -152,7 +154,6 @@ services:
     networks:
       - pcs
 
-# TODO replace simulated BMC with RIE
   #
   # Emulator
   #

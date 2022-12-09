@@ -33,6 +33,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/hsm"
@@ -304,18 +305,18 @@ func GetPowerCapQuery(taskID uuid.UUID) (pb model.Passback) {
 func buildPowerCapResponse(task model.PowerCapTask, ops []model.PowerCapOperation, full bool) model.PowerCapTaskResp {
 	// Build the response struct
 	rsp := model.PowerCapTaskResp{
-		TaskID: task.TaskID,
-		Type: task.Type,
-		TaskCreateTime: task.TaskCreateTime,
+		TaskID:                  task.TaskID,
+		Type:                    task.Type,
+		TaskCreateTime:          task.TaskCreateTime,
 		AutomaticExpirationTime: task.AutomaticExpirationTime,
-		TaskStatus: task.TaskStatus,
+		TaskStatus:              task.TaskStatus,
 	}
 
 	counts := model.PowerCapTaskCounts{}
 	componentMap := make(map[string]model.PowerCapComponent)
 	for _, op := range ops {
 		// Get the count of operations with each status type.
-		switch(op.Status) {
+		switch op.Status {
 		case model.PowerCapOpStatusNew:
 			counts.New++
 		case model.PowerCapOpStatusInProgress:
@@ -374,7 +375,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 		return
 	}
 
-	defer logger.Log.Debugf("Power Capping Snapshot Task %s Completed", task.TaskID.String())
+	defer logger.Log.Debugf("Power Capping Task %s Completed", task.TaskID.String())
 
 	if task.Type == model.PowerCapTaskTypePatch {
 		logger.Log.Debugf("Starting Power Capping Patch Task %s - %v", task.TaskID.String(), *task.PatchParameters)
@@ -519,7 +520,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 		} else {
 			op := model.NewPowerCapOperation(task.TaskID, task.Type)
 			if comp.PowerCapControlsCount > 0 {
-				// Use Controls.Deep URL for Cray EX hardware. 
+				// Use Controls.Deep URL for Cray EX hardware.
 				pwrURL := comp.PowerCapURI
 				url := path.Dir(pwrURL)
 				op.PowerCapURI = url + "/Controls.Deep"
@@ -593,7 +594,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 							min := pwrCtl.Min
 							max := pwrCtl.Max
 							ctl := model.PowerCapControls{
-								Name: name,
+								Name:         name,
 								CurrentValue: &currentVal,
 							}
 							// -1 means limits were not available to HSM via redfish.
@@ -654,7 +655,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 			var method string
 			var path string
 			if isHpeApollo6500(op.PowerCapURI) {
-			// Apollo 6500's use a POST operation to set power limits
+				// Apollo 6500's use a POST operation to set power limits
 				method = "POST"
 				path = op.RfFQDN + op.PowerCapTargetURI
 			} else {
@@ -662,7 +663,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 				path = op.RfFQDN + op.PowerCapURI
 			}
 			payload, _ := generatePowerCapPayload(op)
-			trsTaskList[trsTaskIdx].Request, _ = http.NewRequest(method, "https://" +  path, bytes.NewBuffer(payload))
+			trsTaskList[trsTaskIdx].Request, _ = http.NewRequest(method, "https://"+path, bytes.NewBuffer(payload))
 			trsTaskList[trsTaskIdx].Request.Header.Set("Content-Type", "application/json")
 			trsTaskList[trsTaskIdx].Request.Header.Add("HMS-Service", GLOB.BaseTRSTask.ServiceName)
 		} else {
@@ -682,8 +683,6 @@ func doPowerCapTask(taskID uuid.UUID) {
 	}
 
 	if len(trsTaskList) > 0 {
-		//TODO: Is this really needed when using TRS?
-		// GLOB.RFClientLock.RLock()
 		rchan, err := (*GLOB.RFTloc).Launch(&trsTaskList)
 		if err != nil {
 			logrus.Error(err)
@@ -742,8 +741,6 @@ func doPowerCapTask(taskID uuid.UUID) {
 				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing power capping operation")
 			}
 		}
-		//TODO: Is this really needed when using TRS?
-		// GLOB.RFClientLock.RUnlock()
 	}
 
 	// Task Complete
@@ -764,15 +761,15 @@ func generatePowerCapPayload(op model.PowerCapOperation) ([]byte, error) {
 		}
 		for _, limit := range op.Component.PowerCapLimits {
 			var ctl RFControl
-			if *op.Component.PowerCapLimits[0].CurrentValue > 0 {
+			if *limit.CurrentValue > 0 {
 				ctl = RFControl{
-					Oid: op.PowerCaps[limit.Name].Path,
-					SetPoint: op.Component.PowerCapLimits[0].CurrentValue,
+					Oid:         op.PowerCaps[limit.Name].Path,
+					SetPoint:    limit.CurrentValue,
 					ControlMode: "Automatic",
 				}
 			} else {
 				ctl = RFControl{
-					Oid: op.PowerCaps[limit.Name].Path,
+					Oid:         op.PowerCaps[limit.Name].Path,
 					ControlMode: "Disabled",
 				}
 			}
@@ -827,7 +824,7 @@ func parsePowerCapRFData(op model.PowerCapOperation, rfPower Power) ([]model.Pow
 			val = *rfPower.SetPoint
 		}
 		control := model.PowerCapControls{
-			Name: rfPower.Name,
+			Name:         rfPower.Name,
 			CurrentValue: &val,
 			MaximumValue: rfPower.SettingRangeMax,
 			MinimumValue: rfPower.SettingRangeMin,
@@ -838,19 +835,18 @@ func parsePowerCapRFData(op model.PowerCapOperation, rfPower Power) ([]model.Pow
 			limits = &model.PowerCapabilities{
 				HostLimitMax: rfPower.SettingRangeMax,
 				HostLimitMin: rfPower.SettingRangeMin,
-				SupplyPower: rfPower.SettingRangeMax,
 			}
 		}
 	} else if len(rfPower.ActualPowerLimits) > 0 ||
-	          len(rfPower.PowerLimitRanges) > 0 ||
-	          len(rfPower.PowerLimits) > 0 {
+		len(rfPower.PowerLimitRanges) > 0 ||
+		len(rfPower.PowerLimits) > 0 {
 		// Apollo 6500 AccPowerService
 		for i, pl := range rfPower.PowerLimits {
 			var min *int
 			var max *int
 			var val int
 			name := "Node Power Limit"
-			
+
 			if pl.PowerLimitInWatts != nil {
 				val = *pl.PowerLimitInWatts
 			}
@@ -859,7 +855,7 @@ func parsePowerCapRFData(op model.PowerCapOperation, rfPower Power) ([]model.Pow
 				min = rfPower.PowerLimitRanges[i].MinimumPowerLimit
 			}
 			control := model.PowerCapControls{
-				Name: name,
+				Name:         name,
 				CurrentValue: &val,
 				MaximumValue: max,
 				MinimumValue: min,
@@ -869,7 +865,6 @@ func parsePowerCapRFData(op model.PowerCapOperation, rfPower Power) ([]model.Pow
 				limits = &model.PowerCapabilities{
 					HostLimitMax: max,
 					HostLimitMin: min,
-					SupplyPower: max,
 				}
 			}
 		}
@@ -896,20 +891,20 @@ func parsePowerCapRFData(op model.PowerCapOperation, rfPower Power) ([]model.Pow
 				control.MaximumValue = pc.OEM.Cray.PowerLimit.Max
 				control.MinimumValue = pc.OEM.Cray.PowerLimit.Min
 			} else {
-				 control.MaximumValue = pc.PowerCapacityWatts
+				control.MaximumValue = pc.PowerCapacityWatts
 			}
 			controls = append(controls, control)
 			if i == 0 {
 				var hostLimitMax *int
-				var hostLimitMin int
+				var hostLimitMin *int
 				var powerupPower *int
-				
+
 				if pc.OEM != nil && pc.OEM.Cray != nil {
 					powerupPower = pc.OEM.Cray.PowerResetWatts
 					if pc.OEM.Cray.PowerLimit != nil {
 						hostLimitMax = pc.OEM.Cray.PowerLimit.Max
 						if pc.OEM.Cray.PowerLimit.Min != nil {
-							hostLimitMin = *pc.OEM.Cray.PowerLimit.Min
+							hostLimitMin = pc.OEM.Cray.PowerLimit.Min
 						}
 					}
 				} else {
@@ -917,8 +912,7 @@ func parsePowerCapRFData(op model.PowerCapOperation, rfPower Power) ([]model.Pow
 				}
 				limits = &model.PowerCapabilities{
 					HostLimitMax: hostLimitMax,
-					HostLimitMin: &hostLimitMin,
-					SupplyPower: pc.PowerCapacityWatts,
+					HostLimitMin: hostLimitMin,
 					PowerupPower: powerupPower,
 				}
 			}
@@ -943,4 +937,41 @@ func isHpeApollo6500(powerURL string) bool {
 	}
 
 	return false
+}
+
+// Checks all of the power cap records in etcd and does the following deletes
+// records that have expired.
+func powerCapReaper() {
+	// Get all power cap tasks
+	tasks, err := (*GLOB.DSP).GetAllPowerCapTasks()
+	if err != nil {
+		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error retreiving power cap tasks")
+		return
+	}
+	if len(tasks) == 0 {
+		// No power cap tasks to act upon
+		return
+	}
+
+	for _, task := range tasks {
+		expired := task.AutomaticExpirationTime.Before(time.Now())
+		if expired {
+			// Get the operations for the power cap task
+			ops, err := (*GLOB.DSP).GetAllPowerCapOperationsForTask(task.TaskID)
+			if err != nil {
+				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error retreiving operations for power cap task, %s.", task.TaskID.String())
+				continue
+			}
+			for _, op := range ops {
+				err = (*GLOB.DSP).DeletePowerCapOperation(task.TaskID, op.OperationID)
+				if err != nil {
+					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error deleting operation, %s, for power cap task, %s.", op.OperationID.String(), task.TaskID.String())
+				}
+			}
+			err = (*GLOB.DSP).DeletePowerCapTask(task.TaskID)
+			if err != nil {
+				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error deleting power cap task, %s.", task.TaskID.String())
+			}
+		}
+	}
 }

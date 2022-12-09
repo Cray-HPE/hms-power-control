@@ -19,6 +19,7 @@ A `transition` is a request to transition a set of components via an operation. 
 | --- | --- | --- | --- |
 | `on` | turns xname on only if the device state is off | `On` | xname must be in `Off` state |
 | `off` | turns xname off only if the device state is on | `GracefulShutdown` -> `ForceOff` | xname must be in `On` state |
+| `soft-off` | turns xname off only if the device state is on. Does not issue a `ForceOff` | `GracefulShutdown` | xname must be in `On` state |
 | `soft-restart` | restarts xname only if the device state is on; Does not necessarily drop the power.  | `GracefulRestart` -> then `ForceRestart` if not honored within a deadline or can figure out that it hasnt been honored; elif the command doesnt exist `GracefulShutdown` -> `ForceOff` followed by `On`| xname must be in `On` state |
 | `hard-restart` | restarts xname only if the device state is on;  will definitely drop the power. |`GracefulShutdown` -> `ForceOff` -> `On` | xname must be in `On` state |
 | `force-off` | turns xname off only if the device state is not specifically `Off` | `ForceOff` | xname must not be in `Off` state |

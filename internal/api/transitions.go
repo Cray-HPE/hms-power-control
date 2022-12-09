@@ -25,12 +25,12 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	base "github.com/Cray-HPE/hms-base"
-	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"io/ioutil"
 	"net/http"
 
+	// base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/domain"
+	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -78,26 +78,7 @@ func CreateTransition(w http.ResponseWriter, req *http.Request) {
 	transition, err := model.ToTransition(parameters)
 	if err != nil {
 		pb = model.BuildErrorPassback(http.StatusBadRequest, err)
-		logrus.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Invalid PowerStateFilter")
-		WriteHeaders(w, pb)
-		return
-	}
-
-	//validates the schema of the xname, not that the xname actually exists; that requires a HSM call.
-	var xnamesReq []string
-	for _, locations := range transition.Location {
-		xnamesReq = append(xnamesReq, locations.Xname)
-	}
-	_, badXnames := base.ValidateCompIDs(xnamesReq, true)
-	if len(badXnames) > 0 {
-
-		errormsg := "invalid xnames detected "
-		for _, badxname := range badXnames {
-			errormsg += badxname + " "
-		}
-		err := errors.New(errormsg)
-		pb = model.BuildErrorPassback(http.StatusBadRequest, err)
-		logrus.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode, "xnames": badXnames}).Error("Invalid xnames detected")
+		logrus.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Invalid operation")
 		WriteHeaders(w, pb)
 		return
 	}

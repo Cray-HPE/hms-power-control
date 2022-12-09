@@ -41,15 +41,18 @@ import (
 // implementations.
 
 const (
-	kvUrlMemDefault  = "mem:"
-	kvUrlDefault     = kvUrlMemDefault //Default to in-memory implementation
-	kvRetriesDefault = 5
-	keyPrefix        = "/pcs/"
-	keySegPowerState = "/powerstate"
-	keySegPowerCap   = "/powercaptask"
-	keySegPowerCapOp = "/powercapop"
-	keyMin           = " "
-	keyMax           = "~"
+	kvUrlMemDefault      = "mem:"
+	kvUrlDefault         = kvUrlMemDefault //Default to in-memory implementation
+	kvRetriesDefault     = 5
+	keyPrefix            = "/pcs/"
+	keySegPowerState     = "/powerstate"
+	keySegPowerCap       = "/powercaptask"
+	keySegPowerCapOp     = "/powercapop"
+	keySegTransition     = "/transition"
+	keySegTransitionTask = "/transitiontask"
+	keySegTransitionStat = "/transitionstat"
+	keyMin               = " "
+	keyMax               = "~"
 )
 
 type ETCDStorage struct {
@@ -106,6 +109,23 @@ func (e *ETCDStorage) kvDelete(key string) error {
 	realKey := e.fixUpKey(key)
 	e.Logger.Trace("delete" + realKey)
 	return e.kvHandle.Delete(e.fixUpKey(key))
+}
+
+// Do an atomic Test-And-Set operation
+func (e *ETCDStorage) kvTAS(key string, testVal interface{}, setVal interface{}) (bool, error) {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	tdata, err := json.Marshal(testVal)
+	if err != nil {
+		return false, err
+	}
+	sdata, err := json.Marshal(setVal)
+	if err != nil {
+		return false, err
+	}
+	realKey := e.fixUpKey(key)
+	ok, err := e.kvHandle.TAS(realKey, string(tdata), string(sdata))
+	return ok, err
 }
 
 func (e *ETCDStorage) Init(Logger *logrus.Logger) error {
@@ -203,6 +223,30 @@ func (e *ETCDStorage) GetAllPowerStatus() (model.PowerStatus, error) {
 	var pstats model.PowerStatus
 	k := e.fixUpKey(keySegPowerState)
 	kvl, err := e.kvHandle.GetRange(k+keyMin, k+keyMax)
+	if err == nil {
+		for _, kv := range kvl {
+			var pcomp model.PowerStatusComponent
+			err = json.Unmarshal([]byte(kv.Value), &pcomp)
+			if err != nil {
+				e.Logger.Error(err)
+			} else {
+				pstats.Status = append(pstats.Status, pcomp)
+			}
+		}
+	} else {
+		e.Logger.Error(err)
+	}
+	return pstats, err
+}
+
+func (e *ETCDStorage) GetPowerStatusHierarchy(xname string) (model.PowerStatus, error) {
+	var pstats model.PowerStatus
+	if !(xnametypes.IsHMSCompIDValid(xname)) {
+		return pstats, fmt.Errorf("Error parsing '%s': invalid xname format.", xname)
+	}
+	key := fmt.Sprintf("%s/%s", keySegPowerState, xname)
+	k := e.fixUpKey(key)
+	kvl, err := e.kvHandle.GetRange(k, k+keyMax)
 	if err == nil {
 		for _, kv := range kvl {
 			var pcomp model.PowerStatusComponent
@@ -322,4 +366,126 @@ func (e *ETCDStorage) DeletePowerCapOperation(taskID uuid.UUID, opID uuid.UUID) 
 		e.Logger.Error(err)
 	}
 	return err
+}
+
+///////////////////////
+// Transitions
+///////////////////////
+
+type TransitionWatchCBFunc func(Transition model.Transition, wasDeleted bool, err error, userdata interface{}) bool
+
+type WatchTransitionCBHandle struct {
+	watchHandlePut    hmetcd.WatchCBHandle
+	watchHandleDelete hmetcd.WatchCBHandle
+}
+
+func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
+	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
+	err := e.kvStore(key, transition)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return err
+}
+
+func (e *ETCDStorage) StoreTransitionTask(task model.TransitionTask) error {
+	// Store TransitionTasks using their parent transition's key so it will be
+	// easier to get all of them when needed.
+	key := fmt.Sprintf("%s/%s/%s", keySegTransitionTask, task.TransitionID.String(), task.TaskID.String())
+	err := e.kvStore(key, task)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return err
+}
+
+func (e *ETCDStorage) GetTransition(transitionID uuid.UUID) (model.Transition, error) {
+	var transition model.Transition
+	key := fmt.Sprintf("%s/%s", keySegTransition, transitionID.String())
+
+	err := e.kvGet(key, &transition)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return transition, err
+}
+
+func (e *ETCDStorage) GetTransitionTask(transitionID, taskID uuid.UUID) (model.TransitionTask, error) {
+	var task model.TransitionTask
+	key := fmt.Sprintf("%s/%s/%s", keySegTransitionTask, transitionID.String(), taskID.String())
+
+	err := e.kvGet(key, &task)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return task, err
+}
+
+func (e *ETCDStorage) GetAllTasksForTransition(transitionID uuid.UUID) ([]model.TransitionTask, error) {
+	tasks := []model.TransitionTask{}
+	key := fmt.Sprintf("%s/%s", keySegTransitionTask, transitionID.String())
+	k := e.fixUpKey(key)
+	kvl, err := e.kvHandle.GetRange(k+keyMin, k+keyMax)
+	if err == nil {
+		for _, kv := range kvl {
+			var task model.TransitionTask
+			err = json.Unmarshal([]byte(kv.Value), &task)
+			if err != nil {
+				e.Logger.Error(err)
+			} else {
+				tasks = append(tasks, task)
+			}
+		}
+	} else {
+		e.Logger.Error(err)
+	}
+	return tasks, err
+}
+
+func (e *ETCDStorage) GetAllTransitions() ([]model.Transition, error) {
+	transitions := []model.Transition{}
+	key := fmt.Sprintf("%s/", keySegTransition)
+	k := e.fixUpKey(key)
+	kvl, err := e.kvHandle.GetRange(k+keyMin, k+keyMax)
+	if err == nil {
+		for _, kv := range kvl {
+			var transition model.Transition
+			err = json.Unmarshal([]byte(kv.Value), &transition)
+			if err != nil {
+				e.Logger.Error(err)
+			} else {
+				transitions = append(transitions, transition)
+			}
+		}
+	} else {
+		e.Logger.Error(err)
+	}
+	return transitions, err
+}
+
+func (e *ETCDStorage) DeleteTransition(transitionID uuid.UUID) error {
+	key := fmt.Sprintf("%s/%s", keySegTransition, transitionID.String())
+	err := e.kvDelete(key)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return err
+}
+
+func (e *ETCDStorage) DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.UUID) error {
+	key := fmt.Sprintf("%s/%s/%s", keySegTransitionTask, transitionID.String(), taskID.String())
+	err := e.kvDelete(key)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return err
+}
+
+func (e *ETCDStorage) TASTransition(transition model.Transition, testVal model.Transition) (bool, error) {
+	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
+	ok, err := e.kvTAS(key, testVal, transition)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return ok, err
 }

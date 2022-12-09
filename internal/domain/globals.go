@@ -25,10 +25,12 @@
 package domain
 
 import (
+	"time"
 	"sync"
 
 	"github.com/Cray-HPE/hms-power-control/internal/credstore"
 	"github.com/Cray-HPE/hms-power-control/internal/hsm"
+	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/storage"
 	"github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api"
 	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
@@ -79,4 +81,21 @@ func (g *DOMAIN_GLOBALS) NewGlobals(base *trs_http_api.HttpTask,
 	g.VaultEnabled = vaultEnabled
 	g.CS = credStore
 	g.DistLock = distLock
+}
+
+// Periodically runs functions to prune expired transitions and power-capping
+// records and restart abandoned transitions.
+func StartRecordsReaper() {
+	go func() {
+		logger.Log.Debug("Starting records reaper.")
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				transitionsReaper()
+				powerCapReaper()
+			}
+		}
+	}()
 }

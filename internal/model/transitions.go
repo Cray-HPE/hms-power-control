@@ -24,37 +24,190 @@ package model
 
 import (
 	"errors"
-	"github.com/google/uuid"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 )
 
-//INPUT
-type TransitionParameter struct {
-	Operation string              `json:"operation"`
-	Location  []LocationParameter `json:"location"`
-}
+///////////////////////////
+// Transitions Definitions
+///////////////////////////
 
-type Transition struct {
-	Operation Operation           `json:"operation"`
-	Location  []LocationParameter `json:"location"`
+const (
+	TransitionStatusNew           = "new"
+	TransitionStatusInProgress    = "in-progress"
+	TransitionStatusCompleted     = "completed"
+	TransitionStatusAborted       = "aborted"
+	TransitionStatusAbortSignaled = "abort-signaled"
+)
+
+const (
+	TransitionTaskStatusNew         = "new"
+	TransitionTaskStatusInProgress  = "in-progress"
+	TransitionTaskStatusFailed      = "failed"
+	TransitionTaskStatusSucceeded   = "succeeded"
+	TransitionTaskStatusUnsupported = "unsupported"
+)
+
+const DefaultTaskDeadline = 5
+const TransitionExpireTimeHours = 24
+const TransitionKeepAliveInterval = 10
+
+///////////////////////////
+//INPUT - Generally from the API layer
+///////////////////////////
+
+type TransitionParameter struct {
+	Operation    string              `json:"operation"`
+	TaskDeadline *int                `json:"taskDeadlineMinutes"`
+	Location     []LocationParameter `json:"location"`
 }
 
 type LocationParameter struct {
-	Xname     string    `json:"xname"`
-	DeputyKey uuid.UUID `json:"deputyKey,omitempty"`
+	Xname     string `json:"xname"`
+	DeputyKey string `json:"deputyKey,omitempty"`
 }
 
 func ToTransition(parameter TransitionParameter) (TR Transition, err error) {
-	TR.Location = parameter.Location
+	TR.TransitionID = uuid.New()
 	TR.Operation, err = ToOperationFilter(parameter.Operation)
+	if parameter.TaskDeadline != nil {
+		TR.TaskDeadline = *parameter.TaskDeadline
+	} else {
+		TR.TaskDeadline = DefaultTaskDeadline
+	}
+	TR.Location = parameter.Location
+	TR.CreateTime = time.Now()
+	TR.AutomaticExpirationTime = time.Now().Add(time.Hour * time.Duration(TransitionExpireTimeHours))
+	TR.LastActiveTime = time.Now()
+	TR.Status = TransitionStatusNew
+	TR.TaskIDs = []uuid.UUID{}
 	return
 }
 
-//OUTPUT
+//////////////
+// INTERNAL - Generally passed around /internal/* packages
+//////////////
+
+type Transition struct {
+	TransitionID            uuid.UUID            `json:"transitionID"`
+	Operation               Operation            `json:"operation"`
+	TaskDeadline            int                  `json:"taskDeadlineMinutes"`
+	Location                []LocationParameter  `json:"location"`
+	CreateTime              time.Time            `json:"createTime"`
+	LastActiveTime          time.Time            `json:"lastActiveTime"`
+	AutomaticExpirationTime time.Time            `json:"automaticExpirationTime"`
+	Status                  string               `json:"transitionStatus"`
+	TaskIDs                 []uuid.UUID
+}
+
+type TransitionTask struct {
+	TaskID       uuid.UUID `json:"taskID"`
+	TransitionID uuid.UUID `json:"transitionID"`
+	Operation    Operation `json:"operation"` // != Transition.Operation Tasks the redfish power command being issued (for recovery purposes)
+	State        TaskState `json:"TaskState"`
+	Xname        string    `json:"xname"`
+	DeputyKey    uuid.UUID `json:"deputyKey,omitempty"`
+	Status       string    `json:"taskStatus"`
+	StatusDesc   string    `json:"taskStatusDescription"`
+	Error        string    `json:"error,omitempty"`
+}
+
+//////////////
+// OUTPUT - Generally passed back to the API layer.
+//////////////
 
 type TransitionCreation struct {
 	TransitionID uuid.UUID `json:"transitionID"`
 	Operation    string    `json:"operation"`
+}
+
+type TransitionRespArray struct {
+	Transitions []TransitionResp `json:"transitions"`
+}
+
+type TransitionResp struct {
+	TransitionID            uuid.UUID            `json:"transitionID"`
+	Operation               string               `json:"operation"`
+	CreateTime              time.Time            `json:"createTime"`
+	AutomaticExpirationTime time.Time            `json:"automaticExpirationTime"`
+	TransitionStatus        string               `json:"transitionStatus"`
+	TaskCounts              TransitionTaskCounts `json:"taskCounts"`
+	Tasks                   []TransitionTaskResp `json:"tasks,omitempty"`
+}
+
+type TransitionTaskCounts struct {
+	Total       int `json:"total"`
+	New         int `json:"new"`
+	InProgress  int `json:"in-progress"`
+	Failed      int `json:"failed"`
+	Succeeded   int `json:"succeeded"`
+	Unsupported int `json:"un-supported"`
+}
+
+type TransitionTaskResp struct {
+	Xname          string `json:"xname"`
+	TaskStatus     string `json:"taskStatus"`
+	TaskStatusDesc string `json:"taskStatusDescription"`
+	Error          string `json:"error,omitempty"`
+}
+
+// Assembles a TransitionResp struct from a transition and an array of its tasks.
+// If 'full' == true, full task information is included (xname, taskStatus, errors, etc).
+func ToTransitionResp(transition Transition, tasks []TransitionTask, full bool) TransitionResp {
+	// Build the response struct
+	rsp := TransitionResp{
+		TransitionID: transition.TransitionID,
+		Operation: transition.Operation.String(),
+		CreateTime: transition.CreateTime,
+		AutomaticExpirationTime: transition.AutomaticExpirationTime,
+		TransitionStatus: transition.Status,
+	}
+
+	counts := TransitionTaskCounts{}
+	for _, task := range tasks {
+		// Get the count of tasks with each status type.
+		switch(task.Status) {
+		case TransitionTaskStatusNew:
+			counts.New++
+		case TransitionTaskStatusInProgress:
+			counts.InProgress++
+		case TransitionTaskStatusFailed:
+			counts.Failed++
+		case TransitionTaskStatusSucceeded:
+			counts.Succeeded++
+		case TransitionTaskStatusUnsupported:
+			counts.Unsupported++
+		}
+		counts.Total++
+		// Include information about individual tasks if full == true
+		if full {
+			taskRsp := TransitionTaskResp{
+				Xname: task.Xname,
+				TaskStatus: task.Status,
+				TaskStatusDesc: task.StatusDesc,
+				Error: task.Error,
+			}
+			rsp.Tasks = append(rsp.Tasks, taskRsp)
+		}
+	}
+	rsp.TaskCounts = counts
+	return rsp
+}
+
+//////////////
+// FUNCTIONS
+//////////////
+
+func NewTransitionTask(transitionID uuid.UUID, op Operation) (TransitionTask){
+	return TransitionTask{
+		TaskID:       uuid.New(),
+		TransitionID: transitionID,
+		Operation:    op,
+		State:        TaskState_GatherData,
+		Status:       TransitionTaskStatusNew,
+	}
 }
 
 // ToOperationFilter - Will return a valid Operation from string
@@ -64,25 +217,30 @@ func ToOperationFilter(op string) (OP Operation, err error) {
 		OP = Operation_Nil
 		return
 	}
-	if strings.ToLower(op) == "on" {
+	operation := strings.ToLower(op)
+	switch(operation) {
+	case "on":
 		OP = Operation_On
 		err = nil
-	} else if strings.ToLower(op) == "off" {
+	case "off":
 		OP = Operation_Off
 		err = nil
-	} else if strings.ToLower(op) == "softrestart" {
+	case "soft-restart":
 		OP = Operation_SoftRestart
 		err = nil
-	} else if strings.ToLower(op) == "hardrestart" {
+	case "hard-restart":
 		OP = Operation_HardRestart
 		err = nil
-	} else if strings.ToLower(op) == "init" {
+	case "init":
 		OP = Operation_Init
 		err = nil
-	} else if strings.ToLower(op) == "forceoff" {
+	case "force-off":
 		OP = Operation_ForceOff
 		err = nil
-	} else {
+	case "soft-off":
+		OP = Operation_SoftOff
+		err = nil
+	default:
 		err = errors.New("invalid Operation type " + op)
 		OP = Operation_Nil
 	}
@@ -96,17 +254,36 @@ type Operation int
 const (
 	Operation_Nil         Operation = iota - 1
 	Operation_On                    // On = 0
-	Operation_Off                   //  1
-	Operation_SoftRestart           // 2
-	Operation_HardRestart           //  3
-	Operation_Init                  // 4
-	Operation_ForceOff              // 5
+	Operation_Off                   // 1 GracfulShutdown/Off->ForceOff
+	Operation_SoftRestart           // 2 GracefulRestart->ForceRestart Or GracfulShutdown/Off->ForceOff->On
+	Operation_HardRestart           // 3 GracfulShutdown/Off->ForceOff->On
+	Operation_Init                  // 4 GracfulShutdown/Off->ForceOff->On does not require the initial power state to be "on"
+	Operation_ForceOff              // 5 ForceOff
+	Operation_SoftOff               // 6 GracfulShutdown/Off
 )
 
 func (op Operation) String() string {
-	return [...]string{"On", "Off", "SoftRestart", "HardRestart", "Init", "ForceOff"}[op]
+	return [...]string{"On", "Off", "SoftRestart", "HardRestart", "Init", "ForceOff", "SoftOff"}[op]
 }
 
 func (op Operation) EnumIndex() int {
 	return int(op)
+}
+
+type TaskState int
+
+const (
+	TaskState_Nil         TaskState = iota - 1
+	TaskState_GatherData            // GatherData = 0
+	TaskState_Sending               // 1 Command MAY have been sent. Can't confirm it was received.
+	TaskState_Waiting               // 2 Command received. Waiting to confirm power state
+	TaskState_Confirmed             // 3 Power state confirmed
+)
+
+func (ts TaskState) String() string {
+	return [...]string{"Gathering Data", "Sending Command", "Waiting to Confirm", "Confired Transition", "Failed", "Complete"}[ts]
+}
+
+func (ts TaskState) EnumIndex() int {
+	return int(ts)
 }

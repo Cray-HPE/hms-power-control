@@ -98,7 +98,7 @@ paths:
       description: |
         A request to perform power transitions
       requestBody:
-        description: transition parameters
+        description: Transition parameters
         required: true
         content:
           application/json:
@@ -117,10 +117,16 @@ paths:
             application/error:
               schema:
                 $ref: '#/components/schemas/Problem7807'
+        500:
+          description: Database error prevented starting the transition
+          content:
+            application/error:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
       tags:
         - transitions
     get:
-      summary: retrieve all transitions
+      summary: Retrieve all transitions
       description: |
         Return the collection of transitions
       responses:
@@ -130,13 +136,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/transitions_getAll'
+        500:
+          description: Database error prevented getting the transitions
+          content:
+            application/error:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
       tags:
         - transitions
 
   /transitions/{transitionID}:
     get:
-      summary: get transition status
-      description: retrieves the transition status information for the ID
+      summary: Get transition status
+      description: Retrieves the transition status information for the ID
       parameters:
         - name: transitionID
           in: path
@@ -147,7 +159,7 @@ paths:
             example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
       responses:
         200:
-          description: ok
+          description: OK
           content:
             application/json:
               schema:
@@ -158,12 +170,18 @@ paths:
             application/error:
               schema:
                 $ref: '#/components/schemas/Problem7807'
+        500:
+          description: Database error prevented getting the transition
+          content:
+            application/error:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
       tags:
         - transitions
 
     delete:
-      summary: abort an in-flight transition
-      description: will attempt to abort an in-flight transition if possible
+      summary: Abort an in-flight transition
+      description: Will attempt to abort an in-flight transition if possible.
       parameters:
         - name: transitionID
           in: path
@@ -174,9 +192,21 @@ paths:
             example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
       responses:
         202:
-          description: accepted - abort initiated
+          description: Accepted - abort initiated
+        400:
+          description: Specified transition is complete
+          content:
+            application/error:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
         404:
-          description: transitionID not found
+          description: TransitionID not found
+          content:
+            application/error:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
+        500:
+          description: Database error prevented abort signaling
           content:
             application/error:
               schema:
@@ -257,7 +287,7 @@ paths:
               $ref: '#/components/schemas/power_cap_snapshot_req'
       responses:
         '200':
-          description: OK.  The data was succesfully retrieved
+          description: OK. The data was succesfully retrieved
           content:
             application/json:
               schema:
@@ -293,7 +323,7 @@ paths:
               $ref: '#/components/schemas/power_cap_patch'
       responses:
         '200':
-          description: OK.  The data was succesfully retrieved
+          description: OK. The data was succesfully retrieved
           content:
             application/json:
               schema:
@@ -316,7 +346,7 @@ paths:
       summary: Get a list of power-cap tasks (snapshots or sets)
       responses:
         '200':
-          description: OK.  The data was succesfully retrieved
+          description: OK. The data was succesfully retrieved
           content:
             application/json:
               schema:
@@ -344,7 +374,7 @@ paths:
             $ref: '#/components/schemas/task_id'
       responses:
         '200':
-          description: OK.  The data was succesfully retrieved.  Task Info is only present for task status operations (PATCH power-cap or POST power-cap/snapshot)
+          description: OK. The data was succesfully retrieved.  Task Info is only present for task status operations (PATCH power-cap or POST power-cap/snapshot)
           content:
             application/json:
               schema:
@@ -399,7 +429,7 @@ paths:
       summary: Query the health of the service
       description: >-
         The `health` resource returns health information about the PCS service
-        and its dependencies.  This actively checks the connection between 
+        and its dependencies. This actively checks the connection between 
         PCS and the following:
           * KV store
           * Distributed locking subsystem
@@ -421,7 +451,7 @@ paths:
                 $ref: '#/components/schemas/health_rsp'
         '405':
           description: >-
-            Operation Not Permitted.  For /health, only GET operations are allowed.
+            Operation Not Permitted. For /health, only GET operations are allowed.
           content:
             application/json:
               schema:
@@ -445,10 +475,10 @@ components:
             - on
             - off
             - undefined
-          description: when the power state was detected.
+          description: What the power state was detected.
         managementState:
           type: string
-          description: describes if the device is currently available for commands via its managment controller
+          description: Describes if the device is currently available for commands via its managment controller
           enum:
             - unavailable
             - available
@@ -467,6 +497,7 @@ components:
               - hard-restart
               - init
               - force-off
+              - soft-off
           example: [ soft-restart]
         lastUpdated:
           type: string
@@ -494,8 +525,8 @@ components:
         automaticExpirationTime:
           type: string
           format: date-time
-          description: when the record will be deleted
-        transitionState:
+          description: When the record will be deleted
+        transitionStatus:
           type: string
           example: in-progress
           enum:
@@ -513,6 +544,7 @@ components:
             - hard-restart
             - init
             - force-off
+            - soft-off
           example: force-off
 
         taskCounts:
@@ -540,8 +572,8 @@ components:
         automaticExpirationTime:
           type: string
           format: date-time
-          description: when the record will be deleted
-        transitionState:
+          description: When the record will be deleted
+        transitionStatus:
           type: string
           example: in-progress
           enum:
@@ -559,6 +591,7 @@ components:
             - hard-restart
             - init
             - force-off
+            - soft-off
           example: force-off
         taskCounts:
           $ref: '#/components/schemas/task_counts'
@@ -577,22 +610,23 @@ components:
             - hard-restart
             - init
             - force-off
+            - soft-off
 
     transition_task_data:
       type: object
       properties:
         xname:
           $ref: '#/components/schemas/xname'
-        taskState:
+        taskStatus:
           type: string
           enum:
             - new
             - in-progress
             - failed
             - succeeded
-            - un-supported
+            - unsupported
           example: failed
-        taskStateDescription:
+        taskStatusDescription:
           type: string
           example: "the device did not respond in a timely manner"
         error:
@@ -619,13 +653,20 @@ components:
           enum:
             - on
             - off
+            - soft-off
             - soft-restart
             - hard-restart
             - init
             - force-off
 
-          description: The operation that should be applied to the hardware
+          description: The operation that should be applied to the hardware.
           example: force-off
+        taskDeadlineMinutes:
+          type: integer
+          description: >-
+            The duration in minutes any one transition task should be given to
+            complete before moving on. Defaults to 5 minutes if unspecified.
+            Specify 0 to disable waiting. Specify -1 to wait as long as it takes.
         location:
           type: array
           items:
@@ -656,7 +697,7 @@ components:
 
     Problem7807:
       description: >-
-        RFC 7807 compliant error payload.  All fields are optional except the
+        RFC 7807 compliant error payload. All fields are optional except the
         'type' field.
       type: object
       required:
@@ -757,14 +798,14 @@ components:
           type: string
           enum: [snapshot, patch]
           example: "snapshot"
-          description: the task can either be the result of a snapshot or a patch
+          description: The task can either be the result of a snapshot or a patch
         taskCreateTime:
           type: string
           example: "2021-04-01T19:00:00"
         automaticExpirationTime:
           type: string
           format: date-time
-          description: when the record will be deleted
+          description: When the record will be deleted
         taskStatus:
           type: string
           example: "Completed"
@@ -805,15 +846,15 @@ components:
         currentValue:
           type: integer
           example: 410
-          description: the current power cap limit as reported by the device
+          description: The current power cap limit as reported by the device
         maximumValue:
           type: integer
           example: 900
-          description: the maximum power cap limit the device may be set to
+          description: The maximum power cap limit the device may be set to
         minimumValue:
           type: integer
           example: 360
-          description: the minimum power cap limit the device may be set to
+          description: The minimum power cap limit the device may be set to
 
     capabilities_limits:
       type: object
@@ -826,14 +867,6 @@ components:
           type: integer
           example: 360
           description: Node minimum power draw, measured in watts, as reported by underlying redfish implemention
-        staticPower:
-          type: integer
-          example: 0
-          description: Static per node power overhead, specified in watts, which is unreported (e.g. not measured by a system telemetry)
-        supplyPower:
-          type: integer
-          example: 0
-          description: Maximum capacity of each node level power supply for the given hardware type, specified in watts
         powerupPower:
           type: integer
           example: 250
