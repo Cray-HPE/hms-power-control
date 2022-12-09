@@ -83,9 +83,14 @@ var PowerSequenceFull = []PowerSeqElem{
 	}, {
 		Action:    "gracefulrestart",
 		// Not all of these components support GracefulRestart but, if they did,
-		// since power isn't being dropped doing them all at the same time should
-		// be fine.
-		CompTypes: []base.HMSType{base.Node, base.HSNBoard, base.RouterModule, base.ComputeModule, base.Chassis, base.CabinetPDUPowerConnector, base.ChassisBMC, base.NodeBMC, base.RouterBMC},
+		// since power isn't being dropped doing them all (except BMCs) at the
+		// same time should be fine.
+		CompTypes: []base.HMSType{base.Node, base.HSNBoard, base.RouterModule, base.ComputeModule, base.Chassis, base.CabinetPDUPowerConnector},
+	}, {
+		Action:    "gracefulrestart",
+		// Restart BMCs after everything else because restarting the BMC will cause
+		// redfish to temporarily become unresponsive.
+		CompTypes: []base.HMSType{base.ChassisBMC, base.NodeBMC, base.RouterBMC},
 	}, {
 		Action:    "on",
 		CompTypes: []base.HMSType{base.CabinetPDUPowerConnector},
@@ -1340,7 +1345,9 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 							break
 						}
 						if parent, ok := xnameMap[id]; ok {
-							if _, ok := parent.Actions["gracefulrestart"]; !ok {
+							_, hasGracefulRestart := parent.Actions["gracefulrestart"]
+							_, hasForceRestart := parent.Actions["forcerestart"]
+							if !hasGracefulRestart && !hasForceRestart {
 								parentSupportsRestart = false
 							}
 						} else {
