@@ -24,22 +24,15 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
-# HMS test metrics test cases: 8
-# 1. POST /power-cap/snapshot API response code
-# 2. POST /power-cap/snapshot API response body
-# 3. GET /power-cap/{taskID} API response code snapshot
-# 4. GET /power-cap/{taskID} API response body snapshot
-# 5. GET /power-cap API response code
-# 6. GET /power-cap API response body
-
-# Negative tests
-# 7. PUT /power-cap API response code
-# 8. DELETE /power-cap API response code
+# HMS test metrics test cases: 3
+# POST /power-cap/snapshot compute node
+# GET /power-cap/{taskID} compute node snapshot
+# GET /power-cap compute node
 ---
 test_name: Verify the PCS power-cap resource
 
 stages:
-  - name: Get compute node xname from HSM Components to use in upcoming stages
+  - name: Retrieve a compute node from HSM to be used in later stages
     request:
       url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
       method: GET
@@ -50,9 +43,7 @@ stages:
         json:
           xname: Components[0].ID
 
-  # 1. POST /power-cap/snapshot API response code
-  # 2. POST /power-cap/snapshot API response body
-  - name: Ensure that PCS power cap snapshots can be generated
+  - name: Create a PCS power-cap snapshot for the target compute node
     request:
       url: "{pcs_base_url}/power-cap/snapshot"
       json: {"xnames":["{xname}"]}
@@ -74,9 +65,7 @@ stages:
         json:
           snapshotTaskID: taskID
 
-  # 3. GET /power-cap/{taskID} API response code snapshot
-  # 4. GET /power-cap/{taskID} API response body snapshot
-  - name: Ensure that PCS power cap snapshots can be retrieved
+  - name: Retrieve the PCS power-cap snapshot for the target compute node
     request:
       url: "{pcs_base_url}/power-cap/{snapshotTaskID}"
       method: GET
@@ -159,9 +148,7 @@ stages:
                         #  - "Missing Power Cap URI"
                         #  - "Xname not found in HSM"
 
-  # 5. GET /power-cap API response code
-  # 6. GET /power-cap API response body
-  - name: Ensure that PCS power cap tasks can be retrieved
+  - name: Retrieve all PCS power-cap snapshots
     request:
       url: "{pcs_base_url}/power-cap"
       method: GET
@@ -227,27 +214,3 @@ stages:
                           un-supported:
                             type: int
                             required: True
-
----
-test_name: Verify the PCS power-cap resource negative cases
-
-stages:
-  # 7. PUT /power-cap API response code
-  - name: Ensure that the PCS power-cap resource correctly handles unsupported PUT operations
-    request:
-      url: "{pcs_base_url}/power-cap"
-      method: PUT
-      verify: !bool "{verify}"
-    response:
-      # TODO: CASMHMS-5473
-      status_code: 405
-
-  # 8. DELETE /power-cap API response code
-  - name: Ensure that the PCS power-cap resource correctly handles unsupported DELETE operations
-    request:
-      url: "{pcs_base_url}/power-cap"
-      method: DELETE
-      verify: !bool "{verify}"
-    response:
-      # TODO: CASMHMS-5473
-      status_code: 405

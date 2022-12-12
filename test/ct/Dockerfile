@@ -1,6 +1,3 @@
-#!/usr/bin/env bash
-
-#
 # MIT License
 #
 # (C) Copyright [2022] Hewlett Packard Enterprise Development LP
@@ -22,48 +19,19 @@
 # OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
-#
-set -x
 
+FROM artifactory.algol60.net/csm-docker/stable/hms-test:4.0.0
 
-# Configure docker compose
-export COMPOSE_PROJECT_NAME=$RANDOM
-export COMPOSE_FILE=docker-compose.test.ct.yaml
+COPY smoke/ /src/app
+COPY api/ /src/app/api
+COPY tavern_global_config_ct_test.yaml /src/app/tavern_global_config_ct_test.yaml
 
-echo "COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}"
-echo "COMPOSE_FILE: $COMPOSE_FILE"
+ENV PATH="/src/libs:${PATH}"
+ENV PATH="/src/app:${PATH}"
 
-function cleanup() {
-  echo "Cleaning up containers..."
-  if ! docker compose down --remove-orphans; then
-    echo "Failed to decompose environment!"
-    exit 1
-  fi
-  exit $1
-}
+USER root
+RUN chown -R 65534:65534 /src
+USER 65534:65534
 
-
-# Get the base containers running
-echo "Starting containers..."
-docker compose build --no-cache
-docker compose up -d cray-power-control
-
-sleep 15
-
-docker compose logs cray-power-control
-if ! docker compose up --no-recreate --exit-code-from smoke smoke; then
-  echo "CT smoke tests FAILED!"
-  cleanup 1
-fi
-# wait for containers to stabilize and simulated HSM hardware discoveries to complete
-docker compose up --exit-code-from wait-for-smd wait-for-smd
-
-# execute the CT functional tests
-if ! docker compose up --exit-code-from tavern tavern; then
-  echo "CT tavern tests FAILED!"
-  cleanup 1
-fi
-
-# Cleanup
-echo "CT tests PASSED!"
-cleanup 0
+# this is inherited from the hms-test container
+ENTRYPOINT [ "entrypoint.sh" ]

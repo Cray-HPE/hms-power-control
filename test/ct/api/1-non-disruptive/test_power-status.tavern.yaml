@@ -28,22 +28,14 @@
 # X. GET /power-status all API response code
 # X. GET /power-status all API response body
 
-# HMS test metrics test cases: 8
-# 1. GET /power-status?xname={xname} Node API response code
-# 2. GET /power-status?xname={xname} Node API response body
-# 3. GET /power-status?xname={xname} NodeBMC API response code
-# 4. GET /power-status?xname={xname} NodeBMC API response body
-
-# Negative tests
-# 5. POST /power-status API response code
-# 6. PUT /power-status API response code
-# 7. PATCH /power-status API response code
-# 8. DELETE /power-status API response code
+# HMS test metrics test cases: 2
+# GET /power-status?xname={xname} Node
+# GET /power-status?xname={xname} NodeBMC
 ---
 test_name: Verify the PCS power-status resource
 
 stages:
-  - name: Get Node xname from HSM Components to use in upcoming stages
+  - name: Retrieve a Node from HSM to be used in later stages
     request:
       url: "{hsm_base_url}/hsm/v2/State/Components?type=Node"
       method: GET
@@ -54,9 +46,7 @@ stages:
         json:
           node_xname: Components[0].ID
 
-  # 1. GET /power-status?xname={xname} Node API response code
-  # 2. GET /power-status?xname={xname} Node API response body
-  - name: Ensure that the PCS power status for a Node can be retrieved
+  - name: Retrieve the PCS power-status for the target Node
     request:
       #TODO: CASMHMS-5453
       #url: "{pcs_base_url}/power-status?xname={node_xname}"
@@ -116,7 +106,7 @@ stages:
                         type: str
                         required: True
 
-  - name: Get NodeBMC xname from HSM Components to use in upcoming stages
+  - name: Retrieve a NodeBMC from HSM to be used in later stages
     request:
       url: "{hsm_base_url}/hsm/v2/State/Components?type=NodeBMC"
       method: GET
@@ -127,9 +117,7 @@ stages:
         json:
           bmc_xname: Components[0].ID
 
-  # 3. GET /power-status?xname={xname} NodeBMC API response code
-  # 4. GET /power-status?xname={xname} NodeBMC API response body
-  - name: Ensure that the PCS power status for a NodeBMC can be retrieved
+  - name: Retrieve the PCS power-status for the target NodeBMC
     request:
       #TODO: CASMHMS-5453
       #url: "{pcs_base_url}/power-status?xname={bmc_xname}"
@@ -188,46 +176,3 @@ stages:
                       lastUpdated:
                         type: str
                         required: True
----
-test_name: Verify the PCS power-status resource negative cases
-
-stages:
-  # 5. POST /power-status API response code
-  - name: Ensure that the PCS power-status resource correctly handles unsupported POST operations
-    request:
-      url: "{pcs_base_url}/power-status"
-      method: POST
-      verify: !bool "{verify}"
-    response:
-      # TODO: CASMHMS-5454
-      status_code: 405
-
-  # 6. PUT /power-status API response code
-  - name: Ensure that the PCS power-status resource correctly handles unsupported PUT operations
-    request:
-      url: "{pcs_base_url}/power-status"
-      method: PUT
-      verify: !bool "{verify}"
-    response:
-      # TODO: CASMHMS-5454
-      status_code: 405
-
-  # 7. PATCH /power-status API response code
-  - name: Ensure that the PCS power-status resource correctly handles unsupported PATCH operations
-    request:
-      url: "{pcs_base_url}/power-status"
-      method: PATCH
-      verify: !bool "{verify}"
-    response:
-      # TODO: CASMHMS-5454
-      status_code: 405
-
-  # 8. DELETE /power-status API response code
-  - name: Ensure that the PCS power-status resource correctly handles unsupported DELETE operations
-    request:
-      url: "{pcs_base_url}/power-status"
-      method: DELETE
-      verify: !bool "{verify}"
-    response:
-      # TODO: CASMHMS-5454
-      status_code: 405

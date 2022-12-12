@@ -20,18 +20,31 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
+# Tavern test cases for the PCS power-cap API
+# Author: Mitch Schooler
+# Service: Power Control Service
 
-# Example test metrics test cases: 1
-# 1. GET /get API response code
+# HMS test metrics test cases: 2
+# PUT /power-cap fails
+# DELETE /power-cap fails
 ---
-test_name: Verify the service status resource example test
+test_name: Verify PCS power-cap negative cases
 
 stages:
-  # 1. GET /get API response code
-  - name: Ensure that the  service status can be retrieved
+  - name: Ensure that PCS power-cap correctly handles unsupported PUT operations
     request:
-      url: "{base_url}/get"
-      method: GET
+      url: "{pcs_base_url}/power-cap"
+      method: PUT
       verify: !bool "{verify}"
     response:
-      status_code: 200
+      # TODO: CASMHMS-5473
+      status_code: 405
+
+  - name: Ensure that PCS power-cap correctly handles unsupported DELETE operations
+    request:
+      url: "{pcs_base_url}/power-cap"
+      method: DELETE
+      verify: !bool "{verify}"
+    response:
+      # TODO: CASMHMS-5473
+      status_code: 405

@@ -24,7 +24,7 @@
 NAME ?= cray-power-control
 VERSION ?= $(shell cat .version)
 
-all: image unittest integration snyk ct_image ct
+all: image unittest integration snyk ct ct_image
 
 image:
 	docker build --pull ${DOCKER_ARGS} --tag '${NAME}:${VERSION}' .
@@ -42,5 +42,4 @@ ct:
 	./runCT.sh
 
 ct_image:
-	docker build --no-cache -f testing/ct/Dockerfile testing/ct/ --tag hms-power-control-test:${VERSION}
-
+	docker build --no-cache -f test/ct/Dockerfile test/ct/ --tag cray-power-control-hmth-test:${VERSION}
