@@ -83,9 +83,14 @@ var PowerSequenceFull = []PowerSeqElem{
 	}, {
 		Action:    "gracefulrestart",
 		// Not all of these components support GracefulRestart but, if they did,
-		// since power isn't being dropped doing them all at the same time should
-		// be fine.
+		// since power isn't being dropped doing them all (except BMCs) at the
+		// same time should be fine.
 		CompTypes: []base.HMSType{base.Node, base.HSNBoard, base.RouterModule, base.ComputeModule, base.Chassis, base.CabinetPDUPowerConnector},
+	}, {
+		Action:    "gracefulrestart",
+		// Restart BMCs after everything else because restarting the BMC will cause
+		// redfish to temporarily become unresponsive.
+		CompTypes: []base.HMSType{base.ChassisBMC, base.NodeBMC, base.RouterBMC},
 	}, {
 		Action:    "on",
 		CompTypes: []base.HMSType{base.CabinetPDUPowerConnector},
@@ -346,8 +351,10 @@ func doTransition(transitionID uuid.UUID) {
 			   compType != base.Node &&
 			   compType != base.RouterModule &&
 			   compType != base.HSNBoard &&
-			   compType != base.CabinetPDUOutlet &&
-			   compType != base.CabinetPDUPowerConnector {
+			   compType != base.CabinetPDUPowerConnector &&
+			   compType != base.ChassisBMC &&
+			   compType != base.NodeBMC &&
+			   compType != base.RouterBMC {
 				comp.Task.Error = "No power control for component type " + compType.String()
 			} else {
 				comp.Task.Error = "Missing xname"
@@ -872,16 +879,15 @@ func doTransition(transitionID uuid.UUID) {
 				}
 				// Check to see if the time has expired.
 				if !waitForever && time.Now().After(waitExpireTime) {
-					// Add components that timed out to the ForceOff list (if we're doing ForceOff)
-					if powerAction == "gracefulshutdown" && !isSoft {
-						for _, comp := range trsTaskMap {
+					for _, comp := range trsTaskMap {
+						_, hasForceOff := comp.Actions["forceoff"]
+						if powerAction == "gracefulshutdown" && !isSoft && hasForceOff {
+							// Add components that timed out to the ForceOff list (if we're doing ForceOff)
 							compType := base.GetHMSType(comp.Task.Xname)
 							seqMap["forceoff"][compType] = append(seqMap["forceoff"][compType], comp)
-						}
-					} else {
-						// We have timed out and we have either tried ForceOff or are not doing a ForceOff.
-						// Fail the leftover components.
-						for _, comp := range trsTaskMap {
+						} else {
+							// We have timed out and we have either tried ForceOff or are not doing a ForceOff.
+							// Fail the leftover components.
 							comp.Task.Status = model.TransitionTaskStatusFailed
 							comp.Task.Error = fmt.Sprintf("Timeout waiting for transition, %s.", powerAction)
 							comp.Task.StatusDesc = "Failed to achieve transition"
@@ -1067,10 +1073,12 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 	for _, xname := range xnames {
 		if _, ok := xnameMap[xname]; !ok {
 			switch(base.GetHMSType(xname)) {
-			case base.Node:                     fallthrough
-			case base.CabinetPDUOutlet:         fallthrough
-			case base.CabinetPDUPowerConnector: fallthrough
-			case base.HSNBoard:
+			case base.ChassisBMC: fallthrough
+			case base.NodeBMC:    fallthrough
+			case base.RouterBMC:  fallthrough
+			case base.Node:       fallthrough
+			case base.HSNBoard:   fallthrough
+			case base.CabinetPDUPowerConnector:
 				pState, err := (*GLOB.DSP).GetPowerStatus(xname)
 				if err != nil {
 					if strings.Contains(err.Error(), "does not exist") {
@@ -1083,8 +1091,8 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 				} else {
 					xnameMap[xname] = pState
 				}
-			case base.Chassis:                  fallthrough
-			case base.ComputeModule:            fallthrough
+			case base.Chassis:       fallthrough
+			case base.ComputeModule: fallthrough
 			case base.RouterModule:
 				pStates, err := (*GLOB.DSP).GetPowerStatusHierarchy(xname)
 				if err != nil {
@@ -1097,11 +1105,14 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 				}
 				for _, ps := range pStates.Status {
 					switch(base.GetHMSType(ps.XName)) {
-					case base.Chassis:                  fallthrough
-					case base.ComputeModule:            fallthrough
-					case base.Node:                     fallthrough
-					case base.RouterModule:             fallthrough
-					case base.HSNBoard:                 fallthrough
+					case base.ChassisBMC:    fallthrough
+					case base.NodeBMC:       fallthrough
+					case base.RouterBMC:     fallthrough
+					case base.Chassis:       fallthrough
+					case base.ComputeModule: fallthrough
+					case base.Node:          fallthrough
+					case base.RouterModule:  fallthrough
+					case base.HSNBoard:      fallthrough
 					case base.CabinetPDUPowerConnector:
 						xnameMap[ps.XName] = ps
 					}
@@ -1168,13 +1179,15 @@ func setupTransitionTasks(tr *model.Transition) (map[string]*TransitionComponent
 		// Weed out invalid xnames and components we can't power control here.
 		compType := base.GetHMSType(loc.Xname)
 		switch(compType) {
-		case base.Node:                     fallthrough
-		case base.CabinetPDUOutlet:         fallthrough
-		case base.CabinetPDUPowerConnector: fallthrough
-		case base.HSNBoard:                 fallthrough
-		case base.Chassis:                  fallthrough
-		case base.ComputeModule:            fallthrough
-		case base.RouterModule:
+		case base.ChassisBMC:    fallthrough
+		case base.NodeBMC:       fallthrough
+		case base.RouterBMC:     fallthrough
+		case base.Node:          fallthrough
+		case base.HSNBoard:      fallthrough
+		case base.Chassis:       fallthrough
+		case base.ComputeModule: fallthrough
+		case base.RouterModule:  fallthrough
+		case base.CabinetPDUPowerConnector:
 			task.StatusDesc = "Gathering data"
 		case base.HMSTypeInvalid:
 			task.Status = model.TransitionTaskStatusFailed
@@ -1228,6 +1241,24 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 			if _, ok := xnameMap[parentId]; ok {
 				waitOnly = true
 			}
+		}
+
+		isBMC := base.IsHMSTypeController(compType)
+		supportsOp := false
+		for _, op := range comp.PState.SupportedPowerTransitions {
+			if op == operation.String() {
+				supportsOp = true
+			}
+		}
+		if !supportsOp {
+			comp.Task.Status = model.TransitionTaskStatusUnsupported
+			comp.Task.StatusDesc = fmt.Sprintf("Component does not support the specified transition operation, %s", operation.String())
+			comp.Task.Error = "Unsupported for transition operation"
+			err := (*GLOB.DSP).StoreTransitionTask(*comp.Task)
+			if err != nil {
+				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
+			}
+			continue
 		}
 
 		psf, _ := model.ToPowerStateFilter(comp.PState.PowerState)
@@ -1299,6 +1330,10 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 			} else {
 				parentSupportsRestart := true
 				_, hasAction := comp.Actions["gracefulrestart"]
+				if isBMC && !hasAction {
+					// Controllers only support ForceRestart redfish resetTypes
+					_, hasAction = comp.Actions["forcerestart"]
+				}
 				if hasAction {
 					// If a parent component has also been requested and it doesn't
 					// support gracefulrestart, power will be dropped. Do an off->on
@@ -1310,7 +1345,9 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 							break
 						}
 						if parent, ok := xnameMap[id]; ok {
-							if _, ok := parent.Actions["gracefulrestart"]; !ok {
+							_, hasGracefulRestart := parent.Actions["gracefulrestart"]
+							_, hasForceRestart := parent.Actions["forcerestart"]
+							if !hasGracefulRestart && !hasForceRestart {
 								parentSupportsRestart = false
 							}
 						} else {
@@ -1326,6 +1363,13 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 						comp.ActionCount++
 						seqMap["gracefulrestart"][compType] = append(seqMap["gracefulrestart"][compType], comp)
 					}
+				} else if isBMC {
+						// There are parent components in our request that will
+						// be powered off->on. BMCs don't support on/off operations
+						// and will get reset anyway as a result of the parent's
+						// power off->on.
+						comp.Task.Status = model.TransitionTaskStatusSucceeded
+						comp.Task.StatusDesc = fmt.Sprintf("Component will be reset as a result of its parent component getting powered off->on.")
 				} else {
 					if comp.Task.Operation == model.Operation_On {
 						comp.Task.Status = model.TransitionTaskStatusSucceeded
@@ -1453,11 +1497,16 @@ func generateTransitionPayload(comp *TransitionComponent, action string) (string
 			if !ok {
 				return "", errors.New("Power action not supported for " + comp.PState.XName)
 			}
+		} else if action == "gracefulrestart" {
+			resetType, ok = comp.Actions["forcerestart"]
+			if !ok {
+				return "", errors.New("Power action not supported for " + comp.PState.XName)
+			}
 		} else {
 			return "", errors.New("Power action not supported for " + comp.PState.XName)
 		}
 	}
-	if compType == base.CabinetPDUOutlet || compType == base.CabinetPDUPowerConnector {
+	if compType == base.CabinetPDUPowerConnector {
 		if !strings.Contains(comp.HSMData.RfFQDN, "rts") {
 			outlet := strings.Split(comp.PState.XName, "v")
 			if len(outlet) < 2 {
