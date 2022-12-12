@@ -23,8 +23,9 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 # wait-for.sh; used by runCT.sh to make sure HSM has been populated with data before running.
-echo "Waiting for data in HSM /State/Components..."
-URL="http://cray-smd:27779/hsm/v2/State/Components"
+echo "Initiating..."
+# wait for the emulated Nodes to be discovered which take longer than the CMM
+URL="http://cray-smd:27779/hsm/v2/State/Components?type=Node"
 sentry=1
 limit=200
 while :; do
@@ -46,7 +47,3 @@ while :; do
   sleep 1
 
 done
-
-# additional wait time for ETCD to actually be ready to serve data,
-# ETCD's /health endpoint is not an indicator of this ability
-sleep 20
