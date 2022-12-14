@@ -49,8 +49,8 @@ stages:
   - name: Retrieve the PCS power-status for the target Node
     request:
       #TODO: CASMHMS-5453
-      #url: "{pcs_base_url}/power-status?xname={node_xname}"
-      url: "{pcs_base_url}/power-status?powerStateFilter=on&xname={node_xname}"
+      url: "{pcs_base_url}/power-status?xname={node_xname}"
+      #url: "{pcs_base_url}/power-status?powerStateFilter=on&xname={node_xname}"
       #TODO: remove example call from outside service mesh below, keeping it now for reference
       # https://api-gw-service-nmn.local/apis/power-control/v1/power-status?powerStateFilter=on\&xname=x3000c0s19b1n0
       method: GET
@@ -120,8 +120,8 @@ stages:
   - name: Retrieve the PCS power-status for the target NodeBMC
     request:
       #TODO: CASMHMS-5453
-      #url: "{pcs_base_url}/power-status?xname={bmc_xname}"
-      url: "{pcs_base_url}/power-status?powerStateFilter=on&xname={bmc_xname}"
+      url: "{pcs_base_url}/power-status?xname={bmc_xname}"
+      #url: "{pcs_base_url}/power-status?powerStateFilter=on&xname={bmc_xname}"
       #TODO: remove example call from outside service mesh below, keeping it now for reference
       # https://api-gw-service-nmn.local/apis/power-control/v1/power-status?powerStateFilter=on\&xname=x3000c0s19b1n0
       method: GET

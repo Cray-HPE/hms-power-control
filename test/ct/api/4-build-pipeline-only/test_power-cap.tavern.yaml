@@ -24,6 +24,8 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
+#TODO: this is broken since power-cap requires 'Ready' nodes which are not being set up in simulation environment
+
 # HMS test metrics test cases: 3
 # POST /power-cap/snapshot compute node
 # GET /power-cap/{taskID} compute node snapshot
