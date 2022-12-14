@@ -43,12 +43,33 @@ stages:
       status_code: 200
       save:
         json:
-          xname: Components[0].ID
+          node_xname: Components[0].ID
+          state_initial: Components[0].State
 
-  - name: Create a PCS power-cap snapshot for the target compute node
+  # this ensures that the transition to 'Ready' in the next stage succeeds
+  - name: Set target node state to Off
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components/{node_xname}/StateData"
+      json: {"State":"Off"}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 204
+
+  # power-cap functionality requires that the target nodes are 'Ready'
+  - name: Set target node state to Ready
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components/{node_xname}/StateData"
+      json: {"State":"Ready"}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 204
+
+  - name: Create a PCS power-cap snapshot for the target node
     request:
       url: "{pcs_base_url}/power-cap/snapshot"
-      json: {"xnames":["{xname}"]}
+      json: {"xnames":["{node_xname}"]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -139,7 +160,7 @@ stages:
                         type: str
                         required: True
                         enum:
-                          - "{xname}"
+                          - "{node_xname}"
                       error:
                         type: str
                         required: True
@@ -216,3 +237,5 @@ stages:
                           un-supported:
                             type: int
                             required: True
+
+#TODO: restore compute node state?
