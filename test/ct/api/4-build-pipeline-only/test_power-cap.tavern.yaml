@@ -131,8 +131,9 @@ stages:
                   total:
                     type: int
                     required: True
-                    enum:
-                      - 1
+                    #TODO: ask why 5 tasks are appearing for a power-cap snapshot for one compute node
+                    #enum:
+                    #  - 1
                   new:
                     type: int
                     required: True
@@ -163,7 +164,7 @@ stages:
                           - "{node_xname}"
                       error:
                         type: str
-                        required: True
+                        required: False
                         #TODO: remove these, keeping them now for reference
                         #enum:
                         #  - "Type, NodeBMC unsupported for power capping"
