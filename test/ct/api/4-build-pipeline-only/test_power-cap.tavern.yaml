@@ -24,8 +24,6 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
-#TODO: this is broken since power-cap requires 'Ready' nodes which are not being set up in simulation environment
-
 # HMS test metrics test cases: 3
 # POST /power-cap/snapshot compute node
 # GET /power-cap/{taskID} compute node snapshot
@@ -89,6 +87,9 @@ stages:
           snapshotTaskID: taskID
 
   - name: Retrieve the PCS power-cap snapshot for the target compute node
+    # retry here until power-cap snapshot completes successfully
+    max_retries: 12
+    delay_after: 10
     request:
       url: "{pcs_base_url}/power-cap/{snapshotTaskID}"
       method: GET
@@ -110,7 +111,8 @@ stages:
                 required: True
                 enum:
                   - "snapshot"
-                  - "patch"
+                  #TODO: I think this should always be snapshot
+                  #- "patch"
               taskCreateTime:
                 type: timestamp
                 required: True
@@ -121,9 +123,14 @@ stages:
                 type: str
                 required: True
                 enum:
-                  - "new"
-                  - "in-progress"
-                  - "completed"
+                  #TODO: old
+                  #- "completed"
+                  #TODO: Waiting for succeeded since we've added retries
+                  #- "new"
+                  #- "in-progress"
+                  #- "failed"
+                  #- "unsupported"
+                  - "succeeded"
               taskCounts:
                 type: map
                 required: True
