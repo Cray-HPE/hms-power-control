@@ -86,7 +86,7 @@ stages:
         json:
           snapshotTaskID: taskID
 
-  - name: Retrieve the PCS power-cap snapshot for the target compute node
+  - name: Retrieve the PCS power-cap snapshot for the target node
     # retry here until power-cap snapshot completes successfully
     max_retries: 12
     delay_after: 10
@@ -111,8 +111,6 @@ stages:
                 required: True
                 enum:
                   - "snapshot"
-                  #TODO: I think this should always be snapshot
-                  #- "patch"
               taskCreateTime:
                 type: timestamp
                 required: True
@@ -123,14 +121,7 @@ stages:
                 type: str
                 required: True
                 enum:
-                  #TODO: old
-                  #- "completed"
-                  #TODO: Waiting for succeeded since we've added retries
-                  #- "new"
-                  #- "in-progress"
-                  #- "failed"
-                  #- "unsupported"
-                  - "succeeded"
+                  - "completed"
               taskCounts:
                 type: map
                 required: True
@@ -138,9 +129,14 @@ stages:
                   total:
                     type: int
                     required: True
-                    #TODO: ask why 5 tasks are appearing for a power-cap snapshot for one compute node
-                    #enum:
-                    #  - 1
+                    #TODO: these are for the following limits (ask if they are hardcoded in PCS or will vary):
+                    # - NodePowerLimit
+                    # - Accelerator0PowerLimit
+                    # - Accelerator1PowerLimit
+                    # - Accelerator2PowerLimit
+                    # - Accelerator3PowerLimit
+                    enum:
+                      - 5
                   new:
                     type: int
                     required: True
@@ -169,81 +165,102 @@ stages:
                         required: True
                         enum:
                           - "{node_xname}"
-                      error:
-                        type: str
-                        required: False
-                        #TODO: remove these, keeping them now for reference
-                        #enum:
-                        #  - "Type, NodeBMC unsupported for power capping"
-                        #TODO: seeing this vvv on real hardware and in build environment
-                        #  - "Missing Power Cap URI"
-                        #  - "Xname not found in HSM"
+                      powerCapLimits:
+                        type: seq
+                        matching: all
+                        required: True
+                        sequence:
+                          - type: map
+                            required: True
+                            mapping:
+                              name:
+                                type: str
+                                required: True
+                              currentValue:
+                                type: int
+                                required: True
+                              maximumValue:
+                                type: int
+                                required: True
+                              minimumValue:
+                                type: int
+                                required: True
+                      #TODO: remove these, keeping them now for reference
+                      #error:
+                      #  type: str
+                      #  required: False
+                      #  enum:
+                      #    - "Type, NodeBMC unsupported for power capping"
+                      #    #TODO: seeing this vvv on real hardware and in build environment
+                      #    - "Missing Power Cap URI"
+                      #    - "Xname not found in HSM"
 
-  - name: Retrieve all PCS power-cap snapshots
-    request:
-      url: "{pcs_base_url}/power-cap"
-      method: GET
-      verify: !bool "{verify}"
-    response:
-      status_code: 200
-      verify_response_with:
-        function: tavern.testutils.helpers:validate_pykwalify
-        extra_kwargs:
-          schema:
-            type: map
-            required: True
-            mapping:
-              tasks:
-                type: seq
-                matching: all
-                required: True
-                sequence:
-                  - type: map
-                    required: True
-                    mapping:
-                      taskID:
-                        type: str
-                        required: True
-                      type:
-                        type: str
-                        required: True
-                        enum:
-                          - "snapshot"
-                          - "patch"
-                      taskCreateTime:
-                        type: timestamp
-                        required: True
-                      automaticExpirationTime:
-                        type: timestamp
-                        required: True
-                      taskStatus:
-                        type: str
-                        required: True
-                        enum:
-                          - "new"
-                          - "in-progress"
-                          - "completed"
-                      taskCounts:
-                        type: map
-                        required: True
-                        mapping:
-                          total:
-                            type: int
-                            required: True
-                          new:
-                            type: int
-                            required: True
-                          in-progress:
-                            type: int
-                            required: True
-                          failed:
-                            type: int
-                            required: True
-                          succeeded:
-                            type: int
-                            required: True
-                          un-supported:
-                            type: int
-                            required: True
+  #TODO: update this for generic power-cap snapshots (all valid responses)
+  #- name: Retrieve all PCS power-cap snapshots
+  #  request:
+  #    url: "{pcs_base_url}/power-cap"
+  #    method: GET
+  #    verify: !bool "{verify}"
+  #  response:
+  #    status_code: 200
+  #    verify_response_with:
+  #      function: tavern.testutils.helpers:validate_pykwalify
+  #      extra_kwargs:
+  #        schema:
+  #          type: map
+  #          required: True
+  #          mapping:
+  #            tasks:
+  #              type: seq
+  #              matching: all
+  #              required: True
+  #              sequence:
+  #                - type: map
+  #                  required: True
+  #                  mapping:
+  #                    taskID:
+  #                      type: str
+  #                      required: True
+  #                    type:
+  #                      type: str
+  #                      required: True
+  #                      enum:
+  #                        - "snapshot"
+  #                        - "patch"
+  #                    taskCreateTime:
+  #                      type: timestamp
+  #                      required: True
+  #                    automaticExpirationTime:
+  #                      type: timestamp
+  #                      required: True
+  #                    taskStatus:
+  #                      type: str
+  #                      required: True
+  #                      enum:
+  #                        - "new"
+  #                        - "in-progress"
+  #                        - "completed"
+  #                    taskCounts:
+  #                      type: map
+  #                      required: True
+  #                      mapping:
+  #                        total:
+  #                          type: int
+  #                          required: True
+  #                        new:
+  #                          type: int
+  #                          required: True
+  #                        in-progress:
+  #                          type: int
+  #                          required: True
+  #                        failed:
+  #                          type: int
+  #                          required: True
+  #                        succeeded:
+  #                          type: int
+  #                          required: True
+  #                        un-supported:
+  #                          type: int
+  #                          required: True
 
 #TODO: restore compute node state?
