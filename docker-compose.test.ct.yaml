@@ -334,7 +334,7 @@ services:
       - CRAY_VAULT_JWT_FILE=configs/token
       - VAULT_ADDR=http://vault:8200
       - VAULT_TOKEN=hms
-      - VAULT_KEYPATH=hms-creds
+      - VAULT_KEYPATH=secret/hms-creds
       - VAULT_SKIP_VERIFY=true
       - VAULT_ENABLED=true
       - LOG_LEVEL=DEBUG

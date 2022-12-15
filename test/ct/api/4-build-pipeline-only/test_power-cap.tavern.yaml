@@ -192,6 +192,9 @@ stages:
                       #  enum:
                       #    - "Type, NodeBMC unsupported for power capping"
                       #    #TODO: seeing this vvv on real hardware and in build environment
+                      #    #TODO: second pass
+                      #    - "Invalid license for power capping"
+                      #    #TODO: first pass
                       #    - "Missing Power Cap URI"
                       #    - "Xname not found in HSM"
 
