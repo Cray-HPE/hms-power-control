@@ -81,9 +81,7 @@ services:
     hostname: cray-smd
     depends_on:
       - cray-smd-init
-      #TODO: try changing this to kv-enabler, or remove it
-      #- vault
-      - vault-kv-enabler
+      - vault
     networks:
       - pcs
 
@@ -351,7 +349,7 @@ services:
     depends_on:
       - etcd # needed to bring up PCS
       - cray-smd # needed to bring up PCS
-      #- vault-kv-enabler # needed for discovery of emulated hardware to succeed
+      - vault-kv-enabler # needed for discovery of emulated hardware to succeed
       - emulator-loader # needed to bring up emulated hardware
     networks:
       - pcs
