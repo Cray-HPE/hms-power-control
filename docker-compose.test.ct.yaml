@@ -349,7 +349,7 @@ services:
     #TODO: add these back in one-at-a-time to see if needed
     depends_on:
       - etcd
-    #  - cray-smd
+      - cray-smd
     #  - vault-kv-enabler
     #  - emulator-loader
     networks:
