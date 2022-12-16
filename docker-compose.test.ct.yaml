@@ -349,8 +349,8 @@ services:
     depends_on:
       - etcd # needed to bring up PCS
       - cray-smd # needed to bring up PCS
-    #  - vault-kv-enabler
-      - emulator-loader
+      - vault-kv-enabler # needed for discovery of emulated hardware to succeed
+      - emulator-loader # needed to bring up emulated hardware
     networks:
       - pcs
 
