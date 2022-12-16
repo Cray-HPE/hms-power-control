@@ -351,7 +351,8 @@ services:
     depends_on:
       - etcd
       - cray-smd
-      - vault-kv-enabler
+      #TODO
+      #- vault-kv-enabler
       - emulator-loader
     networks:
       - pcs
