@@ -41,22 +41,17 @@ services:
     networks:
       - pcs
 
-  #TODO: experimental, matches simulation environment docker-compose file that works
+  #TODO: experimental
   #vault-kv-enabler:
   #  image: artifactory.algol60.net/csm-docker/stable/vault-kv-enabler:1.13.4
   #  environment:
   #    - VAULT_ADDR=http://vault:8200
   #    - VAULT_TOKEN=hms
-  #    #TODO
-  #    #- KV_STORES=hms-creds
-  #    - KV_STORES=secret
-  #  #TODO
-  #  #depends_on:
-  #  #  - vault
+  #    - KV_STORES=hms-creds
+  #  depends_on:
+  #    - vault
   #  networks:
   #    - pcs
-  #  profiles:
-  #    - do-not-start-automatically
 
   hmsds-postgres:
     hostname: hmsds-postgres
@@ -363,11 +358,12 @@ services:
       - STORAGE=ETCD
       - ETCD_HOST=etcd
       - ETCD_PORT=2379
-    depends_on:
-      - etcd
-      - cray-smd
-      - vault-kv-enabler
-      - emulator-loader
+    #TODO: add these back in one-at-a-time to see if needed
+    #depends_on:
+    #  - etcd
+    #  - cray-smd
+    #  - vault-kv-enabler
+    #  - emulator-loader
     networks:
       - pcs
 
