@@ -37,8 +37,9 @@ services:
       #TODO
       #- KV_STORES=hms-creds
       - KV_STORES=secret
-    depends_on:
-      - vault
+    #TODO
+    #depends_on:
+    #  - vault
     networks:
       - pcs
 
