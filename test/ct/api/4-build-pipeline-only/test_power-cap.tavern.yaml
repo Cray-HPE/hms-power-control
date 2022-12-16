@@ -87,9 +87,10 @@ stages:
           snapshotTaskID: taskID
 
   - name: Retrieve the PCS power-cap snapshot for the target node
-    # retry here until power-cap snapshot completes successfully
-    max_retries: 12
-    delay_after: 10
+    #TODO: add these back in
+    ## retry here until power-cap snapshot completes successfully
+    #max_retries: 12
+    #delay_after: 10
     request:
       url: "{pcs_base_url}/power-cap/{snapshotTaskID}"
       method: GET
