@@ -55,8 +55,12 @@ if ! docker compose up --no-recreate --exit-code-from smoke smoke; then
   echo "CT smoke tests FAILED!"
   cleanup 1
 fi
+
 # wait for containers to stabilize and simulated HSM hardware discoveries to complete
-docker compose up --exit-code-from wait-for-smd wait-for-smd
+if ! docker compose up --exit-code-from wait-for-smd wait-for-smd; then
+  echo "Timed out on HSM waiting for discoveries to complete."
+  cleanup 1
+fi
 
 # execute the CT functional tests
 if ! docker compose up --exit-code-from tavern tavern; then
