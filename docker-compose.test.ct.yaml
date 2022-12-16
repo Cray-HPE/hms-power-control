@@ -29,7 +29,7 @@ services:
     networks:
       - pcs
 
-  #TODO: original, discoveries initially work but PCS use of credentials is failing
+  #TODO: original, discoveries initially work but PCS use of credentials is failing, suspect Vault is being restarted
   vault-kv-enabler:
     image: artifactory.algol60.net/csm-docker/stable/vault-kv-enabler:1.13.4
     environment:
@@ -40,18 +40,6 @@ services:
       - vault
     networks:
       - pcs
-
-  #TODO: experimental
-  #vault-kv-enabler:
-  #  image: artifactory.algol60.net/csm-docker/stable/vault-kv-enabler:1.13.4
-  #  environment:
-  #    - VAULT_ADDR=http://vault:8200
-  #    - VAULT_TOKEN=hms
-  #    - KV_STORES=hms-creds
-  #  depends_on:
-  #    - vault
-  #  networks:
-  #    - pcs
 
   hmsds-postgres:
     hostname: hmsds-postgres
@@ -359,8 +347,8 @@ services:
       - ETCD_HOST=etcd
       - ETCD_PORT=2379
     #TODO: add these back in one-at-a-time to see if needed
-    #depends_on:
-    #  - etcd
+    depends_on:
+      - etcd
     #  - cray-smd
     #  - vault-kv-enabler
     #  - emulator-loader
