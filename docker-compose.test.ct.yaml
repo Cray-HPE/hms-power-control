@@ -35,8 +35,8 @@ services:
       - VAULT_ADDR=http://vault:8200
       - VAULT_TOKEN=hms
       #TODO
-      #- KV_STORES=hms-creds
-      - KV_STORES=secret
+      - KV_STORES=hms-creds
+      #- KV_STORES=secret
     #TODO
     #depends_on:
     #  - vault
