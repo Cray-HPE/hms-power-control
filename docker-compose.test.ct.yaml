@@ -42,6 +42,8 @@ services:
     #  - vault
     networks:
       - pcs
+    profiles:
+      - do-not-start-automatically
 
   hmsds-postgres:
     hostname: hmsds-postgres
