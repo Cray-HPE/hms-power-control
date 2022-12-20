@@ -24,40 +24,20 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
-#TODO: Add these cases when CASMHMS-5476 is resolved
-# X. GET /power-status all API response code
-# X. GET /power-status all API response body
-
-# HMS test metrics test cases: 2
+# HMS test metrics test cases: 3
+# GET /power-status all components
 # GET /power-status?xname={xname} Node
 # GET /power-status?xname={xname} NodeBMC
 ---
-test_name: Verify the PCS power-status resource
+test_name: Verify PCS power-status for all components
 
 stages:
-  - name: Retrieve a Node from HSM to be used in later stages
+  - name: Retrieve the PCS power-status for all components
     request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node"
+      url: "{pcs_base_url}/power-status"
       method: GET
       verify: !bool "{verify}"
     response:
-      status_code: 200
-      save:
-        json:
-          node_xname: Components[0].ID
-
-  - name: Retrieve the PCS power-status for the target Node
-    request:
-      #TODO: this is causing "Component not found in component map.", maybe because the xname parameter is supposed to be an array of strings
-      url: "{pcs_base_url}/power-status?xname={node_xname}"
-      #TODO: CASMHMS-5453
-      #url: "{pcs_base_url}/power-status?powerStateFilter=on&xname={node_xname}"
-      #TODO: remove example call from outside service mesh below, keeping it now for reference
-      # https://api-gw-service-nmn.local/apis/power-control/v1/power-status?powerStateFilter=on\&xname=x3000c0s19b1n0
-      method: GET
-      verify: !bool "{verify}"
-    response:
-      #TODO: CASMHMS-5454
       status_code: 200
       verify_response_with:
         function: tavern.testutils.helpers:validate_pykwalify
@@ -77,7 +57,209 @@ stages:
                       xname:
                         type: str
                         required: True
-                        pattern: "^[xs].+"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - "on"
+                          - "off"
+                          - "undefined"
+                      managementState:
+                        type: str
+                        required: True
+                        enum:
+                          - "available"
+                          - "unavailable"
+                      error:
+                        type: str
+                        required: True
+                      supportedPowerTransitions:
+                        type: seq
+                        matching: all
+                        required: True
+                        sequence:
+                          - type: str
+                            required: True
+                            # no enum here since supportedPowerTransitions come
+                            # from Redfish and vary depending on hardware
+                      lastUpdated:
+                        type: str
+                        required: True
+      #TODO: this will fail if the status list is empty
+      save:
+        json:
+          first_xname_id: status[0].xname
+
+---
+test_name: Verify PCS power-status for a Node
+
+stages:
+  - name: Retrieve a Node from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          node_xname: Components[0].ID
+
+  #TODO: this is for debugging
+  - name: Retrieve a Node from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/Inventory/ComponentEndpoints/{node_xname}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            allowempty: True
+            mapping:
+              ID:
+                type: str
+                required: True
+                enum:
+                  - "{node_xname}"
+
+  #TODO: this is for debugging
+  - name: Ensure that we can conduct a query for a specific Node xname using the Component Query API
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components/Query/{node_xname}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            mapping:
+              Components:
+                type: seq
+                required: True
+                sequence:
+                  - type: map
+                    mapping:
+                      Arch:
+                        type: str
+                        required: True
+                      Class:
+                        type: str
+                        required: True
+                        enum:
+                          - "River"
+                          - "Mountain"
+                          - "Hill"
+                      Enabled:
+                        type: bool
+                        required: True
+                      Flag:
+                        type: str
+                        required: True
+                      ID:
+                        type: str
+                        required: True
+                        enum:
+                          - "{node_xname}"
+                      Locked:
+                        type: bool
+                        required: False
+                      NID:
+                        type: int
+                        required: True
+                      NetType:
+                        type: str
+                        required: True
+                      Role:
+                        type: str
+                        required: True
+                      SoftwareStatus:
+                        type: str
+                        required: False
+                      State:
+                        type: str
+                        required: True
+                      SubRole:
+                        type: str
+                        required: False
+                      Subtype:
+                        type: str
+                        required: False
+                      Type:
+                        type: str
+                        required: True
+                        enum:
+                          - "Node"
+
+  #TODO: this is for debugging
+  - name: Ensure that we can conduct a query on the ComponentEndpoints collection for a particular Node
+    request:
+      url: "{hsm_base_url}/hsm/v2/Inventory/ComponentEndpoints?id=x0c0r3&id=x0c0s4&id=x0c0s0&id=x0c0s1b0n0&id=x0c0s5b0n0&id=x0c0r7&id=x0c0r4&id=x0c0s2&id=x0c0s0b0&id=x0c0s7b0n0&id=x0c0s6b0&id=x0c0r5&id=x0c0s5&id=x0c0s0e0&id=x0c0s2e0&id=x0c0s1b0&id=x0c0s7e0&id=x0c0s4b0&id=x0c0r1&id=x0c0s5e0&id=x0c0s5b0&id=x0c0s7b0&id=x0c0r0&id=x0c0b0&id=x0c0s2b0n0&id=x0c0s6e0&id=x0c0s3e0&id=x0c0s3b0n0&id=x0c0s1&id=x0c0s7&id=x0c0r2&id=x0c0r6&id=x0c0s3b0&id=x0c0s4e0&id=x0c0s3&id=x0c0s6&id=x0c0s0b0n0&id=x0c0s2b0&id=x0c0s1e0&id=x0c0s6b0n0&id=x0c0s4b0n0&id=x0c0"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              ComponentEndpoints:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    allowempty: True
+                    mapping:
+                      ID:
+                        type: str
+                        required: True
+                      Type:
+                        type: str
+                        required: True
+                      RedfishEndpointID:
+                        type: str
+                        required: True
+
+  - name: Retrieve the PCS power-status for the target Node
+    request:
+      #TODO: this is returning "Component not found in component map." in runCT environment
+      url: "{pcs_base_url}/power-status?xname={node_xname}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        # Node xname
+                        pattern: "^x[0-9]{{1,4}}c[0-7]s[0-9]+b[0-9]+n[0-9]+$"
                       powerState:
                         type: str
                         required: True
@@ -107,6 +289,10 @@ stages:
                         type: str
                         required: True
 
+---
+test_name: Verify PCS power-status for a NodeBMC
+
+stages:
   - name: Retrieve a NodeBMC from HSM to be used in later stages
     request:
       url: "{hsm_base_url}/hsm/v2/State/Components?type=NodeBMC"
@@ -121,14 +307,9 @@ stages:
   - name: Retrieve the PCS power-status for the target NodeBMC
     request:
       url: "{pcs_base_url}/power-status?xname={bmc_xname}"
-      #TODO: CASMHMS-5453
-      #url: "{pcs_base_url}/power-status?powerStateFilter=on&xname={bmc_xname}"
-      #TODO: remove example call from outside service mesh below, keeping it now for reference
-      # https://api-gw-service-nmn.local/apis/power-control/v1/power-status?powerStateFilter=on\&xname=x3000c0s19b1n0
       method: GET
       verify: !bool "{verify}"
     response:
-      #TODO: CASMHMS-5454
       status_code: 200
       verify_response_with:
         function: tavern.testutils.helpers:validate_pykwalify
@@ -148,7 +329,8 @@ stages:
                       xname:
                         type: str
                         required: True
-                        pattern: "^[xs].+"
+                        # NodeBMC xname
+                        pattern: "^x[0-9]{{1,4}}c[0-7]s[0-9]+b[0-9]+$"
                       powerState:
                         type: str
                         required: True
