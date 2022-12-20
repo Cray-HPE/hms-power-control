@@ -27,6 +27,7 @@
 # HMS test metrics test cases: 3
 # POST /power-cap/snapshot compute node
 # GET /power-cap/{taskID} compute node snapshot
+#TODO
 # GET /power-cap compute node
 ---
 test_name: Verify the PCS power-cap resource
@@ -88,8 +89,30 @@ stages:
 
   - name: Retrieve the PCS power-cap snapshot for the target node
     # retry here until power-cap snapshot completes successfully
-    max_retries: 12
+    max_retries: 6
     delay_after: 10
+    request:
+      url: "{pcs_base_url}/power-cap/{snapshotTaskID}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the snapshot to complete
+            allowempty: True
+            mapping:
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed PCS power-cap snapshot for the target node
     request:
       url: "{pcs_base_url}/power-cap/{snapshotTaskID}"
       method: GET
@@ -106,6 +129,8 @@ stages:
               taskID:
                 type: str
                 required: True
+                enum:
+                  - "{snapshotTaskID}"
               type:
                 type: str
                 required: True
@@ -129,14 +154,6 @@ stages:
                   total:
                     type: int
                     required: True
-                    #TODO: these are for the following limits (ask if they are hardcoded in PCS or will vary, seems to vary):
-                    # - NodePowerLimit
-                    # - Accelerator0PowerLimit
-                    # - Accelerator1PowerLimit
-                    # - Accelerator2PowerLimit
-                    # - Accelerator3PowerLimit
-                    enum:
-                      - 5
                   new:
                     type: int
                     required: True
@@ -165,10 +182,22 @@ stages:
                         required: True
                         enum:
                           - "{node_xname}"
+                      limits:
+                        type: map
+                        # some compute node types have empty or no "limits", like Intel and HPE CRAY EX235a
+                        required: False
+                        mapping:
+                          hostLimitMax:
+                            type: int
+                            required: False
+                          hostLimitMin:
+                            type: int
+                            required: False
                       powerCapLimits:
                         type: seq
                         matching: all
-                        required: True
+                        # some compute node types don't have "powerCapLimits", like HPE Cray EX235n
+                        required: False
                         sequence:
                           - type: map
                             required: True
@@ -179,12 +208,14 @@ stages:
                               currentValue:
                                 type: int
                                 required: True
+                              # some compute node types don't have maximumValue, like Intel
                               maximumValue:
                                 type: int
-                                required: True
+                                required: False
+                              # some compute node types don't have minimumValue, like Intel
                               minimumValue:
                                 type: int
-                                required: True
+                                required: False
                       #TODO: remove these, keeping them now for reference
                       #error:
                       #  type: str

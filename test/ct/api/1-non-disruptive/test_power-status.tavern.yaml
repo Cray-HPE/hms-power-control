@@ -24,16 +24,20 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
-# HMS test metrics test cases: 3
+# HMS test metrics test cases: 6
 # GET /power-status all components
 # GET /power-status?xname={xname} Node
 # GET /power-status?xname={xname} NodeBMC
+# GET /power-status?xname={xname} ChassisBMC
+# GET /power-status?xname={xname} Chassis
+# GET /power-status?xname={xname} ComputeModule
 ---
 test_name: Verify PCS power-status for all components
 
 stages:
   - name: Retrieve the PCS power-status for all components
     request:
+      #TODO: somehow this is always passing in runCT environment, even when it should fail
       url: "{pcs_base_url}/power-status"
       method: GET
       verify: !bool "{verify}"
@@ -106,7 +110,7 @@ stages:
           node_xname: Components[0].ID
 
   #TODO: this is for debugging
-  - name: Retrieve a Node from HSM to be used in later stages
+  - name: TODO
     request:
       url: "{hsm_base_url}/hsm/v2/Inventory/ComponentEndpoints/{node_xname}"
       method: GET
@@ -128,7 +132,7 @@ stages:
                   - "{node_xname}"
 
   #TODO: this is for debugging
-  - name: Ensure that we can conduct a query for a specific Node xname using the Component Query API
+  - name: TODO
     request:
       url: "{hsm_base_url}/hsm/v2/State/Components/Query/{node_xname}"
       method: GET
@@ -199,7 +203,7 @@ stages:
                           - "Node"
 
   #TODO: this is for debugging
-  - name: Ensure that we can conduct a query on the ComponentEndpoints collection for a particular Node
+  - name: TODO
     request:
       url: "{hsm_base_url}/hsm/v2/Inventory/ComponentEndpoints?id=x0c0r3&id=x0c0s4&id=x0c0s0&id=x0c0s1b0n0&id=x0c0s5b0n0&id=x0c0r7&id=x0c0r4&id=x0c0s2&id=x0c0s0b0&id=x0c0s7b0n0&id=x0c0s6b0&id=x0c0r5&id=x0c0s5&id=x0c0s0e0&id=x0c0s2e0&id=x0c0s1b0&id=x0c0s7e0&id=x0c0s4b0&id=x0c0r1&id=x0c0s5e0&id=x0c0s5b0&id=x0c0s7b0&id=x0c0r0&id=x0c0b0&id=x0c0s2b0n0&id=x0c0s6e0&id=x0c0s3e0&id=x0c0s3b0n0&id=x0c0s1&id=x0c0s7&id=x0c0r2&id=x0c0r6&id=x0c0s3b0&id=x0c0s4e0&id=x0c0s3&id=x0c0s6&id=x0c0s0b0n0&id=x0c0s2b0&id=x0c0s1e0&id=x0c0s6b0n0&id=x0c0s4b0n0&id=x0c0"
       method: GET
@@ -258,8 +262,8 @@ stages:
                       xname:
                         type: str
                         required: True
-                        # Node xname
-                        pattern: "^x[0-9]{{1,4}}c[0-7]s[0-9]+b[0-9]+n[0-9]+$"
+                        enum:
+                          - "{node_xname}"
                       powerState:
                         type: str
                         required: True
@@ -329,8 +333,221 @@ stages:
                       xname:
                         type: str
                         required: True
-                        # NodeBMC xname
-                        pattern: "^x[0-9]{{1,4}}c[0-7]s[0-9]+b[0-9]+$"
+                        enum:
+                          - "{bmc_xname}"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - "on"
+                          - "off"
+                          - "undefined"
+                      managementState:
+                        type: str
+                        required: True
+                        enum:
+                          - "available"
+                          - "unavailable"
+                      error:
+                        type: str
+                        required: True
+                      supportedPowerTransitions:
+                        type: seq
+                        matching: all
+                        required: True
+                        sequence:
+                          - type: str
+                            required: True
+                            # no enum here since supportedPowerTransitions come
+                            # from Redfish and vary depending on hardware
+                      lastUpdated:
+                        type: str
+                        required: True
+
+---
+test_name: Verify PCS power-status for a ChassisBMC
+
+stages:
+  - name: Retrieve a ChassisBMC from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=ChassisBMC"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          chassis_bmc_xname: Components[0].ID
+
+  - name: Retrieve the PCS power-status for the target ChassisBMC
+    request:
+      url: "{pcs_base_url}/power-status?xname={chassis_bmc_xname}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{chassis_bmc_xname}"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - "on"
+                          - "off"
+                          - "undefined"
+                      managementState:
+                        type: str
+                        required: True
+                        enum:
+                          - "available"
+                          - "unavailable"
+                      error:
+                        type: str
+                        required: True
+                      supportedPowerTransitions:
+                        type: seq
+                        matching: all
+                        required: True
+                        sequence:
+                          - type: str
+                            required: True
+                            # no enum here since supportedPowerTransitions come
+                            # from Redfish and vary depending on hardware
+                      lastUpdated:
+                        type: str
+                        required: True
+
+---
+test_name: Verify PCS power-status for a Chassis
+
+stages:
+  - name: Retrieve a Chassis from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Chassis"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          chassis_xname: Components[0].ID
+
+  - name: Retrieve the PCS power-status for the target Chassis
+    request:
+      url: "{pcs_base_url}/power-status?xname={chassis_xname}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{chassis_xname}"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - "on"
+                          - "off"
+                          - "undefined"
+                      managementState:
+                        type: str
+                        required: True
+                        enum:
+                          - "available"
+                          - "unavailable"
+                      error:
+                        type: str
+                        required: True
+                      supportedPowerTransitions:
+                        type: seq
+                        matching: all
+                        required: True
+                        sequence:
+                          - type: str
+                            required: True
+                            # no enum here since supportedPowerTransitions come
+                            # from Redfish and vary depending on hardware
+                      lastUpdated:
+                        type: str
+                        required: True
+
+---
+test_name: Verify PCS power-status for a ComputeModule
+
+stages:
+  - name: Retrieve a ComputeModule from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=ComputeModule"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          compute_module_xname: Components[0].ID
+
+  - name: Retrieve the PCS power-status for the target ComputeModule
+    request:
+      url: "{pcs_base_url}/power-status?xname={compute_module_xname}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{compute_module_xname}"
                       powerState:
                         type: str
                         required: True

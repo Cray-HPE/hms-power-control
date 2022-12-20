@@ -37,7 +37,6 @@ stages:
       method: PUT
       verify: !bool "{verify}"
     response:
-      # TODO: CASMHMS-5473
       status_code: 405
 
   - name: Ensure that PCS power-cap correctly handles unsupported DELETE operations
@@ -46,5 +45,4 @@ stages:
       method: DELETE
       verify: !bool "{verify}"
     response:
-      # TODO: CASMHMS-5473
       status_code: 405
