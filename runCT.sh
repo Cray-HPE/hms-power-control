@@ -51,12 +51,14 @@ docker compose up -d cray-power-control
 sleep 15
 
 docker compose logs cray-power-control
+
+# execute the CT smoke tests
 if ! docker compose up --no-recreate --exit-code-from smoke smoke; then
   echo "CT smoke tests FAILED!"
   cleanup 1
 fi
 
-# execute the CT functional tests
+# execute the CT Tavern tests
 if ! docker compose up --exit-code-from tavern tavern; then
   echo "CT tavern tests FAILED!"
   cleanup 1

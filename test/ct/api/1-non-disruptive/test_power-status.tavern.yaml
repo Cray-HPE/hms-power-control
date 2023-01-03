@@ -65,9 +65,11 @@ stages:
                         type: str
                         required: True
                         enum:
-                          - "on"
-                          - "off"
-                          - "undefined"
+                          #TODO
+                          - "FAKE"
+                          #- "on"
+                          #- "off"
+                          #- "undefined"
                       managementState:
                         type: str
                         required: True
@@ -89,7 +91,6 @@ stages:
                       lastUpdated:
                         type: str
                         required: True
-      #TODO: this will fail if the status list is empty
       save:
         json:
           first_xname_id: status[0].xname
