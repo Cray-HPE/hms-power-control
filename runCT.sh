@@ -62,6 +62,9 @@ if ! docker compose up --exit-code-from wait-for-smd wait-for-smd; then
   cleanup 1
 fi
 
+#TODO
+sleep 60
+
 # execute the CT functional tests
 if ! docker compose up --exit-code-from tavern tavern; then
   echo "CT tavern tests FAILED!"
