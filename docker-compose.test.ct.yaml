@@ -349,6 +349,7 @@ services:
       - cray-smd # needed to bring up PCS
       - vault-kv-enabler # needed for discovery of emulated hardware to succeed
       - emulator-loader # needed to bring up emulated hardware
+      - wait-for-smd
     networks:
       - pcs
 

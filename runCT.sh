@@ -48,7 +48,7 @@ echo "Starting containers..."
 docker compose build --no-cache
 docker compose up -d cray-power-control
 
-sleep 15
+#sleep 15
 
 docker compose logs cray-power-control
 if ! docker compose up --no-recreate --exit-code-from smoke smoke; then
@@ -56,15 +56,16 @@ if ! docker compose up --no-recreate --exit-code-from smoke smoke; then
   cleanup 1
 fi
 
-# wait for containers to stabilize and simulated HSM hardware discoveries to complete
-if ! docker compose up --exit-code-from wait-for-smd wait-for-smd; then
-  echo "Timed out on HSM waiting for discoveries to complete."
-  cleanup 1
-fi
+#TODO
+## wait for containers to stabilize and simulated HSM hardware discoveries to complete
+#if ! docker compose up --exit-code-from wait-for-smd wait-for-smd; then
+#  echo "Timed out on HSM waiting for discoveries to complete."
+#  cleanup 1
+#fi
 
 #TODO
 #sleep 60
-sleep 30
+#sleep 30
 
 # execute the CT functional tests
 if ! docker compose up --exit-code-from tavern tavern; then
