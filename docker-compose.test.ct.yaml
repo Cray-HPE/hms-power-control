@@ -29,7 +29,6 @@ services:
     networks:
       - pcs
 
-  #TODO: original, discoveries initially work but PCS use of credentials is failing, suspect Vault is being restarted
   vault-kv-enabler:
     image: artifactory.algol60.net/csm-docker/stable/vault-kv-enabler:1.13.4
     environment:
@@ -335,8 +334,6 @@ services:
       - CRAY_VAULT_JWT_FILE=configs/token
       - VAULT_ADDR=http://vault:8200
       - VAULT_TOKEN=hms
-      #TODO
-      #- VAULT_KEYPATH=secret/hms-creds
       - VAULT_KEYPATH=hms-creds
       - VAULT_SKIP_VERIFY=true
       - VAULT_ENABLED=true
@@ -346,6 +343,7 @@ services:
       - STORAGE=ETCD
       - ETCD_HOST=etcd
       - ETCD_PORT=2379
+      - PCS_POWER_SAMPLE_INTERVAL=5
     depends_on:
       - etcd # needed to bring up PCS
       - cray-smd # needed to bring up PCS
