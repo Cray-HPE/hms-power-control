@@ -48,7 +48,7 @@ echo "Starting containers..."
 docker compose build --no-cache
 docker compose up -d cray-power-control
 
-#sleep 15
+sleep 10
 
 docker compose logs cray-power-control
 if ! docker compose up --no-recreate --exit-code-from smoke smoke; then
