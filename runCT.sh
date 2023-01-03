@@ -65,7 +65,7 @@ fi
 
 #TODO
 #sleep 60
-#sleep 30
+sleep 30
 
 # execute the CT functional tests
 if ! docker compose up --exit-code-from tavern tavern; then
