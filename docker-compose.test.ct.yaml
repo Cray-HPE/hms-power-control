@@ -360,6 +360,8 @@ services:
     build:
       context: test/ct/
       dockerfile: Dockerfile.wait-for-smd.Dockerfile
+    depends_on:
+      - cray-smd
     networks:
       - pcs
 
