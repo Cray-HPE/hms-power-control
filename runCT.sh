@@ -48,17 +48,13 @@ echo "Starting containers..."
 docker compose build --no-cache
 docker compose up -d cray-power-control
 
-sleep 10
+sleep 15
 
 docker compose logs cray-power-control
 if ! docker compose up --no-recreate --exit-code-from smoke smoke; then
   echo "CT smoke tests FAILED!"
   cleanup 1
 fi
-
-#TODO
-#sleep 30
-sleep 10
 
 # execute the CT functional tests
 if ! docker compose up --exit-code-from tavern tavern; then
