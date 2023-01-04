@@ -24,12 +24,16 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
-# HMS test metrics test cases: 5
-# POST /power-status API response code
-# PUT /power-status API response code
-# PATCH /power-status API response code
-# DELETE /power-status API response code
+# HMS test metrics test cases: 9
+# POST /power-status fails
+# PUT /power-status fails
+# PATCH /power-status fails
+# DELETE /power-status fails
 # GET /power-status?xname={xname} NodeEnclosure
+# GET /power-status?xname={xname} non-present component
+# GET /power-status?xname={xname} invalid xname
+# GET /power-status?powerStateFilter={filter} invalid powerStateFilter
+# GET /power-status?managementStateFilter={filter} invalid managementStateFilter
 ---
 test_name: Verify PCS power-status with unsupported operations
 
@@ -138,3 +142,184 @@ stages:
                         required: True
                         enum:
                           - ""
+
+---
+test_name: Verify PCS power-status with a non-present component
+
+stages:
+  - name: Attempt to retrieve the PCS power-status for a component that is not present
+    request:
+      url: "{pcs_base_url}/power-status?xname=x9999c7s9b9n9"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "x9999c7s9b9n9"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - ""
+                      managementState:
+                        type: str
+                        required: True
+                        enum:
+                          - ""
+                      error:
+                        type: str
+                        required: True
+                        enum:
+                          - "Component not found in component map."
+                      supportedPowerTransitions:
+                        type: seq
+                        matching: all
+                        # a null list is expected here
+                        required: False
+                        sequence:
+                          - type: str
+                            required: True
+                            # no enum here since supportedPowerTransitions come
+                            # from Redfish and vary depending on hardware
+                      lastUpdated:
+                        type: str
+                        required: True
+                        enum:
+                          - ""
+
+---
+test_name: Verify PCS power-status with an invalid xname
+
+stages:
+  - name: Attempt to retrieve the PCS power-status for a component with an invalid xname
+    request:
+      url: "{pcs_base_url}/power-status?xname=FAKE"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 400
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              type:
+                type: str
+                required: True
+                enum:
+                  - "about:blank"
+              title:
+                type: str
+                required: True
+                enum:
+                  - "Bad Request"
+              detail:
+                type: str
+                required: True
+                enum:
+                  #TODO: clean this up
+                  - "invalid xnames detected FAKE "
+              status:
+                type: int
+                required: True
+                enum:
+                  - 400
+
+---
+test_name: Verify PCS power-status with an invalid powerStateFilter
+
+stages:
+  - name: Attempt to retrieve the PCS power-status for components using an invalid powerStateFilter
+    request:
+      url: "{pcs_base_url}/power-status?powerStateFilter=FAKE"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 400
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              type:
+                type: str
+                required: True
+                enum:
+                  - "about:blank"
+              title:
+                type: str
+                required: True
+                enum:
+                  - "Bad Request"
+              detail:
+                type: str
+                required: True
+                enum:
+                  - "invalid powerStateFilter type: FAKE"
+              status:
+                type: int
+                required: True
+                enum:
+                  - 400
+
+---
+test_name: Verify PCS power-status with an invalid managementStateFilter
+
+stages:
+  - name: Attempt to retrieve the PCS power-status for components using an invalid managementStateFilter
+    request:
+      url: "{pcs_base_url}/power-status?managementStateFilter=FAKE"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 400
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              type:
+                type: str
+                required: True
+                enum:
+                  - "about:blank"
+              title:
+                type: str
+                required: True
+                enum:
+                  - "Bad Request"
+              detail:
+                type: str
+                required: True
+                enum:
+                  #TODO: clean this up
+                  - "invalid ManagementStateFilter type FAKE"
+              status:
+                type: int
+                required: True
+                enum:
+                  - 400
