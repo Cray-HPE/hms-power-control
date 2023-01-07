@@ -131,6 +131,11 @@ services:
   #
   # Emulated hardware
   #
+  # Note: Several PCS power-cap tests assume that all compute nodes in HSM
+  # have Node Power Limit controls and do not have Accelerator Power Limit
+  # controls, so the following RIE instances should only emulate node types
+  # that fit this criteria. Otherwise test failures may occur.
+  #
   emulator-loader:
     image: artifactory.algol60.net/docker.io/library/golang:1.16-alpine
     command: >
