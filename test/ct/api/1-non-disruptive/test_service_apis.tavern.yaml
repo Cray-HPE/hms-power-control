@@ -29,10 +29,10 @@
 # GET /liveness
 # GET /readiness
 ---
-test_name: pcsAPIserviceAPIs - Verify the PCS service APIs
+test_name: Verify the PCS service APIs
 
 stages:
-  - name: pcsAPIhealthGET - Ensure that /health can be retrieved
+  - name: Ensure that /health can be retrieved
     request:
       url: "{pcs_base_url}/health"
       method: GET
@@ -72,7 +72,7 @@ stages:
                 enum:
                   - "connected, responsive, local mode"
 
-  - name: pcsAPIlivenessGET - Ensure that /liveness can be retrieved
+  - name: Ensure that /liveness can be retrieved
     request:
       url: "{pcs_base_url}/liveness"
       method: GET
@@ -80,7 +80,7 @@ stages:
     response:
       status_code: 204
 
-  - name: pcsAPIreadinessGET - Ensure that /readiness can be retrieved
+  - name: Ensure that /readiness can be retrieved
     request:
       url: "{pcs_base_url}/readiness"
       method: GET

@@ -29,10 +29,10 @@
 # POST /liveness fails
 # POST /readiness fails
 ---
-test_name: pcsAPIserviceAPIsNegative - Verify the PCS service APIs correctly handle unsupported operations
+test_name: Verify the PCS service APIs reject unsupported operations
 
 stages:
-  - name: pcsAPIhealthPOST - Ensure that /health rejects POST requests
+  - name: Ensure that /health rejects POST requests
     request:
       url: "{pcs_base_url}/health"
       method: POST
@@ -40,7 +40,7 @@ stages:
     response:
       status_code: 405
 
-  - name: pcsAPIlivenessPOST - Ensure that /liveness rejects POST requests
+  - name: Ensure that /liveness rejects POST requests
     request:
       url: "{pcs_base_url}/liveness"
       method: POST
@@ -48,7 +48,7 @@ stages:
     response:
       status_code: 405
 
-  - name: pcsAPIreadinessPOST - Ensure that /readiness rejects POST requests
+  - name: Ensure that /readiness rejects POST requests
     request:
       url: "{pcs_base_url}/readiness"
       method: POST
