@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2021-2022] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -1073,11 +1073,13 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 	for _, xname := range xnames {
 		if _, ok := xnameMap[xname]; !ok {
 			switch(base.GetHMSType(xname)) {
-			case base.ChassisBMC: fallthrough
-			case base.NodeBMC:    fallthrough
-			case base.RouterBMC:  fallthrough
-			case base.Node:       fallthrough
-			case base.HSNBoard:   fallthrough
+			case base.ChassisBMC:    fallthrough
+			case base.NodeBMC:       fallthrough
+			case base.RouterBMC:     fallthrough
+			case base.Node:          fallthrough
+			case base.HSNBoard:      fallthrough
+			case base.Chassis:       fallthrough
+			case base.ComputeModule: fallthrough
 			case base.CabinetPDUPowerConnector:
 				pState, err := (*GLOB.DSP).GetPowerStatus(xname)
 				if err != nil {
@@ -1091,9 +1093,8 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 				} else {
 					xnameMap[xname] = pState
 				}
-			case base.Chassis:       fallthrough
-			case base.ComputeModule: fallthrough
 			case base.RouterModule:
+				found := false
 				pStates, err := (*GLOB.DSP).GetPowerStatusHierarchy(xname)
 				if err != nil {
 					// Database error. Bail
@@ -1105,17 +1106,17 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 				}
 				for _, ps := range pStates.Status {
 					switch(base.GetHMSType(ps.XName)) {
-					case base.ChassisBMC:    fallthrough
-					case base.NodeBMC:       fallthrough
-					case base.RouterBMC:     fallthrough
-					case base.Chassis:       fallthrough
-					case base.ComputeModule: fallthrough
-					case base.Node:          fallthrough
-					case base.RouterModule:  fallthrough
-					case base.HSNBoard:      fallthrough
-					case base.CabinetPDUPowerConnector:
+					case base.HSNBoard:
 						xnameMap[ps.XName] = ps
+						// Make sure our original xname is part
+						// of the list of components found.
+						if ps.XName == xname {
+							found = true
+						}
 					}
+				}
+				if !found {
+					badList = append(badList, xname)
 				}
 			default:
 				badList = append(badList, xname)
