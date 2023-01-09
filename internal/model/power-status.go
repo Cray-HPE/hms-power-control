@@ -99,7 +99,7 @@ func ToManagementStateFilter(msf string) (MSF ManagementStateFilter, err error) 
 		MSF = ManagementStateFilter_unavailable
 		err = nil
 	} else {
-		err = errors.New("invalid ManagementStateFilter type " + msf)
+		err = errors.New("invalid ManagementStateFilter type: " + msf)
 		MSF = ManagementStateFilter_Nil
 	}
 	return

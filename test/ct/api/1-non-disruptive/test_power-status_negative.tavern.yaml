@@ -238,7 +238,7 @@ stages:
                 required: True
                 enum:
                   #TODO: clean this up
-                  - "invalid xnames detected FAKE "
+                  - "invalid xnames detected: FAKE"
               status:
                 type: int
                 required: True
@@ -317,7 +317,7 @@ stages:
                 required: True
                 enum:
                   #TODO: clean this up
-                  - "invalid ManagementStateFilter type FAKE"
+                  - "invalid ManagementStateFilter type: FAKE"
               status:
                 type: int
                 required: True
