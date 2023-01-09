@@ -24,14 +24,16 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
-# HMS test metrics test cases: 2
+# HMS test metrics test cases: TODO
 # PUT /power-cap fails
 # DELETE /power-cap fails
+# POST /power-cap/snapshot NodeBMC fails
+# POST /power-cap/snapshot invalid component fails
 ---
-test_name: Verify PCS power-cap negative cases
+test_name: Verify PCS power-cap rejects unsupported methods
 
 stages:
-  - name: Ensure that PCS power-cap correctly handles unsupported PUT operations
+  - name: Ensure that PCS power-cap rejects unsupported PUT operations
     request:
       url: "{pcs_base_url}/power-cap"
       method: PUT
@@ -39,10 +41,275 @@ stages:
     response:
       status_code: 405
 
-  - name: Ensure that PCS power-cap correctly handles unsupported DELETE operations
+  - name: Ensure that PCS power-cap rejects unsupported DELETE operations
     request:
       url: "{pcs_base_url}/power-cap"
       method: DELETE
       verify: !bool "{verify}"
     response:
       status_code: 405
+
+---
+test_name: Verify PCS power-cap handles snapshot requests for unsupported NodeBMC component type
+
+stages:
+  - name: Retrieve a NodeBMC in the Ready state from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=NodeBMC&state=Ready"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          bmc_xname: Components[0].ID
+
+  - name: Attempt to create a PCS power-cap snapshot for a NodeBMC
+    request:
+      url: "{pcs_base_url}/power-cap/snapshot"
+      json: {"xnames":["{bmc_xname}"]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+      save:
+        json:
+          snapshot_task_id_1: taskID
+
+  - name: Retrieve the PCS power-cap snapshot for the NodeBMC
+    # retry here until power-cap snapshot completes successfully
+    max_retries: 30
+    delay_after: 1
+    request:
+      url: "{pcs_base_url}/power-cap/{snapshot_task_id_1}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the snapshot to complete
+            allowempty: True
+            mapping:
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed PCS power-cap snapshot for the NodeBMC
+    request:
+      url: "{pcs_base_url}/power-cap/{snapshot_task_id_1}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+                enum:
+                  - "{snapshot_task_id_1}"
+              type:
+                type: str
+                required: True
+                enum:
+                  - "snapshot"
+              taskCreateTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              components:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{bmc_xname}"
+                      error:
+                        type: str
+                        required: True
+                        enum:
+                          - "Type, NodeBMC unsupported for power capping"
+
+---
+test_name: Verify PCS power-cap handles snapshot requests for invalid components
+
+stages:
+  - name: Attempt to create a PCS power-cap snapshot for an invalid component
+    request:
+      url: "{pcs_base_url}/power-cap/snapshot"
+      json: {"xnames":["FAKE"]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+      save:
+        json:
+          snapshot_task_id_2: taskID
+
+  - name: Retrieve the PCS power-cap snapshot for the invalid component
+    # retry here until power-cap snapshot completes successfully
+    max_retries: 30
+    delay_after: 1
+    request:
+      url: "{pcs_base_url}/power-cap/{snapshot_task_id_2}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the snapshot to complete
+            allowempty: True
+            mapping:
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed PCS power-cap snapshot for the invalid component
+    request:
+      url: "{pcs_base_url}/power-cap/{snapshot_task_id_2}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+                enum:
+                  - "{snapshot_task_id_2}"
+              type:
+                type: str
+                required: True
+                enum:
+                  - "snapshot"
+              taskCreateTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              components:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "FAKE"
+                      error:
+                        type: str
+                        required: True
+                        enum:
+                          - "Invalid xname"
