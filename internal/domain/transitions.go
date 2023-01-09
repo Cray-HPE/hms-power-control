@@ -1106,6 +1106,7 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 				}
 				for _, ps := range pStates.Status {
 					switch(base.GetHMSType(ps.XName)) {
+					case base.RouterModule: fallthrough
 					case base.HSNBoard:
 						xnameMap[ps.XName] = ps
 						// Make sure our original xname is part
