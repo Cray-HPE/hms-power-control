@@ -48,10 +48,12 @@ func ToPowerStateFilter(psf string) (PSF PowerStateFilter, err error) {
 		err = nil
 		return
 	}
-	if strings.ToLower(psf) == "on" {
+	if strings.ToLower(psf) == "on" ||
+	   strings.ToLower(psf) == "poweringoff" {
 		PSF = PowerStateFilter_On
 		err = nil
-	} else if strings.ToLower(psf) == "off" {
+	} else if strings.ToLower(psf) == "off" ||
+	          strings.ToLower(psf) == "poweringon" {
 		PSF = PowerStateFilter_Off
 		err = nil
 	} else if strings.ToLower(psf) == "undefined" {

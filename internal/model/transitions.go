@@ -263,7 +263,7 @@ const (
 )
 
 func (op Operation) String() string {
-	return [...]string{"On", "Off", "SoftRestart", "HardRestart", "Init", "ForceOff", "SoftOff"}[op]
+	return [...]string{"On", "Off", "Soft-Restart", "Hard-Restart", "Init", "Force-Off", "Soft-Off"}[op]
 }
 
 func (op Operation) EnumIndex() int {
@@ -281,7 +281,7 @@ const (
 )
 
 func (ts TaskState) String() string {
-	return [...]string{"Gathering Data", "Sending Command", "Waiting to Confirm", "Confired Transition", "Failed", "Complete"}[ts]
+	return [...]string{"Gathering Data", "Sending Command", "Waiting to Confirm", "Confirmed Transition", "Failed", "Complete"}[ts]
 }
 
 func (ts TaskState) EnumIndex() int {

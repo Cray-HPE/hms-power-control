@@ -340,7 +340,7 @@ func updateComponentMap() error {
 					newComp.PSComp.XName = v.BaseData.ID
 					newComp.PSComp.PowerState = pcsmodel.PowerStateFilter_Undefined.String()
 					newComp.PSComp.ManagementState = pcsmodel.ManagementStateFilter_undefined.String()
-					newComp.PSComp.SupportedPowerTransitions = v.AllowableActions
+					newComp.PSComp.SupportedPowerTransitions = toPCSPowerActions(v.AllowableActions)
 					newComp.HSMData.RfFQDN = v.RfFQDN
 					newComp.HSMData.PowerStatusURI = v.PowerStatusURI
 					newComp.HSMData.PowerActionURI = v.PowerActionURI
@@ -833,3 +833,57 @@ func updateHWState(xname string, hwState pcsmodel.PowerStateFilter,
 	}
 }
 
+// Translate redfish resetType values into PCS values
+func toPCSPowerActions(rfPowerActions []string) []string {
+	pcsPowerActions := make([]string, 0)
+	actionMap := make(map[pcsmodel.Operation]bool)
+	for _, rfAction := range rfPowerActions {
+		switch(strings.ToLower(rfAction)) {
+		case "forceoff":
+			if _, ok := actionMap[pcsmodel.Operation_ForceOff]; !ok {
+				actionMap[pcsmodel.Operation_ForceOff] = true
+				pcsPowerActions = append(pcsPowerActions, pcsmodel.Operation_ForceOff.String())
+			}
+		case "forcerestart": fallthrough
+		case "gracefulrestart":
+			if _, ok := actionMap[pcsmodel.Operation_SoftRestart]; !ok {
+				actionMap[pcsmodel.Operation_SoftRestart] = true
+				pcsPowerActions = append(pcsPowerActions, pcsmodel.Operation_SoftRestart.String())
+			}
+		case "off": fallthrough
+		case "gracefulshutdown":
+			if _, ok := actionMap[pcsmodel.Operation_SoftOff]; !ok {
+				actionMap[pcsmodel.Operation_SoftOff] = true
+				pcsPowerActions = append(pcsPowerActions, pcsmodel.Operation_SoftOff.String())
+			}
+			if _, ok := actionMap[pcsmodel.Operation_Off]; !ok {
+				actionMap[pcsmodel.Operation_Off] = true
+				pcsPowerActions = append(pcsPowerActions, pcsmodel.Operation_Off.String())
+			}
+		case "on":
+			if _, ok := actionMap[pcsmodel.Operation_On]; !ok {
+				actionMap[pcsmodel.Operation_On] = true
+				pcsPowerActions = append(pcsPowerActions, pcsmodel.Operation_On.String())
+			}
+		// PCS doesn't currently support sending these reset types
+		case "nmi": fallthrough
+		case "forceon": fallthrough
+		case "powercycle": fallthrough
+		case "pushpowerbutton": fallthrough
+		default:
+			continue
+		}
+	}
+	_, onOk := actionMap[pcsmodel.Operation_On]
+	_, offOk := actionMap[pcsmodel.Operation_Off]
+	if onOk && offOk {
+		// Both on and off must be supported for init and hard-restart
+		pcsPowerActions = append(pcsPowerActions, pcsmodel.Operation_Init.String(), pcsmodel.Operation_HardRestart.String())
+		if _, ok := actionMap[pcsmodel.Operation_SoftRestart]; !ok {
+			// Add soft-restart if not added already. GracefulShutdown->on is
+			// used in place of *restart when *restart is not supported.
+			pcsPowerActions = append(pcsPowerActions, pcsmodel.Operation_SoftRestart.String())
+		}
+	}
+	return pcsPowerActions
+}
