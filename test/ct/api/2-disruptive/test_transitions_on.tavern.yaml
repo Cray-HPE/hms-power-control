@@ -33,10 +33,10 @@
 # GET /transitions/{transitionID} Verify On Operation
 # GET /power-status Verify On Compute Node
 ---
-test_name: pcsAPItransitionsPOSTonPoweredOffComputeNode - Verify transitions powers on a compute node that is powered off
+test_name: Verify transitions powers on a compute node that is powered off
 
 stages:
-  - name: pcsAPItransitionsPOSTonPoweredOffComputeNodeTarget - Retrieve a compute node from HSM to be used in later stages
+  - name: Retrieve a compute node from HSM to be used in later stages
     request:
       #TODO: restore this
       url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
@@ -49,7 +49,7 @@ stages:
         json:
           node_xname: Components[0].ID
 
-  - name: pcsAPItransitionsPOSTonPoweredOffComputeNodePrep - Power the target node off to prepare it for the test case
+  - name: Power the target node off to prepare it for the test case
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
@@ -78,7 +78,7 @@ stages:
         json:
           transition_id_prep: transitionID
 
-  - name: pcsAPItransitionsPOSTonPoweredOffComputeNodePrepPoll - Poll until the off transition operation has completed
+  - name: Poll until the off transition operation has completed
     #TODO: this configuration
     max_retries: 30
     delay_after: 1
@@ -103,7 +103,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: pcsAPItransitionsPOSTonPoweredOffComputeNodePrepCompleted - Retrieve the completed off transition data
+  - name: Retrieve the completed off transition data
     request:
       url: "{pcs_base_url}/transitions/{transition_id_prep}"
       method: GET
@@ -186,7 +186,7 @@ stages:
                           - "Component already in desired state"
                           - "Transition confirmed, forceoff"
 
-  - name: pcsAPItransitionsPOSTonPoweredOffComputeNodePrepCheck - Verify that the target node is powered off using power-status
+  - name: Verify that the target node is powered off using power-status
     request:
       url: "{pcs_base_url}/power-status?xname={node_xname}"
       method: GET
@@ -221,7 +221,7 @@ stages:
                         enum:
                           - "off"
 
-  - name: pcsAPItransitionsPOSTonPoweredOffComputeNodeActual - Power the target node on with an on transition
+  - name: Power the target node on with an on transition
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
@@ -250,7 +250,7 @@ stages:
         json:
           transition_id_actual: transitionID
 
-  - name: pcsAPItransitionsPOSTonPoweredOffComputeNodeActualPoll - Poll until the on transition operation has completed
+  - name: Poll until the on transition operation has completed
     #TODO: this configuration
     max_retries: 30
     delay_after: 1
@@ -275,7 +275,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: pcsAPItransitionsPOSTonPoweredOffComputeNodeActualCompleted - Retrieve the completed on transition data
+  - name: Retrieve the completed on transition data
     request:
       url: "{pcs_base_url}/transitions/{transition_id_actual}"
       method: GET
@@ -357,7 +357,7 @@ stages:
                         enum:
                           - "Transition confirmed, on"
 
-  - name: pcsAPItransitionsPOSTonPoweredOffComputeNodeActualCheck - Verify that the target node is powered on using power-status
+  - name: Verify that the target node is powered on using power-status
     request:
       url: "{pcs_base_url}/power-status?xname={node_xname}"
       method: GET
