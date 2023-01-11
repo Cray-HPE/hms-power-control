@@ -26,17 +26,17 @@
 
 # HMS test metrics test cases: TODO
 
-# POST /transitions Power Off Compute Node
-# GET /transitions/{transitionID} Verify Off Operation
-# GET /power-status Verify Off Compute Node
-# POST /transitions On Powered Off Compute Node
+# POST /transitions Power On Compute Node
 # GET /transitions/{transitionID} Verify On Operation
+# GET /power-status Verify On Compute Node
+# POST /transitions Hard-Restart On Compute Node
+# GET /transitions/{transitionID} Verify Hard-Restart Operation
 # GET /power-status Verify On Compute Node
 
 #TODO: last
 # GET /transitions all tasks
 ---
-test_name: Verify transitions powers on a compute node that is powered off
+test_name: Verify transitions restarts a compute node that is powered on
 
 stages:
   - name: Retrieve a compute node from HSM to be used in later stages
@@ -50,11 +50,11 @@ stages:
         json:
           node_xname: Components[0].ID
 
-  - name: Power the target node off to prepare it for the test case
+  - name: Power the target node on to prepare it for the test case
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -74,12 +74,12 @@ stages:
                 required: True
                 type: str
                 enum:
-                  - "Force-Off"
+                  - "On"
       save:
         json:
           transition_id_prep: transitionID
 
-  - name: Poll until the off transition operation has completed
+  - name: Poll until the on transition operation has completed
     #TODO: this configuration
     max_retries: 30
     delay_after: 1
@@ -104,7 +104,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed off transition data
+  - name: Retrieve the completed on transition data
     request:
       url: "{pcs_base_url}/transitions/{transition_id_prep}"
       method: GET
@@ -127,7 +127,7 @@ stages:
                 type: str
                 required: True
                 enum:
-                  - "Force-Off"
+                  - "On"
               createTime:
                 type: timestamp
                 required: True
@@ -185,9 +185,9 @@ stages:
                         #TODO: probably remove this enum
                         enum:
                           - "Component already in desired state"
-                          - "Transition confirmed, forceoff"
+                          - "Transition confirmed, on"
 
-  - name: Verify that the target node is powered off using power-status
+  - name: Verify that the target node is powered on using power-status
     request:
       url: "{pcs_base_url}/power-status?xname={node_xname}"
       method: GET
@@ -220,13 +220,13 @@ stages:
                         type: str
                         required: True
                         enum:
-                          - "off"
+                          - "on"
 
-  - name: Power the target node on with an on transition
+  - name: Restart the target node with a hard-restart transition
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      json: {"operation":"hard-restart","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -246,12 +246,12 @@ stages:
                 required: True
                 type: str
                 enum:
-                  - "On"
+                  - "Hard-Restart"
       save:
         json:
           transition_id_actual: transitionID
 
-  - name: Poll until the on transition operation has completed
+  - name: Poll until the hard-restart transition operation has completed
     #TODO: this configuration
     max_retries: 30
     delay_after: 1
@@ -276,7 +276,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed on transition data
+  - name: Retrieve the completed hard-restart transition data
     request:
       url: "{pcs_base_url}/transitions/{transition_id_actual}"
       method: GET
@@ -299,7 +299,7 @@ stages:
                 type: str
                 required: True
                 enum:
-                  - "On"
+                  - "Hard-Restart"
               createTime:
                 type: timestamp
                 required: True
@@ -357,6 +357,7 @@ stages:
                         #TODO: probably remove this enum
                         enum:
                           - "Transition confirmed, on"
+                          - "Transition confirmed, forceon"
 
   - name: Verify that the target node is powered on using power-status
     request:

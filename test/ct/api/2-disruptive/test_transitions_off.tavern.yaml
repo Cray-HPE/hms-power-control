@@ -32,15 +32,16 @@
 # POST /transitions Force-Off On Compute Node
 # GET /transitions/{transitionID} Verify Force-Off Operation
 # GET /power-status Verify Off Compute Node
+
+#TODO: last
+# GET /transitions all tasks
 ---
 test_name: Verify transitions powers off a compute node that is powered on
 
 stages:
   - name: Retrieve a compute node from HSM to be used in later stages
     request:
-      #TODO: restore this
       url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
-      #url: "{hsm_base_url}/hsm/v2/State/Components?id=x3000c0s1b1n0"
       method: GET
       verify: !bool "{verify}"
     response:
@@ -391,3 +392,82 @@ stages:
                         required: True
                         enum:
                           - "off"
+
+#TODO: do this last vvv
+---
+test_name: Verify that all transition operations have the expected data
+
+stages:
+  - name: Retrieve all transition operation data
+    request:
+      url: "{pcs_base_url}/transitions"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitions:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      transitionID:
+                        type: str
+                        required: True
+                      operation:
+                        type: str
+                        required: True
+                        enum:
+                          - "Init"
+                          - "On"
+                          - "Off"
+                          - "Soft-Off"
+                          - "Force-Off"
+                          - "Soft-Restart"
+                          - "Hard-Restart"
+                      createTime:
+                        type: timestamp
+                        required: True
+                      automaticExpirationTime:
+                        type: timestamp
+                        required: True
+                      transitionStatus:
+                        type: str
+                        required: True
+                        enum:
+                          - "new"
+                          - "in-progress"
+                          - "completed"
+                          - "aborted"
+                          - "abort-signaled"
+                      taskCounts:
+                        type: map
+                        required: True
+                        mapping:
+                          total:
+                            type: int
+                            required: True
+                          new:
+                            type: int
+                            required: True
+                          in-progress:
+                            type: int
+                            required: True
+                          failed:
+                            type: int
+                            required: True
+                          succeeded:
+                            type: int
+                            required: True
+                          un-supported:
+                            type: int
+                            required: True
