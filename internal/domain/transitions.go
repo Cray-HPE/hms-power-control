@@ -649,7 +649,7 @@ func doTransition(transitionID uuid.UUID) {
 		// to child BMCs. Give the BMCs time to power on.
 		// TODO: Use internal power status managementState != undefined for accuracy.
 		if waitForBMCPower {
-			time.Sleep(30)
+			time.Sleep(30 * time.Second)
 			waitForBMCPower = false
 		}
 
