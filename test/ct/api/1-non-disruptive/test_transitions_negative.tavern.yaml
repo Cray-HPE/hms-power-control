@@ -24,13 +24,15 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
-# HMS test metrics test cases: 6
+# HMS test metrics test cases: 8
 # PUT /transitions fails
 # PATCH /transitions fails
 # POST /transitions non-present node fails
 # POST /transitions invalid node fails
 # GET /transitions/{transitionID} non-existent transitionID
 # GET /transitions/{transitionID} invalid transitionID
+# DELETE /transitions/{transitionID} non-existent transitionID
+# DELETE /transitions/{transitionID} invalid transitionID
 ---
 test_name: Verify transitions rejects unsupported methods
 
@@ -338,7 +340,7 @@ stages:
                           - "Invalid xname"
 
 ---
-test_name: Verify transitions handles non-existent transitionIDs
+test_name: Verify transitions when retrieving non-existent transitionIDs
 
 stages:
   - name: Attempt to retrieve the transition data for a non-existent transitionID
@@ -377,13 +379,91 @@ stages:
                   - "Bad Request"
 
 ---
-test_name: Verify transitions handles invalid transitionIDs
+test_name: Verify transitions when retrieving invalid transitionIDs
 
 stages:
   - name: Attempt to retrieve the transition data for an invalid transitionID
     request:
       url: "{pcs_base_url}/transitions/FAKE"
       method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 400
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              type:
+                type: str
+                required: True
+                enum:
+                  - "about:blank"
+              detail:
+                type: str
+                required: True
+                enum:
+                  - "invalid UUID length: 4"
+              status:
+                type: int
+                required: True
+                enum:
+                  - 400
+              title:
+                type: str
+                required: True
+                enum:
+                  - "Bad Request"
+
+---
+test_name: Verify transitions when aborting non-existent transitionIDs
+
+stages:
+  - name: Attempt to abort a transition for a non-existent transitionID
+    request:
+      url: "{pcs_base_url}/transitions/999z99z9-9zz9-9z99-9z99-zz999999z99z"
+      method: DELETE
+      verify: !bool "{verify}"
+    response:
+      status_code: 400
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              type:
+                type: str
+                required: True
+                enum:
+                  - "about:blank"
+              detail:
+                type: str
+                required: True
+                enum:
+                  - "invalid UUID format"
+              status:
+                type: int
+                required: True
+                enum:
+                  - 400
+              title:
+                type: str
+                required: True
+                enum:
+                  - "Bad Request"
+
+---
+test_name: Verify transitions when aborting invalid transitionIDs
+
+stages:
+  - name: Attempt to abort a transition for an invalid transitionID
+    request:
+      url: "{pcs_base_url}/transitions/FAKE"
+      method: DELETE
       verify: !bool "{verify}"
     response:
       status_code: 400
