@@ -649,7 +649,7 @@ func doTransition(transitionID uuid.UUID) {
 		// to child BMCs. Give the BMCs time to power on.
 		// TODO: Use internal power status managementState != undefined for accuracy.
 		if waitForBMCPower {
-			time.Sleep(30 * time.Second)
+			time.Sleep(3 * time.Minute)
 			waitForBMCPower = false
 		}
 
@@ -913,8 +913,23 @@ func doTransition(transitionID uuid.UUID) {
 					break
 				}
 			}
+			// If we might be powering on child components, we'll
+			// want to give their BMCs some time to become ready.
 			if powerAction == "on" {
-				waitForBMCPower = true
+				for _, compType := range compTypes {
+					if compType == base.RouterModule ||
+					   compType == base.ComputeModule {
+						waitForBMCPower = true
+					}
+				}
+			} else if powerAction == "gracefulrestart" {
+				for _, compType := range compTypes {
+					if compType == base.ChassisBMC || 
+					   compType == base.NodeBMC || 
+					   compType == base.RouterBMC {
+						waitForBMCPower = true
+					}
+				}
 			}
 		}
 	}
