@@ -24,7 +24,7 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
-# HMS test metrics test cases: TODO
+# HMS test metrics test cases: 6
 
 # POST /transitions Power On Compute Node
 # GET /transitions/{transitionID} Verify On Operation
@@ -33,7 +33,34 @@
 # GET /transitions/{transitionID} Verify Force-Off Operation
 # GET /power-status Verify Off Compute Node
 
-#TODO: last
+# POST /transitions Power Off Compute Node
+# GET /transitions/{transitionID} Verify Off Operation
+# GET /power-status Verify Off Compute Node
+# POST /transitions Force-Off Off Compute Node
+# GET /transitions/{transitionID} Verify Force-Off Operation
+# GET /power-status Verify Off Compute Node
+
+# POST /transitions Power On Multiple Compute Nodes
+# GET /transitions/{transitionID} Verify On Operation
+# GET /power-status Verify On Compute Nodes
+# POST /transitions Force-Off Multiple On Compute Nodes
+# GET /transitions/{transitionID} Verify Force-Off Operation
+# GET /power-status Verify Off Compute Nodes
+
+# POST /transitions Power On Chassis
+# GET /transitions/{transitionID} Verify On Operation
+# GET /power-status Verify On Chassis
+# POST /transitions Force-Off On Chassis
+# GET /transitions/{transitionID} Verify Force-Off Operation
+# GET /power-status Verify Off Chassis
+
+# POST /transitions Power On ComputeModule
+# GET /transitions/{transitionID} Verify On Operation
+# GET /power-status Verify On ComputeModule
+# POST /transitions Force-Off On ComputeModule
+# GET /transitions/{transitionID} Verify Force-Off Operation
+# GET /power-status Verify Off ComputeModule
+
 # GET /transitions all tasks
 ---
 test_name: Verify transitions powers off a compute node that is powered on
@@ -58,7 +85,6 @@ stages:
       method: POST
       verify: !bool "{verify}"
     response:
-      #TODO: Swagger says this will be 202
       status_code: 200
       verify_response_with:
         function: tavern.testutils.helpers:validate_pykwalify
@@ -182,7 +208,6 @@ stages:
                       taskStatusDescription:
                         type: str
                         required: True
-                        #TODO: probably remove this enum
                         enum:
                           - "Component already in desired state"
                           - "Transition confirmed, on"
@@ -230,7 +255,6 @@ stages:
       method: POST
       verify: !bool "{verify}"
     response:
-      #TODO: Swagger says this will be 202
       status_code: 200
       verify_response_with:
         function: tavern.testutils.helpers:validate_pykwalify
@@ -354,7 +378,6 @@ stages:
                       taskStatusDescription:
                         type: str
                         required: True
-                        #TODO: probably remove this enum
                         enum:
                           - "Transition confirmed, forceoff"
 
@@ -393,7 +416,1427 @@ stages:
                         enum:
                           - "off"
 
-#TODO: do this last vvv
+---
+test_name: Verify transitions keeps power off for a compute node that is already powered off
+
+stages:
+  - name: Retrieve a compute node from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          node_xname: Components[0].ID
+
+  - name: Power the target node off to prepare it for the test case
+    request:
+      url: "{pcs_base_url}/transitions"
+      #TODO: taskDeadlineMinutes configuration?
+      json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+              operation:
+                required: True
+                type: str
+                enum:
+                  - "Force-Off"
+      save:
+        json:
+          transition_id_prep: transitionID
+
+  - name: Poll until the initial force-off transition operation has completed
+    #TODO: this configuration
+    max_retries: 30
+    delay_after: 1
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_prep}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the operation to complete
+            allowempty: True
+            mapping:
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the data for the completed initial off transition
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_prep}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+                enum:
+                  - "{transition_id_prep}"
+              operation:
+                type: str
+                required: True
+                enum:
+                  - "Force-Off"
+              createTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              tasks:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{node_xname}"
+                      taskStatus:
+                        type: str
+                        required: True
+                        enum:
+                          - "succeeded"
+                      taskStatusDescription:
+                        type: str
+                        required: True
+                        enum:
+                          - "Component already in desired state"
+                          - "Transition confirmed, forceoff"
+
+  - name: Verify that the target node is powered off using power-status
+    request:
+      url: "{pcs_base_url}/power-status?xname={node_xname}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    # only check the power state for the target node
+                    allowempty: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{node_xname}"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - "off"
+
+  - name: Issue another force-off transition for the target node
+    request:
+      url: "{pcs_base_url}/transitions"
+      #TODO: taskDeadlineMinutes configuration?
+      json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+              operation:
+                required: True
+                type: str
+                enum:
+                  - "Force-Off"
+      save:
+        json:
+          transition_id_actual: transitionID
+
+  - name: Poll until the second force-off transition operation has completed
+    #TODO: this configuration
+    max_retries: 30
+    delay_after: 1
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_actual}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the operation to complete
+            allowempty: True
+            mapping:
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the data for the second completed force-off transition
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_actual}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+                enum:
+                  - "{transition_id_actual}"
+              operation:
+                type: str
+                required: True
+                enum:
+                  - "Force-Off"
+              createTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              tasks:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{node_xname}"
+                      taskStatus:
+                        type: str
+                        required: True
+                        enum:
+                          - "succeeded"
+                      taskStatusDescription:
+                        type: str
+                        required: True
+                        enum:
+                          - "Component already in desired state"
+
+  - name: Verify that the target node remained powered off using power-status
+    request:
+      url: "{pcs_base_url}/power-status?xname={node_xname}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    # only check the power state for the target node
+                    allowempty: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{node_xname}"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - "off"
+
+---
+test_name: Verify transitions powers off multiple compute nodes that are powered on
+
+stages:
+  - name: Retrieve two compute nodes from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          node_1_xname: Components[0].ID
+          node_2_xname: Components[1].ID
+
+  - name: Power the target nodes on to prepare them for the test case
+    request:
+      url: "{pcs_base_url}/transitions"
+      #TODO: taskDeadlineMinutes configuration?
+      json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+              operation:
+                required: True
+                type: str
+                enum:
+                  - "On"
+      save:
+        json:
+          transition_id_prep: transitionID
+
+  - name: Poll until the on transition operation has completed
+    #TODO: this configuration
+    max_retries: 30
+    delay_after: 1
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_prep}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the operation to complete
+            allowempty: True
+            mapping:
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed on transition data
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_prep}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+                enum:
+                  - "{transition_id_prep}"
+              operation:
+                type: str
+                required: True
+                enum:
+                  - "On"
+              createTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              tasks:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{node_1_xname}"
+                          - "{node_2_xname}"
+                      taskStatus:
+                        type: str
+                        required: True
+                        enum:
+                          - "succeeded"
+                      taskStatusDescription:
+                        type: str
+                        required: True
+                        enum:
+                          - "Component already in desired state"
+                          - "Transition confirmed, on"
+
+  - name: Verify that the target nodes are powered on using power-status
+    request:
+      url: "{pcs_base_url}/power-status?xname={node_1_xname}&xname={node_2_xname}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    # only check the power states for the target nodes
+                    allowempty: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{node_1_xname}"
+                          - "{node_2_xname}"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - "on"
+
+  - name: Power the target nodes off with a force-off transition
+    request:
+      url: "{pcs_base_url}/transitions"
+      #TODO: taskDeadlineMinutes configuration?
+      json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+              operation:
+                required: True
+                type: str
+                enum:
+                  - "Force-Off"
+      save:
+        json:
+          transition_id_actual: transitionID
+
+  - name: Poll until the force-off transition operation has completed
+    #TODO: this configuration
+    max_retries: 30
+    delay_after: 1
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_actual}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the operation to complete
+            allowempty: True
+            mapping:
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed force-off transition data
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_actual}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+                enum:
+                  - "{transition_id_actual}"
+              operation:
+                type: str
+                required: True
+                enum:
+                  - "Force-Off"
+              createTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              tasks:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{node_1_xname}"
+                          - "{node_2_xname}"
+                      taskStatus:
+                        type: str
+                        required: True
+                        enum:
+                          - "succeeded"
+                      taskStatusDescription:
+                        type: str
+                        required: True
+                        enum:
+                          - "Transition confirmed, forceoff"
+
+  - name: Verify that the target nodes are powered off using power-status
+    request:
+      url: "{pcs_base_url}/power-status?xname={node_1_xname}&xname={node_2_xname}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    # only check the power states for the target nodes
+                    allowempty: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{node_1_xname}"
+                          - "{node_2_xname}"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - "off"
+
+---
+test_name: Verify transitions powers off a chassis that is powered on
+
+stages:
+  - name: Retrieve a chassis from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Chassis"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          chassis_xname: Components[0].ID
+
+  - name: Power the target chassis on to prepare it for the test case
+    request:
+      url: "{pcs_base_url}/transitions"
+      #TODO: taskDeadlineMinutes configuration?
+      json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{chassis_xname}"}]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+              operation:
+                required: True
+                type: str
+                enum:
+                  - "On"
+      save:
+        json:
+          transition_id_prep: transitionID
+
+  - name: Poll until the on transition operation has completed
+    #TODO: this configuration
+    max_retries: 30
+    delay_after: 1
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_prep}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the operation to complete
+            allowempty: True
+            mapping:
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed on transition data
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_prep}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+                enum:
+                  - "{transition_id_prep}"
+              operation:
+                type: str
+                required: True
+                enum:
+                  - "On"
+              createTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              tasks:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{chassis_xname}"
+                      taskStatus:
+                        type: str
+                        required: True
+                        enum:
+                          - "succeeded"
+                      taskStatusDescription:
+                        type: str
+                        required: True
+                        enum:
+                          - "Component already in desired state"
+                          - "Transition confirmed, on"
+
+  - name: Verify that the target chassis is powered on using power-status
+    request:
+      url: "{pcs_base_url}/power-status?xname={chassis_xname}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    # only check the power state for the target chassis
+                    allowempty: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{chassis_xname}"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - "on"
+
+  - name: Power the target chassis off with a force-off transition
+    request:
+      url: "{pcs_base_url}/transitions"
+      #TODO: taskDeadlineMinutes configuration?
+      json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{chassis_xname}"}]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+              operation:
+                required: True
+                type: str
+                enum:
+                  - "Force-Off"
+      save:
+        json:
+          transition_id_actual: transitionID
+
+  - name: Poll until the force-off transition operation has completed
+    #TODO: this configuration
+    max_retries: 30
+    delay_after: 1
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_actual}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the operation to complete
+            allowempty: True
+            mapping:
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed force-off transition data
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_actual}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+                enum:
+                  - "{transition_id_actual}"
+              operation:
+                type: str
+                required: True
+                enum:
+                  - "Force-Off"
+              createTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              tasks:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{chassis_xname}"
+                      taskStatus:
+                        type: str
+                        required: True
+                        enum:
+                          - "succeeded"
+                      taskStatusDescription:
+                        type: str
+                        required: True
+                        enum:
+                          - "Transition confirmed, forceoff"
+
+  - name: Verify that the target chassis is powered off using power-status
+    request:
+      url: "{pcs_base_url}/power-status?xname={chassis_xname}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    # only check the power state for the target chassis
+                    allowempty: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{chassis_xname}"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - "off"
+
+---
+test_name: Verify transitions powers off a ComputeModule that is powered on
+
+stages:
+  - name: Retrieve a ComputeModule from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=ComputeModule"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          compute_module_xname: Components[0].ID
+
+  - name: Power the target ComputeModule on to prepare it for the test case
+    request:
+      url: "{pcs_base_url}/transitions"
+      #TODO: taskDeadlineMinutes configuration?
+      json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{compute_module_xname}"}]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+              operation:
+                required: True
+                type: str
+                enum:
+                  - "On"
+      save:
+        json:
+          transition_id_prep: transitionID
+
+  - name: Poll until the on transition operation has completed
+    #TODO: this configuration
+    max_retries: 30
+    delay_after: 1
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_prep}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the operation to complete
+            allowempty: True
+            mapping:
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed on transition data
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_prep}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+                enum:
+                  - "{transition_id_prep}"
+              operation:
+                type: str
+                required: True
+                enum:
+                  - "On"
+              createTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              tasks:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{compute_module_xname}"
+                      taskStatus:
+                        type: str
+                        required: True
+                        enum:
+                          - "succeeded"
+                      taskStatusDescription:
+                        type: str
+                        required: True
+                        enum:
+                          - "Component already in desired state"
+                          - "Transition confirmed, on"
+
+  - name: Verify that the target ComputeModule is powered on using power-status
+    request:
+      url: "{pcs_base_url}/power-status?xname={compute_module_xname}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    # only check the power state for the target ComputeModule
+                    allowempty: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{compute_module_xname}"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - "on"
+
+  - name: Power the target ComputeModule off with a force-off transition
+    request:
+      url: "{pcs_base_url}/transitions"
+      #TODO: taskDeadlineMinutes configuration?
+      json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{compute_module_xname}"}]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+              operation:
+                required: True
+                type: str
+                enum:
+                  - "Force-Off"
+      save:
+        json:
+          transition_id_actual: transitionID
+
+  - name: Poll until the force-off transition operation has completed
+    #TODO: this configuration
+    max_retries: 30
+    delay_after: 1
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_actual}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the operation to complete
+            allowempty: True
+            mapping:
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed force-off transition data
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id_actual}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+                enum:
+                  - "{transition_id_actual}"
+              operation:
+                type: str
+                required: True
+                enum:
+                  - "Force-Off"
+              createTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              tasks:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{compute_module_xname}"
+                      taskStatus:
+                        type: str
+                        required: True
+                        enum:
+                          - "succeeded"
+                      taskStatusDescription:
+                        type: str
+                        required: True
+                        enum:
+                          - "Transition confirmed, forceoff"
+
+  - name: Verify that the target ComputeModule is powered off using power-status
+    request:
+      url: "{pcs_base_url}/power-status?xname={compute_module_xname}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              status:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    # only check the power state for the target ComputeModule
+                    allowempty: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{compute_module_xname}"
+                      powerState:
+                        type: str
+                        required: True
+                        enum:
+                          - "off"
+
 ---
 test_name: Verify that all transition operations have the expected data
 

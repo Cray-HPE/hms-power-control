@@ -105,7 +105,7 @@ paths:
             schema:
               $ref: '#/components/schemas/transition_create'
       responses:
-        202:
+        200:
           description: Accepted
           content:
             application/json:

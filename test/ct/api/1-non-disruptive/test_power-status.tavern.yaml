@@ -34,10 +34,10 @@
 # GET /power-status?powerStateFilter={filter} Node
 # GET /power-status?managementStateFilter={filter} Node
 ---
-test_name: Verify PCS power-status for all components
+test_name: Verify power-status for all components
 
 stages:
-  - name: Retrieve the PCS power-status for all components
+  - name: Retrieve the power-status for all components
     request:
       url: "{pcs_base_url}/power-status"
       method: GET
@@ -95,7 +95,7 @@ stages:
           first_xname_id: status[0].xname
 
 ---
-test_name: Verify PCS power-status for a Node
+test_name: Verify power-status for a Node
 
 stages:
   - name: Retrieve a Node from HSM to be used in later stages
@@ -109,7 +109,7 @@ stages:
         json:
           node_xname: Components[0].ID
 
-  - name: Retrieve the PCS power-status for the target Node
+  - name: Retrieve the power-status for the target Node
     request:
       url: "{pcs_base_url}/power-status?xname={node_xname}"
       method: GET
@@ -166,7 +166,7 @@ stages:
                         required: True
 
 ---
-test_name: Verify PCS power-status for a NodeBMC
+test_name: Verify power-status for a NodeBMC
 
 stages:
   - name: Retrieve a NodeBMC from HSM to be used in later stages
@@ -180,7 +180,7 @@ stages:
         json:
           bmc_xname: Components[0].ID
 
-  - name: Retrieve the PCS power-status for the target NodeBMC
+  - name: Retrieve the power-status for the target NodeBMC
     request:
       url: "{pcs_base_url}/power-status?xname={bmc_xname}"
       method: GET
@@ -237,7 +237,7 @@ stages:
                         required: True
 
 ---
-test_name: Verify PCS power-status for a ChassisBMC
+test_name: Verify power-status for a ChassisBMC
 
 stages:
   - name: Retrieve a ChassisBMC from HSM to be used in later stages
@@ -251,7 +251,7 @@ stages:
         json:
           chassis_bmc_xname: Components[0].ID
 
-  - name: Retrieve the PCS power-status for the target ChassisBMC
+  - name: Retrieve the power-status for the target ChassisBMC
     request:
       url: "{pcs_base_url}/power-status?xname={chassis_bmc_xname}"
       method: GET
@@ -308,7 +308,7 @@ stages:
                         required: True
 
 ---
-test_name: Verify PCS power-status for a Chassis
+test_name: Verify power-status for a Chassis
 
 stages:
   - name: Retrieve a Chassis from HSM to be used in later stages
@@ -322,7 +322,7 @@ stages:
         json:
           chassis_xname: Components[0].ID
 
-  - name: Retrieve the PCS power-status for the target Chassis
+  - name: Retrieve the power-status for the target Chassis
     request:
       url: "{pcs_base_url}/power-status?xname={chassis_xname}"
       method: GET
@@ -379,7 +379,7 @@ stages:
                         required: True
 
 ---
-test_name: Verify PCS power-status for multiple components
+test_name: Verify power-status for multiple components
 
 stages:
   - name: Retrieve multiple Nodes from HSM to be used in later stages
@@ -395,7 +395,7 @@ stages:
           node2_xname: Components[1].ID
           node3_xname: Components[2].ID
 
-  - name: Retrieve the PCS power-status for the target Nodes
+  - name: Retrieve the power-status for the target Nodes
     request:
       url: "{pcs_base_url}/power-status?xname={node1_xname}&xname={node2_xname}&xname={node3_xname}"
       method: GET
@@ -460,7 +460,7 @@ stages:
               expected: 3
 
 ---
-test_name: Verify PCS power-status for a Node using a powerStateFilter
+test_name: Verify power-status for a Node using a powerStateFilter
 
 stages:
   - name: Retrieve a Node from HSM to be used in later stages
@@ -474,7 +474,7 @@ stages:
         json:
           node_xname: Components[0].ID
 
-  - name: Retrieve the PCS power-status for the target Node
+  - name: Retrieve the power-status for the target Node
     request:
       url: "{pcs_base_url}/power-status?xname={node_xname}"
       method: GET
@@ -485,7 +485,7 @@ stages:
         json:
           node_power_state: status[0].powerState
 
-  - name: Retrieve the PCS power-status for the target Node using a powerStateFilter
+  - name: Retrieve the power-status for the target Node using a powerStateFilter
     request:
       url: "{pcs_base_url}/power-status?xname={node_xname}&powerStateFilter={node_power_state}"
       method: GET
@@ -546,7 +546,7 @@ stages:
               expected: 1
 
 ---
-test_name: Verify PCS power-status for a Node using a managementStateFilter
+test_name: Verify power-status for a Node using a managementStateFilter
 
 stages:
   - name: Retrieve a Node from HSM to be used in later stages
@@ -560,7 +560,7 @@ stages:
         json:
           node_xname: Components[0].ID
 
-  - name: Retrieve the PCS power-status for the target Node
+  - name: Retrieve the power-status for the target Node
     request:
       url: "{pcs_base_url}/power-status?xname={node_xname}"
       method: GET
@@ -571,7 +571,7 @@ stages:
         json:
           node_management_state: status[0].managementState
 
-  - name: Retrieve the PCS power-status for the target Node using a managementStateFilter
+  - name: Retrieve the power-status for the target Node using a managementStateFilter
     request:
       url: "{pcs_base_url}/power-status?xname={node_xname}&managementStateFilter={node_management_state}"
       method: GET

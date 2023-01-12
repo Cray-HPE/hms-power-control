@@ -37,10 +37,10 @@
 # PATCH /power-cap invalid component fails
 # PATCH /power-cap invalid cap fails
 ---
-test_name: Verify PCS power-cap rejects unsupported methods
+test_name: Verify power-cap rejects unsupported methods
 
 stages:
-  - name: Ensure that PCS power-cap rejects unsupported PUT operations
+  - name: Ensure that power-cap rejects unsupported PUT operations
     request:
       url: "{pcs_base_url}/power-cap"
       method: PUT
@@ -48,7 +48,7 @@ stages:
     response:
       status_code: 405
 
-  - name: Ensure that PCS power-cap rejects unsupported DELETE operations
+  - name: Ensure that power-cap rejects unsupported DELETE operations
     request:
       url: "{pcs_base_url}/power-cap"
       method: DELETE
@@ -57,10 +57,10 @@ stages:
       status_code: 405
 
 ---
-test_name: Verify PCS power-cap handles snapshot requests for non-present nodes
+test_name: Verify power-cap handles snapshot requests for non-present nodes
 
 stages:
-  - name: Attempt to create a PCS power-cap snapshot for a non-present node
+  - name: Attempt to create a power-cap snapshot for a non-present node
     request:
       url: "{pcs_base_url}/power-cap/snapshot"
       json: {"xnames":["x9999c7s9b9n9"]}
@@ -82,7 +82,7 @@ stages:
         json:
           snapshot_task_id_1: taskID
 
-  - name: Retrieve the PCS power-cap snapshot for the non-present node
+  - name: Retrieve the power-cap snapshot for the non-present node
     # retry here until power-cap snapshot completes successfully
     max_retries: 30
     delay_after: 1
@@ -107,7 +107,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed PCS power-cap snapshot for the non-present node
+  - name: Retrieve the completed power-cap snapshot for the non-present node
     request:
       url: "{pcs_base_url}/power-cap/{snapshot_task_id_1}"
       method: GET
@@ -184,7 +184,7 @@ stages:
                           - "Xname not found in HSM"
 
 ---
-test_name: Verify PCS power-cap handles snapshot requests for unsupported NodeBMC component type
+test_name: Verify power-cap handles snapshot requests for unsupported NodeBMC component type
 
 stages:
   - name: Retrieve a NodeBMC in the Ready state from HSM to be used in later stages
@@ -198,7 +198,7 @@ stages:
         json:
           bmc_xname: Components[0].ID
 
-  - name: Attempt to create a PCS power-cap snapshot for a NodeBMC
+  - name: Attempt to create a power-cap snapshot for a NodeBMC
     request:
       url: "{pcs_base_url}/power-cap/snapshot"
       json: {"xnames":["{bmc_xname}"]}
@@ -220,7 +220,7 @@ stages:
         json:
           snapshot_task_id_2: taskID
 
-  - name: Retrieve the PCS power-cap snapshot for the NodeBMC
+  - name: Retrieve the power-cap snapshot for the NodeBMC
     # retry here until power-cap snapshot completes successfully
     max_retries: 30
     delay_after: 1
@@ -245,7 +245,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed PCS power-cap snapshot for the NodeBMC
+  - name: Retrieve the completed power-cap snapshot for the NodeBMC
     request:
       url: "{pcs_base_url}/power-cap/{snapshot_task_id_2}"
       method: GET
@@ -322,10 +322,10 @@ stages:
                           - "Type, NodeBMC unsupported for power capping"
 
 ---
-test_name: Verify PCS power-cap handles snapshot requests for invalid components
+test_name: Verify power-cap handles snapshot requests for invalid components
 
 stages:
-  - name: Attempt to create a PCS power-cap snapshot for an invalid component
+  - name: Attempt to create a power-cap snapshot for an invalid component
     request:
       url: "{pcs_base_url}/power-cap/snapshot"
       json: {"xnames":["FAKE"]}
@@ -347,7 +347,7 @@ stages:
         json:
           snapshot_task_id_3: taskID
 
-  - name: Retrieve the PCS power-cap snapshot for the invalid component
+  - name: Retrieve the power-cap snapshot for the invalid component
     # retry here until power-cap snapshot completes successfully
     max_retries: 30
     delay_after: 1
@@ -372,7 +372,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed PCS power-cap snapshot for the invalid component
+  - name: Retrieve the completed power-cap snapshot for the invalid component
     request:
       url: "{pcs_base_url}/power-cap/{snapshot_task_id_3}"
       method: GET
@@ -449,10 +449,10 @@ stages:
                           - "Invalid xname"
 
 ---
-test_name: Verify PCS power-cap handles non-existent taskIDs
+test_name: Verify power-cap handles non-existent taskIDs
 
 stages:
-  - name: Attempt to retrieve a PCS power-cap task that doesn't exist
+  - name: Attempt to retrieve a power-cap task that doesn't exist
     request:
       url: "{pcs_base_url}/power-cap/99z9zz99-z999-99z9-99z9-99z99z9z99z9"
       method: GET
@@ -488,10 +488,10 @@ stages:
                   - "Bad Request"
 
 ---
-test_name: Verify PCS power-cap handles invalid taskIDs
+test_name: Verify power-cap handles invalid taskIDs
 
 stages:
-  - name: Attempt to retrieve a PCS power-cap task that is invalid
+  - name: Attempt to retrieve a power-cap task that is invalid
     request:
       url: "{pcs_base_url}/power-cap/FAKE"
       method: GET
@@ -527,10 +527,10 @@ stages:
                   - "Bad Request"
 
 ---
-test_name: Verify PCS power-cap handles patch requests for non-present nodes
+test_name: Verify power-cap handles patch requests for non-present nodes
 
 stages:
-  - name: Attempt a PCS power-cap patch operation for a non-present node
+  - name: Attempt a power-cap patch operation for a non-present node
     request:
       url: "{pcs_base_url}/power-cap"
       json: {"components":[{"xname":"x9999c7s9b9n9","controls":[{"name":"Node Power Limit","value":0}]}]}
@@ -552,7 +552,7 @@ stages:
         json:
           patch_task_id_1: taskID
 
-  - name: Retrieve the PCS power-cap patch for the non-present node
+  - name: Retrieve the power-cap patch for the non-present node
     # retry here until power-cap snapshot completes successfully
     max_retries: 30
     delay_after: 1
@@ -577,7 +577,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed PCS power-cap patch for the non-present node
+  - name: Retrieve the completed power-cap patch for the non-present node
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_1}"
       method: GET
@@ -654,7 +654,7 @@ stages:
                           - "Xname not found in HSM"
 
 ---
-test_name: Verify PCS power-cap handles patch requests for unsupported NodeBMC component type
+test_name: Verify power-cap handles patch requests for unsupported NodeBMC component type
 
 stages:
   - name: Retrieve a NodeBMC in the Ready state from HSM to be used in later stages
@@ -668,7 +668,7 @@ stages:
         json:
           bmc_xname: Components[0].ID
 
-  - name: Attempt a PCS power-cap patch operation for a NodeBMC
+  - name: Attempt a power-cap patch operation for a NodeBMC
     request:
       url: "{pcs_base_url}/power-cap"
       json: {"components":[{"xname":"{bmc_xname}","controls":[{"name":"Node Power Limit","value":0}]}]}
@@ -690,7 +690,7 @@ stages:
         json:
           patch_task_id_2: taskID
 
-  - name: Retrieve the PCS power-cap patch for the NodeBMC
+  - name: Retrieve the power-cap patch for the NodeBMC
     # retry here until power-cap snapshot completes successfully
     max_retries: 30
     delay_after: 1
@@ -715,7 +715,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed PCS power-cap patch for the NodeBMC
+  - name: Retrieve the completed power-cap patch for the NodeBMC
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_2}"
       method: GET
@@ -792,10 +792,10 @@ stages:
                           - "Skipping undefined control 'Node Power Limit'"
 
 ---
-test_name: Verify PCS power-cap handles patch requests for invalid components
+test_name: Verify power-cap handles patch requests for invalid components
 
 stages:
-  - name: Attempt a PCS power-cap patch operation for an invalid component
+  - name: Attempt a power-cap patch operation for an invalid component
     request:
       url: "{pcs_base_url}/power-cap"
       json: {"components":[{"xname":"FAKE","controls":[{"name":"Node Power Limit","value":0}]}]}
@@ -817,7 +817,7 @@ stages:
         json:
           patch_task_id_3: taskID
 
-  - name: Retrieve the PCS power-cap patch for the invalid component
+  - name: Retrieve the power-cap patch for the invalid component
     # retry here until power-cap snapshot completes successfully
     max_retries: 30
     delay_after: 1
@@ -842,7 +842,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed PCS power-cap patch for the invalid component
+  - name: Retrieve the completed power-cap patch for the invalid component
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_3}"
       method: GET
@@ -919,10 +919,10 @@ stages:
                           - "Invalid xname"
 
 ---
-test_name: Verify PCS power-cap handles patch requests with invalid caps
+test_name: Verify power-cap handles patch requests with invalid caps
 
 stages:
-  - name: Attempt a PCS power-cap patch operation with an invalid cap
+  - name: Attempt a power-cap patch operation with an invalid cap
     request:
       url: "{pcs_base_url}/power-cap"
       json: {"components":[{"xname":"x9999c7s9b9n9","controls":[{"name":"Node Power Limit","value":"FAKE"}]}]}

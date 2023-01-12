@@ -24,12 +24,12 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
+# Only run the ComputeModule test in build pipeline until completing CASMHMS-5640
+
 # HMS test metrics test cases: 1
 # GET /power-status?xname={xname} ComputeModule
-
-# TODO: Only run the ComputeModule test case in build pipeline until completing CASMHMS-5640
 ---
-test_name: Verify PCS power-status for a ComputeModule
+test_name: Verify power-status for a ComputeModule
 
 stages:
   - name: Retrieve a ComputeModule from HSM to be used in later stages
@@ -43,7 +43,7 @@ stages:
         json:
           compute_module_xname: Components[0].ID
 
-  - name: Retrieve the PCS power-status for the target ComputeModule
+  - name: Retrieve the power-status for the target ComputeModule
     request:
       url: "{pcs_base_url}/power-status?xname={compute_module_xname}"
       method: GET

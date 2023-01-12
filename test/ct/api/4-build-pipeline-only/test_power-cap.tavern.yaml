@@ -28,7 +28,7 @@
 # power capping controls which is not always true. Need to ensure
 # this is the case when spinning up emulated hardware in runCT.sh
 
-# HMS test metrics test cases: TODO
+# HMS test metrics test cases: 15
 # POST /power-cap/snapshot compute node
 # GET /power-cap/{taskID} compute node snapshot
 # PATCH /power-cap compute node minimum value
@@ -44,16 +44,12 @@
 # PATCH /power-cap compute node original value
 # GET /power-cap/{taskID} compute node patch original
 # GET /power-cap
-
-#TODO: Multiple compute node CRUD-like passthrough:
 ---
-test_name: Verify the PCS power-cap resource for a single node
+test_name: Verify power-cap for a single node
 
 stages:
   - name: Retrieve a compute node from HSM to be used in later stages
     request:
-      #TODO: restore this
-      #url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute&id=x1000c0s0b0n0"
       url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
       method: GET
       verify: !bool "{verify}"
@@ -84,7 +80,7 @@ stages:
     response:
       status_code: 204
 
-  - name: Create a PCS power-cap snapshot for the target node
+  - name: Create a power-cap snapshot for the target node
     request:
       url: "{pcs_base_url}/power-cap/snapshot"
       json: {"xnames":["{node_xname}"]}
@@ -106,7 +102,7 @@ stages:
         json:
           snapshot_task_id: taskID
 
-  - name: Retrieve the PCS power-cap snapshot for the target node
+  - name: Retrieve the power-cap snapshot for the target node
     # retry here until power-cap snapshot completes successfully
     max_retries: 30
     delay_after: 1
@@ -131,7 +127,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed PCS power-cap snapshot for the target node
+  - name: Retrieve the completed power-cap snapshot for the target node
     request:
       url: "{pcs_base_url}/power-cap/{snapshot_task_id}"
       method: GET
@@ -201,27 +197,30 @@ stages:
                         required: True
                         enum:
                           - "{node_xname}"
-                      #TODO: ignore "limits" completely since we're using "powerCapLimits" to cap?
+                      # ignore "limits" since we're using "powerCapLimits" to cap
                       limits:
                         type: map
                         # this test assumes all compute nodes in HSM support power capping controls, but
                         # some compute node types have empty or no "limits", like Intel and HPE CRAY EX235a
-                        #required: False
-                        required: True
+                        #required: True
+                        required: False
                         mapping:
                           hostLimitMax:
                             type: int
-                            #required: False
-                            required: True
+                            #required: True
+                            required: False
                           hostLimitMin:
                             type: int
-                            #required: False
-                            required: True
+                            #required: True
+                            required: False
+                      # use "powerCapLimits" to cap
                       powerCapLimits:
                         type: seq
                         matching: all
                         # this test assumes all compute nodes in HSM support power capping controls, but
-                        # some compute node types don't have "powerCapLimits", like HPE Cray EX235n
+                        # some compute node types don't have "powerCapLimits", like HPE Cray EX235n. still
+                        # setting this as required since we're only populating HSM with nodes that do
+                        # support power capping controls in the runCT environment
                         #required: False
                         required: True
                         sequence:
@@ -232,8 +231,8 @@ stages:
                                 type: str
                                 required: True
                                 enum:
-                                  #TODO
                                   - "Node Power Limit"
+                                  # this test does not support running against nodes with these controls
                                   #- "Chassis Power Control"
                                   #- "Accelerator[0-3] Power Limit"
                               currentValue:
@@ -273,7 +272,7 @@ stages:
           node_power_cap_max: components[0].powerCapLimits[0].maximumValue
           node_power_cap_min: components[0].powerCapLimits[0].minimumValue
 
-  - name: Set a PCS power-cap of the minimum value on the target node
+  - name: Set a power-cap of the minimum value on the target node
     request:
       url: "{pcs_base_url}/power-cap"
       json: {"components":[{"xname":"{node_xname}","controls":[{"name":"{node_power_cap_name}","value": !int "{node_power_cap_min}"}]}]}
@@ -295,7 +294,7 @@ stages:
         json:
           patch_task_id_1: taskID
 
-  - name: Retrieve the PCS power-cap patch for the target node and minimum power cap value
+  - name: Retrieve the power-cap patch for the target node and minimum power cap value
     # retry here until power-cap patch completes successfully
     max_retries: 30
     delay_after: 1
@@ -320,7 +319,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed PCS power-cap patch for the target node and minimum power cap value
+  - name: Retrieve the completed power-cap patch for the target node and minimum power cap value
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_1}"
       method: GET
@@ -419,7 +418,7 @@ stages:
                                 enum:
                                   - !int "{node_power_cap_min}"
 
-  - name: Set a PCS power-cap of the maximum value on the target node
+  - name: Set a power-cap of the maximum value on the target node
     request:
       url: "{pcs_base_url}/power-cap"
       json: {"components":[{"xname":"{node_xname}","controls":[{"name":"{node_power_cap_name}","value": !int "{node_power_cap_max}"}]}]}
@@ -441,7 +440,7 @@ stages:
         json:
           patch_task_id_2: taskID
 
-  - name: Retrieve the PCS power-cap patch for the target node and maximum power cap value
+  - name: Retrieve the power-cap patch for the target node and maximum power cap value
     # retry here until power-cap patch completes successfully
     max_retries: 30
     delay_after: 1
@@ -466,7 +465,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed PCS power-cap patch for the target node and maximum power cap value
+  - name: Retrieve the completed power-cap patch for the target node and maximum power cap value
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_2}"
       method: GET
@@ -565,7 +564,7 @@ stages:
                                 enum:
                                   - !int "{node_power_cap_min}"
 
-  - name: Attempt to set a PCS power-cap greater than the maximum value on the target node
+  - name: Attempt to set a power-cap greater than the maximum value on the target node
     request:
       url: "{pcs_base_url}/power-cap"
       json: {"components":[{"xname":"{node_xname}","controls":[{"name":"{node_power_cap_name}","value":1234567}]}]}
@@ -587,7 +586,7 @@ stages:
         json:
           patch_task_id_3: taskID
 
-  - name: Retrieve the PCS power-cap patch for the target node and power cap value above maximum
+  - name: Retrieve the power-cap patch for the target node and power cap value above maximum
     # retry here until power-cap patch completes successfully
     max_retries: 30
     delay_after: 1
@@ -612,7 +611,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed PCS power-cap patch for the target node and power cap value above maximum
+  - name: Retrieve the completed power-cap patch for the target node and power cap value above maximum
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_3}"
       method: GET
@@ -688,7 +687,7 @@ stages:
                         enum:
                           - "Control ({node_power_cap_name}) value (1234567) is more than maximum ({node_power_cap_max})"
 
-  - name: Attempt to set a PCS power-cap lower than the minimum value on the target node
+  - name: Attempt to set a power-cap lower than the minimum value on the target node
     request:
       url: "{pcs_base_url}/power-cap"
       json: {"components":[{"xname":"{node_xname}","controls":[{"name":"{node_power_cap_name}","value":1}]}]}
@@ -710,7 +709,7 @@ stages:
         json:
           patch_task_id_4: taskID
 
-  - name: Retrieve the PCS power-cap patch for the target node and power cap value below minimum
+  - name: Retrieve the power-cap patch for the target node and power cap value below minimum
     # retry here until power-cap patch completes successfully
     max_retries: 30
     delay_after: 1
@@ -735,7 +734,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed PCS power-cap patch for the target node and power cap value below minimum
+  - name: Retrieve the completed power-cap patch for the target node and power cap value below minimum
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_4}"
       method: GET
@@ -811,9 +810,9 @@ stages:
                         enum:
                           - "Control ({node_power_cap_name}) value (1) is less than minimum ({node_power_cap_min})"
 
-  #TODO: Noting a difference between CAPMC and PCS - attempting to set a cap of zero on a node whose cap is already
+  # noting a difference between CAPMC and PCS - attempting to set a cap of zero on a node whose cap is already
   # zero with CAPMC results in an "Invalid exchange" error but for PCS, this works and doesn't result in an error
-  - name: Set a PCS power-cap of zero on the target node
+  - name: Set a power-cap of zero on the target node
     request:
       url: "{pcs_base_url}/power-cap"
       json: {"components":[{"xname":"{node_xname}","controls":[{"name":"{node_power_cap_name}","value":0}]}]}
@@ -835,7 +834,7 @@ stages:
         json:
           patch_task_id_5: taskID
 
-  - name: Retrieve the PCS power-cap patch for the target node and power cap value of zero
+  - name: Retrieve the power-cap patch for the target node and power cap value of zero
     # retry here until power-cap patch completes successfully
     max_retries: 30
     delay_after: 1
@@ -860,7 +859,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed PCS power-cap patch for the target node and power cap of zero
+  - name: Retrieve the completed power-cap patch for the target node and power cap of zero
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_5}"
       method: GET
@@ -959,7 +958,7 @@ stages:
                                 enum:
                                   - !int "{node_power_cap_min}"
 
-  - name: Restore the original PCS power-cap value on the target node
+  - name: Restore the original power-cap value on the target node
     request:
       url: "{pcs_base_url}/power-cap"
       json: {"components":[{"xname":"{node_xname}","controls":[{"name":"{node_power_cap_name}","value": !int "{node_power_cap_orig}"}]}]}
@@ -981,7 +980,7 @@ stages:
         json:
           patch_task_id_6: taskID
 
-  - name: Retrieve the PCS power-cap patch for the target node and original power cap value
+  - name: Retrieve the power-cap patch for the target node and original power cap value
     # retry here until power-cap patch completes successfully
     max_retries: 30
     delay_after: 1
@@ -1006,7 +1005,7 @@ stages:
                 enum:
                   - "completed"
 
-  - name: Retrieve the completed PCS power-cap patch for the target node and original power cap value
+  - name: Retrieve the completed power-cap patch for the target node and original power cap value
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_6}"
       method: GET
@@ -1105,7 +1104,7 @@ stages:
                                 enum:
                                   - !int "{node_power_cap_min}"
 
-  - name: Retrieve all PCS power-cap snapshots
+  - name: Retrieve all power-cap snapshots
     request:
       url: "{pcs_base_url}/power-cap"
       method: GET

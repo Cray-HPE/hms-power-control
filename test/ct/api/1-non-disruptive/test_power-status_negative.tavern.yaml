@@ -35,10 +35,10 @@
 # GET /power-status?powerStateFilter={filter} invalid powerStateFilter
 # GET /power-status?managementStateFilter={filter} invalid managementStateFilter
 ---
-test_name: Verify PCS power-status with unsupported operations
+test_name: Verify power-status with unsupported operations
 
 stages:
-  - name: Ensure that PCS power-status correctly handles unsupported POST operations
+  - name: Ensure that power-status correctly handles unsupported POST operations
     request:
       url: "{pcs_base_url}/power-status"
       method: POST
@@ -46,7 +46,7 @@ stages:
     response:
       status_code: 405
 
-  - name: Ensure that PCS power-status correctly handles unsupported PUT operations
+  - name: Ensure that power-status correctly handles unsupported PUT operations
     request:
       url: "{pcs_base_url}/power-status"
       method: PUT
@@ -54,7 +54,7 @@ stages:
     response:
       status_code: 405
 
-  - name: Ensure that PCS power-status correctly handles unsupported PATCH operations
+  - name: Ensure that power-status correctly handles unsupported PATCH operations
     request:
       url: "{pcs_base_url}/power-status"
       method: PATCH
@@ -62,7 +62,7 @@ stages:
     response:
       status_code: 405
 
-  - name: Ensure that PCS power-status correctly handles unsupported DELETE operations
+  - name: Ensure that power-status correctly handles unsupported DELETE operations
     request:
       url: "{pcs_base_url}/power-status"
       method: DELETE
@@ -71,7 +71,7 @@ stages:
       status_code: 405
 
 ---
-test_name: Verify PCS power-status for a NodeEnclosure
+test_name: Verify power-status for a NodeEnclosure
 
 stages:
   - name: Retrieve a NodeEnclosure from HSM to be used in later stages
@@ -85,7 +85,7 @@ stages:
         json:
           node_enclosure_xname: Components[0].ID
 
-  - name: Attempt to retrieve the PCS power-status for a NodeEnclosure
+  - name: Attempt to retrieve the power-status for a NodeEnclosure
     request:
       url: "{pcs_base_url}/power-status?xname={node_enclosure_xname}"
       method: GET
@@ -144,10 +144,10 @@ stages:
                           - ""
 
 ---
-test_name: Verify PCS power-status with a non-present component
+test_name: Verify power-status with a non-present component
 
 stages:
-  - name: Attempt to retrieve the PCS power-status for a component that is not present
+  - name: Attempt to retrieve the power-status for a component that is not present
     request:
       url: "{pcs_base_url}/power-status?xname=x9999c7s9b9n9"
       method: GET
@@ -206,10 +206,10 @@ stages:
                           - ""
 
 ---
-test_name: Verify PCS power-status with an invalid xname
+test_name: Verify power-status with an invalid xname
 
 stages:
-  - name: Attempt to retrieve the PCS power-status for a component with an invalid xname
+  - name: Attempt to retrieve the power-status for a component with an invalid xname
     request:
       url: "{pcs_base_url}/power-status?xname=FAKE"
       method: GET
@@ -245,10 +245,10 @@ stages:
                   - 400
 
 ---
-test_name: Verify PCS power-status with an invalid powerStateFilter
+test_name: Verify power-status with an invalid powerStateFilter
 
 stages:
-  - name: Attempt to retrieve the PCS power-status for components using an invalid powerStateFilter
+  - name: Attempt to retrieve the power-status for components using an invalid powerStateFilter
     request:
       url: "{pcs_base_url}/power-status?powerStateFilter=FAKE"
       method: GET
@@ -284,10 +284,10 @@ stages:
                   - 400
 
 ---
-test_name: Verify PCS power-status with an invalid managementStateFilter
+test_name: Verify power-status with an invalid managementStateFilter
 
 stages:
-  - name: Attempt to retrieve the PCS power-status for components using an invalid managementStateFilter
+  - name: Attempt to retrieve the power-status for components using an invalid managementStateFilter
     request:
       url: "{pcs_base_url}/power-status?managementStateFilter=FAKE"
       method: GET
