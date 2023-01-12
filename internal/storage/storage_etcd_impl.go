@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2022] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -25,14 +25,16 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+	"sync"
+	"time"
+
 	hmetcd "github.com/Cray-HPE/hms-hmetcd"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/Cray-HPE/hms-xname/xnametypes"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"os"
-	"strings"
-	"sync"
 )
 
 // This file contains interface functions for the ETCD implementation of PCS
@@ -41,18 +43,19 @@ import (
 // implementations.
 
 const (
-	kvUrlMemDefault      = "mem:"
-	kvUrlDefault         = kvUrlMemDefault //Default to in-memory implementation
-	kvRetriesDefault     = 5
-	keyPrefix            = "/pcs/"
-	keySegPowerState     = "/powerstate"
-	keySegPowerCap       = "/powercaptask"
-	keySegPowerCapOp     = "/powercapop"
-	keySegTransition     = "/transition"
-	keySegTransitionTask = "/transitiontask"
-	keySegTransitionStat = "/transitionstat"
-	keyMin               = " "
-	keyMax               = "~"
+	kvUrlMemDefault         = "mem:"
+	kvUrlDefault            = kvUrlMemDefault //Default to in-memory implementation
+	kvRetriesDefault        = 5
+	keyPrefix               = "/pcs/"
+	keySegPowerStatusMaster = "/powerstatusmaster"
+	keySegPowerState        = "/powerstate"
+	keySegPowerCap          = "/powercaptask"
+	keySegPowerCapOp        = "/powercapop"
+	keySegTransition        = "/transition"
+	keySegTransitionTask    = "/transitiontask"
+	keySegTransitionStat    = "/transitionstat"
+	keyMin                  = " "
+	keyMax                  = "~"
 )
 
 type ETCDStorage struct {
@@ -179,6 +182,35 @@ func (e *ETCDStorage) Ping() error {
 		err = e.kvDelete(key)
 	}
 	return err
+}
+
+func (e *ETCDStorage) GetPowerStatusMaster() (time.Time, error) {
+	var lastUpdated time.Time
+	key := fmt.Sprintf("%s", keySegPowerStatusMaster)
+
+	err := e.kvGet(key, &lastUpdated)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return lastUpdated, err
+}
+
+func (e *ETCDStorage) StorePowerStatusMaster(now time.Time) error {
+	key := fmt.Sprintf("%s", keySegPowerStatusMaster)
+	err := e.kvStore(key, now)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return err
+}
+
+func (e *ETCDStorage) TASPowerStatusMaster(now time.Time, testVal time.Time) (bool, error) {
+	key := fmt.Sprintf("%s", keySegPowerStatusMaster)
+	ok, err := e.kvTAS(key, testVal, now)
+	if err != nil {
+		e.Logger.Error(err)
+	}
+	return ok, err
 }
 
 func (e *ETCDStorage) StorePowerStatus(p model.PowerStatusComponent) error {

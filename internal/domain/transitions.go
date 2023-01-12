@@ -627,6 +627,7 @@ func doTransition(transitionID uuid.UUID) {
 	// o TODO: Verify if GracefulRestart/ForceRestart happened?
 	///////////////////////////////////////////////////////////////////////////
 
+	waitForBMCPower := false
 	for _, elm := range PowerSequenceFull {
 		var compList []*TransitionComponent
 		powerAction := elm.Action
@@ -642,6 +643,14 @@ func doTransition(transitionID uuid.UUID) {
 		}
 		if len(compList) == 0 {
 			continue
+		}
+
+		// The previous power operation resulted in supplied power
+		// to child BMCs. Give the BMCs time to power on.
+		// TODO: Use internal power status managementState != undefined for accuracy.
+		if waitForBMCPower {
+			time.Sleep(30)
+			waitForBMCPower = false
 		}
 
 		abort, _ := checkAbort(tr)
@@ -697,6 +706,8 @@ func doTransition(transitionID uuid.UUID) {
 				comp.Task.Status = model.TransitionTaskStatusFailed
 				comp.Task.StatusDesc = "Failed to construct payload"
 				comp.Task.Error = err.Error()
+				depErrMsg := fmt.Sprintf("Failed to apply transition, %s, to dependency, %s.", powerAction, comp.Task.Xname)
+				failDependentComps(xnameMap, powerAction, comp.Task.Xname, depErrMsg)
 				err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
 				if err != nil {
 					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
@@ -901,6 +912,9 @@ func doTransition(transitionID uuid.UUID) {
 					}
 					break
 				}
+			}
+			if powerAction == "on" {
+				waitForBMCPower = true
 			}
 		}
 	}
