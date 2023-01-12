@@ -647,9 +647,8 @@ func doTransition(transitionID uuid.UUID) {
 
 		// The previous power operation resulted in supplied power
 		// to child BMCs. Give the BMCs time to power on.
-		// TODO: Use internal power status managementState != undefined for accuracy.
 		if waitForBMCPower {
-			time.Sleep(3 * time.Minute)
+			waitForBMC(compList)
 			waitForBMCPower = false
 		}
 
@@ -1698,4 +1697,34 @@ func deleteTransition(transitionID uuid.UUID) error {
 		return err
 	}
 	return nil
+}
+
+// Wait for BMCs to become responsive. This waits for the component's
+// ManagementState to become available.
+func waitForBMC(compList []*TransitionComponent) {
+	// Wait a max of ~5mins. As of 01/12/2023 the wait time is ~3mins.
+	for retry := 0; retry < 20; retry++ {
+		isWaiting := false
+		for _, comp := range compList {
+			if retry == 0 {
+				comp.Task.StatusDesc = "Waiting for controller to be ready"
+				err := (*GLOB.DSP).StoreTransitionTask(*comp.Task)
+				if err != nil {
+					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
+				}
+			}
+			// Get the state from ETCD
+			pState, err := (*GLOB.DSP).GetPowerStatus(comp.Task.Xname)
+			if err != nil {
+				// If everything ends up being an error. We'll just stop waiting.
+				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error getting power status from database for %s", comp.Task.Xname)
+			} else if strings.ToLower(pState.ManagementState) != model.ManagementStateFilter_available.String() {
+				isWaiting = true
+			}
+		}
+		if !isWaiting {
+			break
+		}
+		time.Sleep(15 * time.Second)
+	}
 }
