@@ -44,8 +44,6 @@ stages:
   - name: Power the target node on to prepare it for the test case
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
       json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
@@ -280,8 +278,6 @@ stages:
   - name: Attempt a power transition for a locked node
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
       json: {"operation":"force-off","taskDeadlineMinutes": !int "{transition_force-off_task_deadline_minutes}","location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"

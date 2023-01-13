@@ -60,8 +60,6 @@ stages:
   - name: Attempt a power transition for a non-present node
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"x9999c7s9b9n9"}]}
       json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"x9999c7s9b9n9"}]}
       method: POST
       verify: !bool "{verify}"
@@ -203,8 +201,6 @@ stages:
   - name: Attempt a power transition for an invalid node
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"FAKE"}]}
       json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"FAKE"}]}
       method: POST
       verify: !bool "{verify}"

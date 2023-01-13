@@ -88,8 +88,6 @@ stages:
   - name: Power the target node off to prepare it for the test case
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"force-off","taskDeadlineMinutes":1,"location":[{"xname":"{node_xname}"}]}
       json: {"operation":"force-off","taskDeadlineMinutes": !int "{transition_force-off_task_deadline_minutes}","location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
@@ -258,8 +256,6 @@ stages:
   - name: Power the target node on with an on transition
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"on","taskDeadlineMinutes":1,"location":[{"xname":"{node_xname}"}]}
       json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
@@ -442,8 +438,6 @@ stages:
   - name: Power the target node on to prepare it for the test case
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"on","taskDeadlineMinutes":1,"location":[{"xname":"{node_xname}"}]}
       json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
@@ -612,8 +606,6 @@ stages:
   - name: Issue another on transition for the target node
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"on","taskDeadlineMinutes":1,"location":[{"xname":"{node_xname}"}]}
       json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
@@ -797,8 +789,6 @@ stages:
   - name: Power the target nodes off to prepare them for the test case
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"force-off","taskDeadlineMinutes":1,"location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
       json: {"operation":"force-off","taskDeadlineMinutes": !int "{transition_force-off_task_deadline_minutes}","location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
       method: POST
       verify: !bool "{verify}"
@@ -969,8 +959,6 @@ stages:
   - name: Power the target nodes on with an on transition
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"on","taskDeadlineMinutes":1,"location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
       json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
       method: POST
       verify: !bool "{verify}"
@@ -1155,8 +1143,6 @@ stages:
   - name: Power the target chassis off to prepare it for the test case
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"force-off","taskDeadlineMinutes":1,"location":[{"xname":"{chassis_xname}"}]}
       json: {"operation":"force-off","taskDeadlineMinutes": !int "{transition_force-off_task_deadline_minutes}","location":[{"xname":"{chassis_xname}"}]}
       method: POST
       verify: !bool "{verify}"
@@ -1325,8 +1311,6 @@ stages:
   - name: Power the target chassis on with an on transition
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"on","taskDeadlineMinutes":1,"location":[{"xname":"{chassis_xname}"}]}
       json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"{chassis_xname}"}]}
       method: POST
       verify: !bool "{verify}"
@@ -1509,8 +1493,6 @@ stages:
   - name: Power the target ComputeModule off to prepare it for the test case
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"force-off","taskDeadlineMinutes":1,"location":[{"xname":"{compute_module_xname}"}]}
       json: {"operation":"force-off","taskDeadlineMinutes": !int "{transition_force-off_task_deadline_minutes}","location":[{"xname":"{compute_module_xname}"}]}
       method: POST
       verify: !bool "{verify}"
@@ -1679,8 +1661,6 @@ stages:
   - name: Power the target ComputeModule on with an on transition
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"on","taskDeadlineMinutes":1,"location":[{"xname":"{compute_module_xname}"}]}
       json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"{compute_module_xname}"}]}
       method: POST
       verify: !bool "{verify}"
@@ -1863,8 +1843,6 @@ stages:
   - name: Power the target node off to prepare it for the test case
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"force-off","taskDeadlineMinutes":1,"location":[{"xname":"{node_xname}"}]}
       json: {"operation":"force-off","taskDeadlineMinutes": !int "{transition_force-off_task_deadline_minutes}","location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
@@ -2033,8 +2011,6 @@ stages:
   - name: Issue an on transition for the target node
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      #json: {"operation":"on","taskDeadlineMinutes":1,"location":[{"xname":"{node_xname}"}]}
       json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
