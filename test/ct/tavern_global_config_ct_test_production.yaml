@@ -4,17 +4,17 @@ name: tavern_global_configuration
 description: common configuration for all tavern invocations
 variables:
   verify: false
-  hsm_base_url: http://cray-smd:27779
-  pcs_base_url: http://cray-power-control:28007
+  hsm_base_url: http://cray-smd
+  pcs_base_url: http://cray-power-control
   transition_force-off_num_attempts: 61
-  transition_force-off_poll_interval: 5
-  transition_force-off_task_deadline_minutes: 5
+  transition_force-off_poll_interval: 7
+  transition_force-off_task_deadline_minutes: 7
   transition_on_num_attempts: 61
-  transition_on_poll_interval: 5
-  transition_on_task_deadline_minutes: 5
+  transition_on_poll_interval: 7
+  transition_on_task_deadline_minutes: 7
   transition_hard-restart_num_attempts: 61
-  transition_hard-restart_poll_interval: 5
-  transition_hard-restart_task_deadline_minutes: 5
+  transition_hard-restart_poll_interval: 7
+  transition_hard-restart_task_deadline_minutes: 7
   power-cap_snapshot_num_attempts: 24
   power-cap_snapshot_poll_interval: 5
   power-cap_patch_num_attempts: 24
