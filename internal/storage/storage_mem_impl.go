@@ -1,6 +1,6 @@
 // MIT License
 // 
-// (C) Copyright [2022] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -25,6 +25,7 @@ package storage
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	hmetcd "github.com/Cray-HPE/hms-hmetcd"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
@@ -70,6 +71,21 @@ func (m *MEMStorage) Init(Logger *logrus.Logger) error {
 func (m *MEMStorage) Ping() error {
 	e := toETCDStorage(m)
 	return e.Ping()
+}
+
+func (m *MEMStorage) GetPowerStatusMaster() (time.Time, error) {
+	e := toETCDStorage(m)
+	return e.GetPowerStatusMaster()
+}
+
+func (m *MEMStorage) StorePowerStatusMaster(now time.Time) error {
+	e := toETCDStorage(m)
+	return e.StorePowerStatusMaster(now)
+}
+
+func (m *MEMStorage) TASPowerStatusMaster(now time.Time, testVal time.Time) (bool, error) {
+	e := toETCDStorage(m)
+	return e.TASPowerStatusMaster(now, testVal)
 }
 
 func (m *MEMStorage) StorePowerStatus(p model.PowerStatusComponent) error {

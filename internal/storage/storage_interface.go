@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2022] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -34,6 +34,9 @@ type StorageProvider interface {
 	Init(Logger *logrus.Logger) error
 	Ping() error
 
+	GetPowerStatusMaster() (time.Time, error)
+	StorePowerStatusMaster(now time.Time) error
+	TASPowerStatusMaster(now time.Time, testVal time.Time) (bool, error)
 	StorePowerStatus(p model.PowerStatusComponent) error
 	DeletePowerStatus(xname string) error
 	GetPowerStatus(xname string) (model.PowerStatusComponent, error)

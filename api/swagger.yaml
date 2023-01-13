@@ -5,15 +5,12 @@ info:
     name: MIT
   version: "1.0"
   description: >-
-    SHASTA components (nodes, blades, chassis), hereto only referd to as xnames (their system identifier) will need to have various 
-    power-related operations done to them, e.g., power on, power off, soft
-    and hard resets; getting and setting power caps and related parameters,
-    etc.
+    The Power Control Service (PCS) performs power-related operations on 
+    system components - nodes, blades, and chassis. 
+    PCS refers to system components by their xname, or system identifier. 
 
-    The Power Control Service performs all of these actions, giving 
-    administrators control over all power-related operations on the system.
 
-    The REST API provices the following functions:
+    This REST API provides the following functions:
 
     * Turn xnames on or off.
 
@@ -21,18 +18,18 @@ info:
 
     * Set and retrieve power capping parameters and capabilities.
 
-    * Get node rules (various parameters relating to power operations)
+    * Get node rules which are various parameters relating to power operations.
 
 
     ## Resources
 
     ### /transitions
 
-    Power xname on or off
+    Power xname on or off.
 
     ### /power-status
 
-    Get power status of xnames
+    Get power status of xnames.
 
     ### /power-cap
 
@@ -55,7 +52,7 @@ info:
 
     #### GET /power-cap/{taskID}
 
-    Retrieves status of power cap set operation and current values.
+    Retrieve status of specified power cap PATCH operation and current values.
 
     ### Get Power Cap parameters and capabilities for a list of targets
 
@@ -70,7 +67,6 @@ info:
 
     Query the status of a power cap snapshot task.  If completed, contains
     the current power cap values as read from the hardware.
-
 
 
 tags:
@@ -96,7 +92,7 @@ paths:
     post:
       summary: Start a transition
       description: |
-        A request to perform power transitions
+        Request to perform power transitions.
       requestBody:
         description: Transition parameters
         required: true
@@ -126,9 +122,11 @@ paths:
       tags:
         - transitions
     get:
-      summary: Retrieve all transitions
+      summary: Retrieve all requested power transitions 
       description: |
-        Return the collection of transitions
+        Return a complete list of the requested power transitions,
+        with status information. Note that records older than 24 hours
+        are automatically deleted.
       responses:
         200:
           description: OK
@@ -147,8 +145,10 @@ paths:
 
   /transitions/{transitionID}:
     get:
-      summary: Get transition status
-      description: Retrieves the transition status information for the ID
+      summary: Retrieve transition status by ID
+      description: |
+        Retrieve the transition status information for the specified 
+        transitionID.
       parameters:
         - name: transitionID
           in: path
@@ -180,8 +180,8 @@ paths:
         - transitions
 
     delete:
-      summary: Abort an in-flight transition
-      description: Will attempt to abort an in-flight transition if possible.
+      summary: Abort an in-progress transition
+      description: Attempt to abort an in-progress transition by transitionID
       parameters:
         - name: transitionID
           in: path
@@ -216,9 +216,9 @@ paths:
 
   /power-status:
     get:
-      summary: Get the power status of the hardware
+      summary: Retrieve the power state
       description: |
-        Retrieves the power state of the hardware
+        Retrieve the power state of the component specified by xname.
       parameters:
         - in: query
           name: xname
@@ -276,9 +276,9 @@ paths:
         - power-cap
       summary: Take a power cap snapshot for a set of targets
       description: >-
-        Get power cap value snapshot for a set of targets.  This operation
+        Get power cap snapshot for a set of targets.  This operation
         returns a taskID to be used for completion status queries, since
-        this can be a long running task.  Progress and status for this task
+        this can be a long running task. Progress and status for this task
         can be queried via a `GET /power-cap/{taskID}`
       requestBody:
         content:
@@ -314,7 +314,7 @@ paths:
         Set power cap parameters for a list of targets.  The PATCH payload
         contains the targets and the parameters to set.  This operation
         returns a  powercapID to be used for completion status queries, since
-        this can be a long running task.  Progress and status for this task
+        this can be a long running task. Progress and status for this task
         can be queried via a `GET /power-cap/{taskID}`.
       requestBody:
         content:
@@ -364,8 +364,8 @@ paths:
         - power-cap
       summary: Get power cap or snapshot information
       description: >-
-        Queries the current status for the task (returned from a `PATCH /power-cap`
-        or `POST /power-cap/snapshot` request).
+        Queries the current status for the specified taskID.
+        Use the taskID returned from a `PATCH /power-cap` or `POST /power-cap/snapshot` request.
       parameters:
         - name: taskID
           in: path
@@ -440,6 +440,7 @@ paths:
 
         This is primarily intended as a diagnostic tool to investigate the
         functioning of the PCS service.
+      x-private: true
       responses:
         '200':
           description: >-
@@ -664,9 +665,10 @@ components:
         taskDeadlineMinutes:
           type: integer
           description: >-
-            The duration in minutes any one transition task should be given to
-            complete before moving on. Defaults to 5 minutes if unspecified.
-            Specify 0 to disable waiting. Specify -1 to wait as long as it takes.
+            The number of minutes to wait for a single transition task 
+            to complete before continuing. 
+            Defaults to 5 minutes, if unspecified.
+            0 disables waiting. -1 waits as long as it takes.
         location:
           type: array
           items:

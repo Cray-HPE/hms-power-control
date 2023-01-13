@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2021-2022] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -627,6 +627,7 @@ func doTransition(transitionID uuid.UUID) {
 	// o TODO: Verify if GracefulRestart/ForceRestart happened?
 	///////////////////////////////////////////////////////////////////////////
 
+	waitForBMCPower := false
 	for _, elm := range PowerSequenceFull {
 		var compList []*TransitionComponent
 		powerAction := elm.Action
@@ -642,6 +643,13 @@ func doTransition(transitionID uuid.UUID) {
 		}
 		if len(compList) == 0 {
 			continue
+		}
+
+		// The previous power operation resulted in supplied power
+		// to child BMCs. Give the BMCs time to power on.
+		if waitForBMCPower {
+			waitForBMC(compList)
+			waitForBMCPower = false
 		}
 
 		abort, _ := checkAbort(tr)
@@ -697,6 +705,8 @@ func doTransition(transitionID uuid.UUID) {
 				comp.Task.Status = model.TransitionTaskStatusFailed
 				comp.Task.StatusDesc = "Failed to construct payload"
 				comp.Task.Error = err.Error()
+				depErrMsg := fmt.Sprintf("Failed to apply transition, %s, to dependency, %s.", powerAction, comp.Task.Xname)
+				failDependentComps(xnameMap, powerAction, comp.Task.Xname, depErrMsg)
 				err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
 				if err != nil {
 					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
@@ -902,6 +912,24 @@ func doTransition(transitionID uuid.UUID) {
 					break
 				}
 			}
+			// If we might be powering on child components, we'll
+			// want to give their BMCs some time to become ready.
+			if powerAction == "on" {
+				for _, compType := range compTypes {
+					if compType == base.RouterModule ||
+					   compType == base.ComputeModule {
+						waitForBMCPower = true
+					}
+				}
+			} else if powerAction == "gracefulrestart" {
+				for _, compType := range compTypes {
+					if compType == base.ChassisBMC || 
+					   compType == base.NodeBMC || 
+					   compType == base.RouterBMC {
+						waitForBMCPower = true
+					}
+				}
+			}
 		}
 	}
 
@@ -1073,11 +1101,13 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 	for _, xname := range xnames {
 		if _, ok := xnameMap[xname]; !ok {
 			switch(base.GetHMSType(xname)) {
-			case base.ChassisBMC: fallthrough
-			case base.NodeBMC:    fallthrough
-			case base.RouterBMC:  fallthrough
-			case base.Node:       fallthrough
-			case base.HSNBoard:   fallthrough
+			case base.ChassisBMC:    fallthrough
+			case base.NodeBMC:       fallthrough
+			case base.RouterBMC:     fallthrough
+			case base.Node:          fallthrough
+			case base.HSNBoard:      fallthrough
+			case base.Chassis:       fallthrough
+			case base.ComputeModule: fallthrough
 			case base.CabinetPDUPowerConnector:
 				pState, err := (*GLOB.DSP).GetPowerStatus(xname)
 				if err != nil {
@@ -1091,9 +1121,8 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 				} else {
 					xnameMap[xname] = pState
 				}
-			case base.Chassis:       fallthrough
-			case base.ComputeModule: fallthrough
 			case base.RouterModule:
+				found := false
 				pStates, err := (*GLOB.DSP).GetPowerStatusHierarchy(xname)
 				if err != nil {
 					// Database error. Bail
@@ -1105,17 +1134,18 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 				}
 				for _, ps := range pStates.Status {
 					switch(base.GetHMSType(ps.XName)) {
-					case base.ChassisBMC:    fallthrough
-					case base.NodeBMC:       fallthrough
-					case base.RouterBMC:     fallthrough
-					case base.Chassis:       fallthrough
-					case base.ComputeModule: fallthrough
-					case base.Node:          fallthrough
-					case base.RouterModule:  fallthrough
-					case base.HSNBoard:      fallthrough
-					case base.CabinetPDUPowerConnector:
+					case base.RouterModule: fallthrough
+					case base.HSNBoard:
 						xnameMap[ps.XName] = ps
+						// Make sure our original xname is part
+						// of the list of components found.
+						if ps.XName == xname {
+							found = true
+						}
 					}
+				}
+				if !found {
+					badList = append(badList, xname)
 				}
 			default:
 				badList = append(badList, xname)
@@ -1667,4 +1697,34 @@ func deleteTransition(transitionID uuid.UUID) error {
 		return err
 	}
 	return nil
+}
+
+// Wait for BMCs to become responsive. This waits for the component's
+// ManagementState to become available.
+func waitForBMC(compList []*TransitionComponent) {
+	// Wait a max of ~5mins. As of 01/12/2023 the wait time is ~3mins.
+	for retry := 0; retry < 20; retry++ {
+		isWaiting := false
+		for _, comp := range compList {
+			if retry == 0 {
+				comp.Task.StatusDesc = "Waiting for controller to be ready"
+				err := (*GLOB.DSP).StoreTransitionTask(*comp.Task)
+				if err != nil {
+					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
+				}
+			}
+			// Get the state from ETCD
+			pState, err := (*GLOB.DSP).GetPowerStatus(comp.Task.Xname)
+			if err != nil {
+				// If everything ends up being an error. We'll just stop waiting.
+				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error getting power status from database for %s", comp.Task.Xname)
+			} else if strings.ToLower(pState.ManagementState) != model.ManagementStateFilter_available.String() {
+				isWaiting = true
+			}
+		}
+		if !isWaiting {
+			break
+		}
+		time.Sleep(15 * time.Second)
+	}
 }

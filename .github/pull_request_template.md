@@ -1,58 +1,48 @@
-### Summary and Scope
+## Summary and Scope
 
-EXPLAIN WHY THIS PR IS NECESSARY. WHAT IS IMPACTED?
-IS THIS A NEW FEATURE OR CRITICAL BUG FIX? SUMMARIZE WHAT CHANGED.
+_Summarize what has changed. Explain why this PR is necessary. What is impacted? Is this a new feature, critical bug fix, etc?_
 
-DOES THIS CHANGE INVOLVE ANY SCHEME CHANGES?  Y/N
+_Is this change backwards incompatible, backwards compatible, or a backwards compatible bugfix?_
 
-REMINDER: HAVE YOU INCREMENTED VERSION NUMBERS? E.G., .spec, Chart.yaml, .version, CHANGELOG.md
+## Issues and Related PRs
 
-REMINDER 2: HAVE YOU UPDATED THE COPYRIGHT PER hpe GUIDELINES: (C) Copyright 2014-2021 Hewlett Packard Enterprise Development LP    ? Y/N
+_List and characterize relationship to Jira/Github issues and other pull requests. Be sure to list dependencies._
 
-### Issues and Related PRs
-
-LIST AND CHARACTERIZE RELATIONSHIP TO JIRA ISSUES AND OTHER PULL REQUESTS. BE SURE LIST DEPENDENCIES.
-
-* Resolves CASM-XYZ
+* Resolves [issue id](issue link)
 * Change will also be needed in `<insert branch name here>`
-* Future work required by CASM-ABC
-* Merge with `<insert PR URL here>`
-* Merge before `<insert PR URL here>`
-* Merge after `<insert PR URL here>`
+* Future work required by [issue id](issue link)
+* Merge with/before/after `<insert PR URL here>`
 
-### Testing
+## Testing
 
-LIST THE ENVIRONMENTS IN WHICH THESE CHANGES WERE TESTED.
+_List the environments in which these changes were tested._
 
 Tested on:
 
-* `<drink system>`
-* Craystack
-* CMS base-box
-* Virtual Shasta
+  * `<development system>`
+  * Local development environment
+  * Virtual Shasta
 
-Were the install/upgrade based validation checks/tests run?(goss tests/install-validation doc)
-Were continuous integration tests run? Y/N   If not, Why?
-Was an Upgrade tested?                 Y/N   If not, Why?
-Was a Downgrade tested?                Y/N   If not, Why?
-If schema changes were part of this change, how were those handled in your upgrade/downgrade testing?
+Test description:
 
-WHAT WAS THE EXTENT OF TESTING PERFORMED? MANUAL VERSUS AUTOMATED TESTS (UNIT/SMOKE/OTHER)
-HOW WERE CHANGES VERIFIED TO BE SUCCESSFUL?
+_How were the changes tested and success verified? If schema changes were part of this change, how were those handled in your upgrade/downgrade testing?_
 
-### Risks and Mitigations
+- Were the install/upgrade-based validation checks/tests run (goss tests/install-validation doc)?
+- Were continuous integration tests run? If not, why?
+- Was upgrade tested? If not, why?
+- Was downgrade tested? If not, why?
 
-HAS A SECURITY AUDIT BEEN RUN? (./runSnyk.sh)
-ARE THERE KNOWN ISSUES WITH THESE CHANGES?
-ANY OTHER SPECIAL CONSIDERATIONS?
 
-INCLUDE THE FOLLOWING ITEMS THAT APPLY. LIST ADDITIONAL ITEMS AND PROVIDE MORE DETAILED INFORMATION AS APPROPRIATE.
+## Risks and Mitigations
 
-Requires:
+_Are there known issues with these changes? Any other special considerations?_
 
-* Additional testing on bare-metal
-* Compute nodes
-* 3rd party software
-* Broader integration testing
-* Fresh install
-* Platform upgrade
+
+## Pull Request Checklist
+
+- [ ] Version number(s) incremented, if applicable
+- [ ] Copyrights updated
+- [ ] License file intact
+- [ ] Target branch correct
+- [ ] CHANGELOG.md updated
+- [ ] Testing is appropriate and complete, if applicable
