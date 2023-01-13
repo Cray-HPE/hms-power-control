@@ -66,7 +66,8 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      #json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -235,7 +236,8 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"hard-restart","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      #json: {"operation":"hard-restart","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      json: {"operation":"hard-restart","taskDeadlineMinutes": !int "{transition_hard-restart_task_deadline_minutes}","location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -418,7 +420,8 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      #json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      json: {"operation":"force-off","taskDeadlineMinutes": !int "{transition_force-off_task_deadline_minutes}","location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -587,7 +590,8 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"hard-restart","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      #json: {"operation":"hard-restart","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      json: {"operation":"hard-restart","taskDeadlineMinutes": !int "{transition_hard-restart_task_deadline_minutes}","location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -741,7 +745,8 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
+      #json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
+      json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -912,7 +917,8 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"hard-restart","taskDeadlineMinutes":5,"location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
+      #json: {"operation":"hard-restart","taskDeadlineMinutes":5,"location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
+      json: {"operation":"hard-restart","taskDeadlineMinutes": !int "{transition_hard-restart_task_deadline_minutes}","location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:

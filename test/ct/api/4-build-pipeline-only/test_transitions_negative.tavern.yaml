@@ -54,8 +54,7 @@ stages:
   - name: Attempt a transition to power the target NodeBMC on
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{bmc_xname}"}]}
+      json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"{bmc_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -207,8 +206,7 @@ stages:
   - name: Attempt a transition to power the target NodeEnclosure on
     request:
       url: "{pcs_base_url}/transitions"
-      #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{node_enclosure_xname}"}]}
+      json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"{node_enclosure_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
