@@ -109,8 +109,8 @@ stages:
 
   - name: Retrieve the power-cap snapshot for the target node
     # retry here until power-cap snapshot completes successfully
-    max_retries: 30
-    delay_after: 1
+    max_retries: !int "{power-cap_snapshot_num_attempts}"
+    delay_after: !float "{power-cap_snapshot_poll_interval}"
     request:
       url: "{pcs_base_url}/power-cap/{snapshot_task_id}"
       method: GET
@@ -301,8 +301,8 @@ stages:
 
   - name: Retrieve the power-cap patch for the target node and minimum power cap value
     # retry here until power-cap patch completes successfully
-    max_retries: 30
-    delay_after: 1
+    max_retries: !int "{power-cap_patch_num_attempts}"
+    delay_after: !float "{power-cap_patch_poll_interval}"
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_1}"
       method: GET
@@ -447,8 +447,8 @@ stages:
 
   - name: Retrieve the power-cap patch for the target node and maximum power cap value
     # retry here until power-cap patch completes successfully
-    max_retries: 30
-    delay_after: 1
+    max_retries: !int "{power-cap_patch_num_attempts}"
+    delay_after: !float "{power-cap_patch_poll_interval}"
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_2}"
       method: GET
@@ -592,9 +592,9 @@ stages:
           patch_task_id_3: taskID
 
   - name: Retrieve the power-cap patch for the target node and power cap value above maximum
-    # retry here until power-cap patch completes successfully
-    max_retries: 30
-    delay_after: 1
+    # retry here until power-cap patch completes
+    max_retries: !int "{power-cap_patch_num_attempts}"
+    delay_after: !float "{power-cap_patch_poll_interval}"
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_3}"
       method: GET
@@ -715,9 +715,9 @@ stages:
           patch_task_id_4: taskID
 
   - name: Retrieve the power-cap patch for the target node and power cap value below minimum
-    # retry here until power-cap patch completes successfully
-    max_retries: 30
-    delay_after: 1
+    # retry here until power-cap patch completes
+    max_retries: !int "{power-cap_patch_num_attempts}"
+    delay_after: !float "{power-cap_patch_poll_interval}"
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_4}"
       method: GET
@@ -841,8 +841,8 @@ stages:
 
   - name: Retrieve the power-cap patch for the target node and power cap value of zero
     # retry here until power-cap patch completes successfully
-    max_retries: 30
-    delay_after: 1
+    max_retries: !int "{power-cap_patch_num_attempts}"
+    delay_after: !float "{power-cap_patch_poll_interval}"
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_5}"
       method: GET
@@ -987,8 +987,8 @@ stages:
 
   - name: Retrieve the power-cap patch for the target node and original power cap value
     # retry here until power-cap patch completes successfully
-    max_retries: 30
-    delay_after: 1
+    max_retries: !int "{power-cap_patch_num_attempts}"
+    delay_after: !float "{power-cap_patch_poll_interval}"
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_6}"
       method: GET
@@ -1210,8 +1210,8 @@ stages:
 
   - name: Retrieve the power-cap snapshot for the target nodes
     # retry here until power-cap snapshot completes successfully
-    max_retries: 30
-    delay_after: 1
+    max_retries: !int "{power-cap_snapshot_num_attempts}"
+    delay_after: !float "{power-cap_snapshot_poll_interval}"
     request:
       url: "{pcs_base_url}/power-cap/{snapshot_task_id}"
       method: GET

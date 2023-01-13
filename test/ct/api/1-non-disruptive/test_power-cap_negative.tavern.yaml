@@ -83,9 +83,9 @@ stages:
           snapshot_task_id_1: taskID
 
   - name: Retrieve the power-cap snapshot for the non-present node
-    # retry here until power-cap snapshot completes successfully
-    max_retries: 30
-    delay_after: 1
+    # retry here until power-cap snapshot completes
+    max_retries: !int "{power-cap_snapshot_num_attempts}"
+    delay_after: !float "{power-cap_snapshot_poll_interval}"
     request:
       url: "{pcs_base_url}/power-cap/{snapshot_task_id_1}"
       method: GET
@@ -221,9 +221,9 @@ stages:
           snapshot_task_id_2: taskID
 
   - name: Retrieve the power-cap snapshot for the NodeBMC
-    # retry here until power-cap snapshot completes successfully
-    max_retries: 30
-    delay_after: 1
+    # retry here until power-cap snapshot completes
+    max_retries: !int "{power-cap_snapshot_num_attempts}"
+    delay_after: !float "{power-cap_snapshot_poll_interval}"
     request:
       url: "{pcs_base_url}/power-cap/{snapshot_task_id_2}"
       method: GET
@@ -348,9 +348,9 @@ stages:
           snapshot_task_id_3: taskID
 
   - name: Retrieve the power-cap snapshot for the invalid component
-    # retry here until power-cap snapshot completes successfully
-    max_retries: 30
-    delay_after: 1
+    # retry here until power-cap snapshot completes
+    max_retries: !int "{power-cap_snapshot_num_attempts}"
+    delay_after: !float "{power-cap_snapshot_poll_interval}"
     request:
       url: "{pcs_base_url}/power-cap/{snapshot_task_id_3}"
       method: GET
@@ -553,9 +553,9 @@ stages:
           patch_task_id_1: taskID
 
   - name: Retrieve the power-cap patch for the non-present node
-    # retry here until power-cap snapshot completes successfully
-    max_retries: 30
-    delay_after: 1
+    # retry here until power-cap snapshot completes
+    max_retries: !int "{power-cap_patch_num_attempts}"
+    delay_after: !float "{power-cap_patch_poll_interval}"
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_1}"
       method: GET
@@ -691,9 +691,9 @@ stages:
           patch_task_id_2: taskID
 
   - name: Retrieve the power-cap patch for the NodeBMC
-    # retry here until power-cap snapshot completes successfully
-    max_retries: 30
-    delay_after: 1
+    # retry here until power-cap snapshot completes
+    max_retries: !int "{power-cap_patch_num_attempts}"
+    delay_after: !float "{power-cap_patch_poll_interval}"
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_2}"
       method: GET
@@ -818,9 +818,9 @@ stages:
           patch_task_id_3: taskID
 
   - name: Retrieve the power-cap patch for the invalid component
-    # retry here until power-cap snapshot completes successfully
-    max_retries: 30
-    delay_after: 1
+    # retry here until power-cap snapshot completes
+    max_retries: !int "{power-cap_patch_num_attempts}"
+    delay_after: !float "{power-cap_patch_poll_interval}"
     request:
       url: "{pcs_base_url}/power-cap/{patch_task_id_3}"
       method: GET

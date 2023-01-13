@@ -80,9 +80,8 @@ stages:
           transition_id: transitionID
 
   - name: Poll until the on transition operation has completed
-    #TODO: this configuration
-    max_retries: 30
-    delay_after: 1
+    max_retries: !int "{transition_on_num_attempts}"
+    delay_after: !float "{transition_on_poll_interval}"
     request:
       url: "{pcs_base_url}/transitions/{transition_id}"
       method: GET
@@ -234,9 +233,8 @@ stages:
           transition_id: transitionID
 
   - name: Poll until the on transition operation has completed
-    #TODO: this configuration
-    max_retries: 30
-    delay_after: 1
+    max_retries: !int "{transition_on_num_attempts}"
+    delay_after: !float "{transition_on_poll_interval}"
     request:
       url: "{pcs_base_url}/transitions/{transition_id}"
       method: GET

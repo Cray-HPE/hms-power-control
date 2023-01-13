@@ -113,10 +113,9 @@ stages:
         json:
           transition_id_prep: transitionID
 
-  - name: Poll until the off transition operation has completed
-    #TODO: this configuration
-    max_retries: 62
-    delay_after: 1
+  - name: Poll until the force-off transition operation has completed
+    max_retries: !int "{transition_force-off_num_attempts}"
+    delay_after: !float "{transition_force-off_poll_interval}"
     request:
       url: "{pcs_base_url}/transitions/{transition_id_prep}"
       method: GET
@@ -284,9 +283,8 @@ stages:
           transition_id_actual: transitionID
 
   - name: Poll until the on transition operation has completed
-    #TODO: this configuration
-    max_retries: 62
-    delay_after: 1
+    max_retries: !int "{transition_on_num_attempts}"
+    delay_after: !float "{transition_on_poll_interval}"
     request:
       url: "{pcs_base_url}/transitions/{transition_id_actual}"
       method: GET
@@ -468,9 +466,8 @@ stages:
           transition_id_prep: transitionID
 
   - name: Poll until the initial on transition operation has completed
-    #TODO: this configuration
-    max_retries: 62
-    delay_after: 1
+    max_retries: !int "{transition_on_num_attempts}"
+    delay_after: !float "{transition_on_poll_interval}"
     request:
       url: "{pcs_base_url}/transitions/{transition_id_prep}"
       method: GET
@@ -638,9 +635,8 @@ stages:
           transition_id_actual: transitionID
 
   - name: Poll until the second on transition operation has completed
-    #TODO: this configuration
-    max_retries: 62
-    delay_after: 1
+    max_retries: !int "{transition_on_num_attempts}"
+    delay_after: !float "{transition_on_poll_interval}"
     request:
       url: "{pcs_base_url}/transitions/{transition_id_actual}"
       method: GET
@@ -822,10 +818,9 @@ stages:
         json:
           transition_id_prep: transitionID
 
-  - name: Poll until the off transition operation has completed
-    #TODO: this configuration
-    max_retries: 62
-    delay_after: 1
+  - name: Poll until the force-off transition operation has completed
+    max_retries: !int "{transition_force-off_num_attempts}"
+    delay_after: !float "{transition_force-off_poll_interval}"
     request:
       url: "{pcs_base_url}/transitions/{transition_id_prep}"
       method: GET
@@ -995,9 +990,8 @@ stages:
           transition_id_actual: transitionID
 
   - name: Poll until the on transition operation has completed
-    #TODO: this configuration
-    max_retries: 62
-    delay_after: 1
+    max_retries: !int "{transition_on_num_attempts}"
+    delay_after: !float "{transition_on_poll_interval}"
     request:
       url: "{pcs_base_url}/transitions/{transition_id_actual}"
       method: GET
@@ -1180,10 +1174,9 @@ stages:
         json:
           transition_id_prep: transitionID
 
-  - name: Poll until the off transition operation has completed
-    #TODO: this configuration
-    max_retries: 62
-    delay_after: 1
+  - name: Poll until the force-off transition operation has completed
+    max_retries: !int "{transition_force-off_num_attempts}"
+    delay_after: !float "{transition_force-off_poll_interval}"
     request:
       url: "{pcs_base_url}/transitions/{transition_id_prep}"
       method: GET
@@ -1351,9 +1344,8 @@ stages:
           transition_id_actual: transitionID
 
   - name: Poll until the on transition operation has completed
-    #TODO: this configuration
-    max_retries: 62
-    delay_after: 1
+    max_retries: !int "{transition_on_num_attempts}"
+    delay_after: !float "{transition_on_poll_interval}"
     request:
       url: "{pcs_base_url}/transitions/{transition_id_actual}"
       method: GET
@@ -1534,10 +1526,9 @@ stages:
         json:
           transition_id_prep: transitionID
 
-  - name: Poll until the off transition operation has completed
-    #TODO: this configuration
-    max_retries: 62
-    delay_after: 1
+  - name: Poll until the force-off transition operation has completed
+    max_retries: !int "{transition_force-off_num_attempts}"
+    delay_after: !float "{transition_force-off_poll_interval}"
     request:
       url: "{pcs_base_url}/transitions/{transition_id_prep}"
       method: GET
@@ -1705,9 +1696,8 @@ stages:
           transition_id_actual: transitionID
 
   - name: Poll until the on transition operation has completed
-    #TODO: this configuration
-    max_retries: 62
-    delay_after: 1
+    max_retries: !int "{transition_on_num_attempts}"
+    delay_after: !float "{transition_on_poll_interval}"
     request:
       url: "{pcs_base_url}/transitions/{transition_id_actual}"
       method: GET
@@ -1888,10 +1878,9 @@ stages:
         json:
           transition_id_prep: transitionID
 
-  - name: Poll until the off transition operation has completed
-    #TODO: this configuration
-    max_retries: 62
-    delay_after: 1
+  - name: Poll until the force-off transition operation has completed
+    max_retries: !int "{transition_force-off_num_attempts}"
+    delay_after: !float "{transition_force-off_poll_interval}"
     request:
       url: "{pcs_base_url}/transitions/{transition_id_prep}"
       method: GET
@@ -2075,9 +2064,8 @@ stages:
               - "Accepted - abort initiated"
 
   - name: Poll until the aborted on transition operation has been aborted
-    #TODO: this configuration
-    max_retries: 62
-    delay_after: 1
+    max_retries: !int "{transition_on_num_attempts}"
+    delay_after: !float "{transition_on_poll_interval}"
     request:
       url: "{pcs_base_url}/transitions/{transition_id_actual}"
       method: GET
@@ -2097,7 +2085,7 @@ stages:
                 type: str
                 required: True
                 enum:
-                  #TODO
+                  # may be either depending on timing
                   - "completed"
                   - "aborted"
 
@@ -2135,7 +2123,7 @@ stages:
                 type: str
                 required: True
                 enum:
-                  #TODO
+                  # may be either depending on timing
                   - "completed"
                   - "aborted"
               taskCounts:
