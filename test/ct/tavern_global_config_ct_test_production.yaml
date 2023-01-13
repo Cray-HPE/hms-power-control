@@ -15,7 +15,7 @@ variables:
   transition_hard-restart_num_attempts: 61
   transition_hard-restart_poll_interval: 5
   transition_hard-restart_task_deadline_minutes: 5
-  power-cap_snapshot_num_attempts: 12
+  power-cap_snapshot_num_attempts: 24
   power-cap_snapshot_poll_interval: 5
-  power-cap_patch_num_attempts: 12
+  power-cap_patch_num_attempts: 24
   power-cap_patch_poll_interval: 5
