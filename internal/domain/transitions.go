@@ -194,7 +194,8 @@ func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
 			return
 		}
 		if transition.Status == model.TransitionStatusAborted {
-			pb = model.BuildSuccessPassback(http.StatusAccepted, "Accepted - abort initiated")
+			abortResp := model.TransitionAbortResp{AbortStatus: "Accepted - abort initiated"}
+			pb = model.BuildSuccessPassback(http.StatusAccepted, abortResp)
 			return
 		}
 		transitionOld := transition
@@ -207,7 +208,8 @@ func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
 			return
 		}
 		if ok {
-			pb = model.BuildSuccessPassback(http.StatusAccepted, "Accepted - abort initiated")
+			abortResp := model.TransitionAbortResp{AbortStatus: "Accepted - abort initiated"}
+			pb = model.BuildSuccessPassback(http.StatusAccepted, abortResp)
 			return
 		}
 	}

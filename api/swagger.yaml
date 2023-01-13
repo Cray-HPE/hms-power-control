@@ -193,6 +193,10 @@ paths:
       responses:
         202:
           description: Accepted - abort initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/transitions_abort'
         400:
           description: Specified transition is complete
           content:
@@ -611,6 +615,12 @@ components:
             - init
             - force-off
             - soft-off
+    transitions_abort:
+      type: object
+      properties:
+        abortStatus:
+          type: string
+          example: "Accepted - abort initiated"
 
     transition_task_data:
       type: object
