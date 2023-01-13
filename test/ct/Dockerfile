@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2022] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,19 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
+FROM artifactory.algol60.net/csm-docker/stable/hms-test:5.0.0
 
-# Example test metrics test cases: 1
-# 1. GET /get API response code
----
-test_name: Verify the service status resource example test
+COPY smoke/ /src/app
+COPY api/ /src/app/api
+COPY tavern_global_config_ct_test_emulated_hardware.yaml /src/app/tavern_global_config_ct_test_emulated_hardware.yaml
+COPY tavern_global_config_ct_test_production.yaml /src/app/tavern_global_config_ct_test_production.yaml
 
-stages:
-  # 1. GET /get API response code
-  - name: Ensure that the  service status can be retrieved
-    request:
-      url: "{base_url}/get"
-      method: GET
-      verify: !bool "{verify}"
-    response:
-      status_code: 200
+ENV PATH="/src/libs:${PATH}"
+ENV PATH="/src/app:${PATH}"
+
+USER root
+RUN chown -R 65534:65534 /src
+USER 65534:65534
+
+# this is inherited from the hms-test container
+ENTRYPOINT [ "entrypoint.sh" ]

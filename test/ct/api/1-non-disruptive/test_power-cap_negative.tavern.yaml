@@ -1,0 +1,959 @@
+# MIT License
+#
+# (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+
+# Tavern test cases for the PCS power-cap API
+# Author: Mitch Schooler
+# Service: Power Control Service
+
+# HMS test metrics test cases: 11
+# PUT /power-cap fails
+# DELETE /power-cap fails
+# POST /power-cap/snapshot non-present node fails
+# POST /power-cap/snapshot NodeBMC fails
+# POST /power-cap/snapshot invalid component fails
+# GET /power-cap/{taskID} non-existent taskID fails
+# GET /power-cap/{taskID} invalid taskID fails
+# PATCH /power-cap non-present node fails
+# PATCH /power-cap NodeBMC fails
+# PATCH /power-cap invalid component fails
+# PATCH /power-cap invalid cap fails
+---
+test_name: Verify power-cap rejects unsupported methods
+
+stages:
+  - name: Ensure that power-cap rejects unsupported PUT operations
+    request:
+      url: "{pcs_base_url}/power-cap"
+      method: PUT
+      verify: !bool "{verify}"
+    response:
+      status_code: 405
+
+  - name: Ensure that power-cap rejects unsupported DELETE operations
+    request:
+      url: "{pcs_base_url}/power-cap"
+      method: DELETE
+      verify: !bool "{verify}"
+    response:
+      status_code: 405
+
+---
+test_name: Verify power-cap handles snapshot requests for non-present nodes
+
+stages:
+  - name: Attempt to create a power-cap snapshot for a non-present node
+    request:
+      url: "{pcs_base_url}/power-cap/snapshot"
+      json: {"xnames":["x9999c7s9b9n9"]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+      save:
+        json:
+          snapshot_task_id_1: taskID
+
+  - name: Retrieve the power-cap snapshot for the non-present node
+    # retry here until power-cap snapshot completes
+    max_retries: !int "{power-cap_snapshot_num_attempts}"
+    delay_after: !float "{power-cap_snapshot_poll_interval}"
+    request:
+      url: "{pcs_base_url}/power-cap/{snapshot_task_id_1}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the snapshot to complete
+            allowempty: True
+            mapping:
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed power-cap snapshot for the non-present node
+    request:
+      url: "{pcs_base_url}/power-cap/{snapshot_task_id_1}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+                enum:
+                  - "{snapshot_task_id_1}"
+              type:
+                type: str
+                required: True
+                enum:
+                  - "snapshot"
+              taskCreateTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              components:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "x9999c7s9b9n9"
+                      error:
+                        type: str
+                        required: True
+                        enum:
+                          - "Xname not found in HSM"
+
+---
+test_name: Verify power-cap handles snapshot requests for unsupported NodeBMC component type
+
+stages:
+  - name: Retrieve a NodeBMC in the Ready state from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=NodeBMC&state=Ready"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          bmc_xname: Components[0].ID
+
+  - name: Attempt to create a power-cap snapshot for a NodeBMC
+    request:
+      url: "{pcs_base_url}/power-cap/snapshot"
+      json: {"xnames":["{bmc_xname}"]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+      save:
+        json:
+          snapshot_task_id_2: taskID
+
+  - name: Retrieve the power-cap snapshot for the NodeBMC
+    # retry here until power-cap snapshot completes
+    max_retries: !int "{power-cap_snapshot_num_attempts}"
+    delay_after: !float "{power-cap_snapshot_poll_interval}"
+    request:
+      url: "{pcs_base_url}/power-cap/{snapshot_task_id_2}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the snapshot to complete
+            allowempty: True
+            mapping:
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed power-cap snapshot for the NodeBMC
+    request:
+      url: "{pcs_base_url}/power-cap/{snapshot_task_id_2}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+                enum:
+                  - "{snapshot_task_id_2}"
+              type:
+                type: str
+                required: True
+                enum:
+                  - "snapshot"
+              taskCreateTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              components:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{bmc_xname}"
+                      error:
+                        type: str
+                        required: True
+                        enum:
+                          - "Type, NodeBMC unsupported for power capping"
+
+---
+test_name: Verify power-cap handles snapshot requests for invalid components
+
+stages:
+  - name: Attempt to create a power-cap snapshot for an invalid component
+    request:
+      url: "{pcs_base_url}/power-cap/snapshot"
+      json: {"xnames":["FAKE"]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+      save:
+        json:
+          snapshot_task_id_3: taskID
+
+  - name: Retrieve the power-cap snapshot for the invalid component
+    # retry here until power-cap snapshot completes
+    max_retries: !int "{power-cap_snapshot_num_attempts}"
+    delay_after: !float "{power-cap_snapshot_poll_interval}"
+    request:
+      url: "{pcs_base_url}/power-cap/{snapshot_task_id_3}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the snapshot to complete
+            allowempty: True
+            mapping:
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed power-cap snapshot for the invalid component
+    request:
+      url: "{pcs_base_url}/power-cap/{snapshot_task_id_3}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+                enum:
+                  - "{snapshot_task_id_3}"
+              type:
+                type: str
+                required: True
+                enum:
+                  - "snapshot"
+              taskCreateTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              components:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "FAKE"
+                      error:
+                        type: str
+                        required: True
+                        enum:
+                          - "Invalid xname"
+
+---
+test_name: Verify power-cap handles non-existent taskIDs
+
+stages:
+  - name: Attempt to retrieve a power-cap task that doesn't exist
+    request:
+      url: "{pcs_base_url}/power-cap/99z9zz99-z999-99z9-99z9-99z99z9z99z9"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 400
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              type:
+                type: str
+                required: True
+                enum:
+                  - "about:blank"
+              detail:
+                type: str
+                required: True
+                enum:
+                  - "invalid UUID format"
+              status:
+                type: int
+                required: True
+                enum:
+                  - 400
+              title:
+                type: str
+                required: True
+                enum:
+                  - "Bad Request"
+
+---
+test_name: Verify power-cap handles invalid taskIDs
+
+stages:
+  - name: Attempt to retrieve a power-cap task that is invalid
+    request:
+      url: "{pcs_base_url}/power-cap/FAKE"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 400
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              type:
+                type: str
+                required: True
+                enum:
+                  - "about:blank"
+              detail:
+                type: str
+                required: True
+                enum:
+                  - "invalid UUID length: 4"
+              status:
+                type: int
+                required: True
+                enum:
+                  - 400
+              title:
+                type: str
+                required: True
+                enum:
+                  - "Bad Request"
+
+---
+test_name: Verify power-cap handles patch requests for non-present nodes
+
+stages:
+  - name: Attempt a power-cap patch operation for a non-present node
+    request:
+      url: "{pcs_base_url}/power-cap"
+      json: {"components":[{"xname":"x9999c7s9b9n9","controls":[{"name":"Node Power Limit","value":0}]}]}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+      save:
+        json:
+          patch_task_id_1: taskID
+
+  - name: Retrieve the power-cap patch for the non-present node
+    # retry here until power-cap snapshot completes
+    max_retries: !int "{power-cap_patch_num_attempts}"
+    delay_after: !float "{power-cap_patch_poll_interval}"
+    request:
+      url: "{pcs_base_url}/power-cap/{patch_task_id_1}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the snapshot to complete
+            allowempty: True
+            mapping:
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed power-cap patch for the non-present node
+    request:
+      url: "{pcs_base_url}/power-cap/{patch_task_id_1}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+                enum:
+                  - "{patch_task_id_1}"
+              type:
+                type: str
+                required: True
+                enum:
+                  - "patch"
+              taskCreateTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              components:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "x9999c7s9b9n9"
+                      error:
+                        type: str
+                        required: True
+                        enum:
+                          - "Xname not found in HSM"
+
+---
+test_name: Verify power-cap handles patch requests for unsupported NodeBMC component type
+
+stages:
+  - name: Retrieve a NodeBMC in the Ready state from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=NodeBMC&state=Ready"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          bmc_xname: Components[0].ID
+
+  - name: Attempt a power-cap patch operation for a NodeBMC
+    request:
+      url: "{pcs_base_url}/power-cap"
+      json: {"components":[{"xname":"{bmc_xname}","controls":[{"name":"Node Power Limit","value":0}]}]}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+      save:
+        json:
+          patch_task_id_2: taskID
+
+  - name: Retrieve the power-cap patch for the NodeBMC
+    # retry here until power-cap snapshot completes
+    max_retries: !int "{power-cap_patch_num_attempts}"
+    delay_after: !float "{power-cap_patch_poll_interval}"
+    request:
+      url: "{pcs_base_url}/power-cap/{patch_task_id_2}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the snapshot to complete
+            allowempty: True
+            mapping:
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed power-cap patch for the NodeBMC
+    request:
+      url: "{pcs_base_url}/power-cap/{patch_task_id_2}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+                enum:
+                  - "{patch_task_id_2}"
+              type:
+                type: str
+                required: True
+                enum:
+                  - "patch"
+              taskCreateTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              components:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{bmc_xname}"
+                      error:
+                        type: str
+                        required: True
+                        enum:
+                          - "Skipping undefined control 'Node Power Limit'"
+
+---
+test_name: Verify power-cap handles patch requests for invalid components
+
+stages:
+  - name: Attempt a power-cap patch operation for an invalid component
+    request:
+      url: "{pcs_base_url}/power-cap"
+      json: {"components":[{"xname":"FAKE","controls":[{"name":"Node Power Limit","value":0}]}]}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+      save:
+        json:
+          patch_task_id_3: taskID
+
+  - name: Retrieve the power-cap patch for the invalid component
+    # retry here until power-cap snapshot completes
+    max_retries: !int "{power-cap_patch_num_attempts}"
+    delay_after: !float "{power-cap_patch_poll_interval}"
+    request:
+      url: "{pcs_base_url}/power-cap/{patch_task_id_3}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the snapshot to complete
+            allowempty: True
+            mapping:
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed power-cap patch for the invalid component
+    request:
+      url: "{pcs_base_url}/power-cap/{patch_task_id_3}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+                enum:
+                  - "{patch_task_id_3}"
+              type:
+                type: str
+                required: True
+                enum:
+                  - "patch"
+              taskCreateTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              components:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "FAKE"
+                      error:
+                        type: str
+                        required: True
+                        enum:
+                          - "Invalid xname"
+
+---
+test_name: Verify power-cap handles patch requests with invalid caps
+
+stages:
+  - name: Attempt a power-cap patch operation with an invalid cap
+    request:
+      url: "{pcs_base_url}/power-cap"
+      json: {"components":[{"xname":"x9999c7s9b9n9","controls":[{"name":"Node Power Limit","value":"FAKE"}]}]}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 400
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              type:
+                type: str
+                required: True
+                enum:
+                  - "about:blank"
+              detail:
+                type: str
+                required: True
+                enum:
+                  - "json: cannot unmarshal string into Go struct field PowerCapControlParameter.components.controls.value of type int"
+              status:
+                type: int
+                required: True
+                enum:
+                  - 400
+              title:
+                type: str
+                required: True
+                enum:
+                  - "Bad Request"

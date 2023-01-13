@@ -1,8 +1,6 @@
-#!/bin/bash
-
 # MIT License
 #
-# (C) Copyright [2022] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -22,31 +20,21 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-# wait-for.sh; used by runCT.sh to make sure HSM has been populated with data before running.
-echo "Waiting for data in HSM /State/Components..."
-URL="http://cray-smd:27779/hsm/v2/State/Components"
-sentry=1
-limit=200
-while :; do
-  length=$(curl --silent ${URL} | jq '.Components | length')
+FROM artifactory.algol60.net/csm-docker/stable/docker.io/library/alpine:3.15
 
-  if [ -n "$length" ] && [ "$length" -gt "0" ]; then
-    echo "$URL is available"
-    break
-  fi
+RUN set -x \
+    && apk -U upgrade \
+    && apk add --no-cache \
+        bash \
+        curl \
+        jq
 
-  if [ "$sentry" -gt "$limit" ]; then
-    echo "Failed to connect for $limit, exiting"
-    exit 1
-  fi
+COPY wait-for.sh /src/app/wait-for.sh
 
-  ((sentry++))
+WORKDIR /src/app
+# Run as nobody
+RUN chown -R 65534:65534 /src
+USER 65534:65534
 
-  echo "$URL is unavailable - sleeping"
-  sleep 1
-
-done
-
-# additional wait time for ETCD to actually be ready to serve data,
-# ETCD's /health endpoint is not an indicator of this ability
-sleep 20
+# this is inherited from the hms-test container
+CMD [ "/src/app/wait-for.sh" ]

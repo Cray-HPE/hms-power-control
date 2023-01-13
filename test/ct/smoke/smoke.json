@@ -24,7 +24,7 @@
       "headers": {}
     },
     {
-      "path": "power-status?powerStateFilter=on",
+      "path": "power-status",
       "expected_status_code": 200,
       "method": "GET",
       "body": null,
@@ -32,6 +32,13 @@
     },
     {
       "path": "power-cap",
+      "expected_status_code": 200,
+      "method": "GET",
+      "body": null,
+      "headers": {}
+    },
+    {
+      "path": "transitions",
       "expected_status_code": 200,
       "method": "GET",
       "body": null,

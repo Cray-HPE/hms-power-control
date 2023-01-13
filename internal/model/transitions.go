@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2021-2022] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -151,6 +151,10 @@ type TransitionTaskResp struct {
 	TaskStatus     string `json:"taskStatus"`
 	TaskStatusDesc string `json:"taskStatusDescription"`
 	Error          string `json:"error,omitempty"`
+}
+
+type TransitionAbortResp struct {
+	AbortStatus string `json:"abortStatus"`
 }
 
 // Assembles a TransitionResp struct from a transition and an array of its tasks.

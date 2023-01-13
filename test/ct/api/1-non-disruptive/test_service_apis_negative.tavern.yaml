@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2023] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -14,32 +14,44 @@
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
 # OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-# Service
-NAME ?= cray-power-control
-VERSION ?= $(shell cat .version)
+# Tavern test cases for the PCS service APIs
+# Author: Mitch Schooler
+# Service: Power Control Service
 
-all: image unittest integration snyk ct ct_image
+# HMS test metrics test cases: 3
+# POST /health fails
+# POST /liveness fails
+# POST /readiness fails
+---
+test_name: Verify the PCS service APIs reject unsupported operations
 
-image:
-	docker build --pull ${DOCKER_ARGS} --tag '${NAME}:${VERSION}' .
+stages:
+  - name: Ensure that /health rejects POST requests
+    request:
+      url: "{pcs_base_url}/health"
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 405
 
-unittest:
-	./runUnitTest.sh
+  - name: Ensure that /liveness rejects POST requests
+    request:
+      url: "{pcs_base_url}/liveness"
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 405
 
-integration:
-	./runIntegration.sh
-
-snyk:
-	./runSnyk.sh
-
-ct:
-	./runCT.sh
-
-ct_image:
-	docker build --no-cache -f test/ct/Dockerfile test/ct/ --tag cray-power-control-hmth-test:${VERSION}
+  - name: Ensure that /readiness rejects POST requests
+    request:
+      url: "{pcs_base_url}/readiness"
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 405

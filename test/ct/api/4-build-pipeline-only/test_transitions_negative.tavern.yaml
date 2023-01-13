@@ -1,0 +1,341 @@
+# MIT License
+#
+# (C) Copyright [2023] Hewlett Packard Enterprise Development LP
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+
+# Tavern test cases for the PCS transitions API
+# Author: Mitch Schooler
+# Service: Power Control Service
+
+# This test assumes that all NodeBMCs in HSM do not support "On" power
+# transitions. Need to ensure this is the case when spinning up emulated
+# hardware in runCT.sh. The current configuration with RIE instances only
+# support "Soft-Restart" or no power transitions
+
+# This test also assumes that all NodeEnclosures in HSM do not support any
+# power transitions. Need to ensure this is the case when spinning up
+# emulated hardware in runCT.sh
+
+# HMS test metrics test cases: 2
+# POST /transitions unsupported power transition NodeBMC fails
+# POST /transitions unsupported power transition NodeEnclosure fails
+---
+test_name: Verify transitions handles requests for unsupported power transitions on NodeBMCs
+
+stages:
+  - name: Retrieve a NodeBMC from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=NodeBMC"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          bmc_xname: Components[0].ID
+
+  - name: Attempt a transition to power the target NodeBMC on
+    request:
+      url: "{pcs_base_url}/transitions"
+      json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"{bmc_xname}"}]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+              operation:
+                required: True
+                type: str
+                enum:
+                  - "On"
+      save:
+        json:
+          transition_id: transitionID
+
+  - name: Poll until the on transition operation has completed
+    max_retries: !int "{transition_on_num_attempts}"
+    delay_after: !float "{transition_on_poll_interval}"
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the operation to complete
+            allowempty: True
+            mapping:
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed on transition data
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+                enum:
+                  - "{transition_id}"
+              operation:
+                type: str
+                required: True
+                enum:
+                  - "On"
+              createTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              tasks:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{bmc_xname}"
+                      taskStatus:
+                        type: str
+                        required: True
+                        enum:
+                          - "unsupported"
+                      taskStatusDescription:
+                        type: str
+                        required: True
+                        enum:
+                          - "Component does not support the specified transition operation, On"
+                      error:
+                        type: str
+                        required: True
+                        enum:
+                          - "Unsupported for transition operation"
+
+---
+test_name: Verify transitions handles requests for unsupported power transitions on NodeEnclosures
+
+stages:
+  - name: Retrieve a NodeEnclosure from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=NodeEnclosure"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          node_enclosure_xname: Components[0].ID
+
+  - name: Attempt a transition to power the target NodeEnclosure on
+    request:
+      url: "{pcs_base_url}/transitions"
+      json: {"operation":"on","taskDeadlineMinutes": !int "{transition_on_task_deadline_minutes}","location":[{"xname":"{node_enclosure_xname}"}]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+              operation:
+                required: True
+                type: str
+                enum:
+                  - "On"
+      save:
+        json:
+          transition_id: transitionID
+
+  - name: Poll until the on transition operation has completed
+    max_retries: !int "{transition_on_num_attempts}"
+    delay_after: !float "{transition_on_poll_interval}"
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the operation to complete
+            allowempty: True
+            mapping:
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed on transition data
+    request:
+      url: "{pcs_base_url}/transitions/{transition_id}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              transitionID:
+                type: str
+                required: True
+                enum:
+                  - "{transition_id}"
+              operation:
+                type: str
+                required: True
+                enum:
+                  - "On"
+              createTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              transitionStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              tasks:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{node_enclosure_xname}"
+                      taskStatus:
+                        type: str
+                        required: True
+                        enum:
+                          - "unsupported"
+                      taskStatusDescription:
+                        type: str
+                        required: True
+                        enum:
+                          - "Failed to achieve transition"
+                      error:
+                        type: str
+                        required: True
+                        enum:
+                          - "No power control for component type NodeEnclosure"

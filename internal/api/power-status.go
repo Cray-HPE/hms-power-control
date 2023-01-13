@@ -79,9 +79,9 @@ func GetPowerStatus(w http.ResponseWriter, req *http.Request) {
 	xnames, badXnames := base.ValidateCompIDs(xnamesReq, true)
 	if len(badXnames) > 0 {
 
-		errormsg := "invalid xnames detected "
+		errormsg := "invalid xnames detected:"
 		for _, badxname := range badXnames {
-			errormsg += badxname + " "
+			errormsg += " " + badxname
 		}
 		err := errors.New(errormsg)
 		pb = model.BuildErrorPassback(http.StatusBadRequest, err)

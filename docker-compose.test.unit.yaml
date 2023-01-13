@@ -7,7 +7,7 @@ services:
   unit-tests:
     build:
       context: .
-      dockerfile: Dockerfile.unittesting.Dockerfile
+      dockerfile: Dockerfile.test.unit.Dockerfile
     environment:
       - SMS_SERVER=http://cray-smd:27779
       - VAULT_ENABLED=true
