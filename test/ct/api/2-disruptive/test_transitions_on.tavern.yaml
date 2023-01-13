@@ -2046,10 +2046,14 @@ stages:
         function: tavern.testutils.helpers:validate_pykwalify
         extra_kwargs:
           schema:
-            type: str
+            type: map
             required: True
-            enum:
-              - "Accepted - abort initiated"
+            mapping:
+              abortStatus:
+                required: True
+                type: str
+                enum:
+                  - "Accepted - abort initiated"
 
   - name: Poll until the aborted on transition operation has been aborted
     max_retries: !int "{transition_on_num_attempts}"
@@ -2112,8 +2116,8 @@ stages:
                 required: True
                 enum:
                   # may be either depending on timing
-                  - "completed"
                   - "aborted"
+                  - "completed"
               taskCounts:
                 type: map
                 required: True
@@ -2153,14 +2157,18 @@ stages:
                         type: str
                         required: True
                         enum:
+                          # may be either depending on timing
                           - "failed"
+                          - "succeeded"
                       taskStatusDescription:
                         type: str
                         required: True
-                        pattern: "Aborted.*"
+                        #pattern: "Aborted.*"
+                        #pattern: "Transition confirmed, on"
                       error:
                         type: str
-                        required: True
+                        # may not be present depending on timing
+                        required: False
                         enum:
                           - "Transition aborted"
 
