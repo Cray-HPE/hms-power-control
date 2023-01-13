@@ -10,7 +10,7 @@ info:
     PCS refers to system components by their xname, or system identifier. 
 
 
-    This REST API provices the following functions:
+    This REST API provides the following functions:
 
     * Turn xnames on or off.
 
