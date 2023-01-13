@@ -28,7 +28,8 @@
 # power capping controls which is not always true. Need to ensure
 # this is the case when spinning up emulated hardware in runCT.sh
 
-# HMS test metrics test cases: 15
+# HMS test metrics test cases: 17
+
 # POST /power-cap/snapshot compute node
 # GET /power-cap/{taskID} compute node snapshot
 # PATCH /power-cap compute node minimum value
@@ -43,6 +44,10 @@
 # GET /power-cap/{taskID} compute node patch zero
 # PATCH /power-cap compute node original value
 # GET /power-cap/{taskID} compute node patch original
+
+# POST /power-cap/snapshot multiple compute nodes
+# GET /power-cap/{taskID} multiple compute node snapshot
+
 # GET /power-cap
 ---
 test_name: Verify power-cap for a single node
@@ -1104,7 +1109,296 @@ stages:
                                 enum:
                                   - !int "{node_power_cap_min}"
 
-  - name: Retrieve all power-cap snapshots
+  # this ensures that the transition to the node's original state in the next stage succeeds
+  - name: Prepare to restore the original state of the target node by setting it to Off
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components/{node_xname}/StateData"
+      json: {"State":"Off"}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 204
+
+  - name: Restore the original state of the target node
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components/{node_xname}/StateData"
+      json: {"State":"{state_initial}"}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 204
+
+---
+test_name: Verify power-cap snapshot for multiple nodes
+
+stages:
+  - name: Retrieve two compute nodes from HSM to be used in later stages
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      save:
+        json:
+          node_1_xname: Components[0].ID
+          state_1_initial: Components[0].State
+          node_2_xname: Components[1].ID
+          state_2_initial: Components[1].State
+
+  # this ensures that the transition to 'Ready' in the next stage succeeds
+  - name: Set first target node state to Off
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components/{node_1_xname}/StateData"
+      json: {"State":"Off"}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 204
+
+  # power-cap functionality requires that the target nodes are 'Ready'
+  - name: Set first target node state to Ready
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components/{node_1_xname}/StateData"
+      json: {"State":"Ready"}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 204
+
+  # this ensures that the transition to 'Ready' in the next stage succeeds
+  - name: Set second target node state to Off
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components/{node_2_xname}/StateData"
+      json: {"State":"Off"}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 204
+
+  # power-cap functionality requires that the target nodes are 'Ready'
+  - name: Set second target node state to Ready
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components/{node_2_xname}/StateData"
+      json: {"State":"Ready"}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 204
+
+  - name: Create a power-cap snapshot for the target nodes
+    request:
+      url: "{pcs_base_url}/power-cap/snapshot"
+      json: {"xnames":["{node_1_xname}","{node_2_xname}"]}
+      method: POST
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+      save:
+        json:
+          snapshot_task_id: taskID
+
+  - name: Retrieve the power-cap snapshot for the target nodes
+    # retry here until power-cap snapshot completes successfully
+    max_retries: 30
+    delay_after: 1
+    request:
+      url: "{pcs_base_url}/power-cap/{snapshot_task_id}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            # only wait for the snapshot to complete
+            allowempty: True
+            mapping:
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+
+  - name: Retrieve the completed power-cap snapshot for the target nodes
+    request:
+      url: "{pcs_base_url}/power-cap/{snapshot_task_id}"
+      method: GET
+      verify: !bool "{verify}"
+    response:
+      status_code: 200
+      verify_response_with:
+        function: tavern.testutils.helpers:validate_pykwalify
+        extra_kwargs:
+          schema:
+            type: map
+            required: True
+            mapping:
+              taskID:
+                type: str
+                required: True
+                enum:
+                  - "{snapshot_task_id}"
+              type:
+                type: str
+                required: True
+                enum:
+                  - "snapshot"
+              taskCreateTime:
+                type: timestamp
+                required: True
+              automaticExpirationTime:
+                type: timestamp
+                required: True
+              taskStatus:
+                type: str
+                required: True
+                enum:
+                  - "completed"
+              taskCounts:
+                type: map
+                required: True
+                mapping:
+                  total:
+                    type: int
+                    required: True
+                  new:
+                    type: int
+                    required: True
+                  in-progress:
+                    type: int
+                    required: True
+                  failed:
+                    type: int
+                    required: True
+                  succeeded:
+                    type: int
+                    required: True
+                  un-supported:
+                    type: int
+                    required: True
+              components:
+                type: seq
+                matching: all
+                required: True
+                sequence:
+                  - type: map
+                    required: True
+                    mapping:
+                      xname:
+                        type: str
+                        required: True
+                        enum:
+                          - "{node_1_xname}"
+                          - "{node_2_xname}"
+                      # ignore "limits" since we're using "powerCapLimits" to cap
+                      limits:
+                        type: map
+                        # this test assumes all compute nodes in HSM support power capping controls, but
+                        # some compute node types have empty or no "limits", like Intel and HPE CRAY EX235a
+                        #required: True
+                        required: False
+                        mapping:
+                          hostLimitMax:
+                            type: int
+                            #required: True
+                            required: False
+                          hostLimitMin:
+                            type: int
+                            #required: True
+                            required: False
+                      # use "powerCapLimits" to cap
+                      powerCapLimits:
+                        type: seq
+                        matching: all
+                        # this test assumes all compute nodes in HSM support power capping controls, but
+                        # some compute node types don't have "powerCapLimits", like HPE Cray EX235n. still
+                        # setting this as required since we're only populating HSM with nodes that do
+                        # support power capping controls in the runCT environment
+                        #required: False
+                        required: True
+                        sequence:
+                          - type: map
+                            required: True
+                            mapping:
+                              name:
+                                type: str
+                                required: True
+                                enum:
+                                  - "Node Power Limit"
+                                  # this test does not support running against nodes with these controls
+                                  #- "Chassis Power Control"
+                                  #- "Accelerator[0-3] Power Limit"
+                              currentValue:
+                                type: int
+                                required: True
+                              maximumValue:
+                                type: int
+                                # some compute node types don't have maximumValue, like Intel
+                                #required: False
+                                required: True
+                              minimumValue:
+                                type: int
+                                # some compute node types don't have minimumValue, like Intel
+                                #required: False
+                                required: True
+
+  # this ensures that the transition to the node's original state in the next stage succeeds
+  - name: Prepare to restore the original state of the first target node by setting it to Off
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components/{node_1_xname}/StateData"
+      json: {"State":"Off"}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 204
+
+  - name: Restore the original state of the first target node
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components/{node_1_xname}/StateData"
+      json: {"State":"{state_1_initial}"}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 204
+
+  # this ensures that the transition to the node's original state in the next stage succeeds
+  - name: Prepare to restore the original state of the second target node by setting it to Off
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components/{node_2_xname}/StateData"
+      json: {"State":"Off"}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 204
+
+  - name: Restore the original state of the second target node
+    request:
+      url: "{hsm_base_url}/hsm/v2/State/Components/{node_2_xname}/StateData"
+      json: {"State":"{state_1_initial}"}
+      method: PATCH
+      verify: !bool "{verify}"
+    response:
+      status_code: 204
+
+---
+test_name: Verify all power-cap task data
+
+stages:
+  - name: Retrieve all power-cap tasks
     request:
       url: "{pcs_base_url}/power-cap"
       method: GET
@@ -1166,22 +1460,3 @@ stages:
                           un-supported:
                             type: int
                             required: True
-
-  # this ensures that the transition to the node's original state in the next stage succeeds
-  - name: Prepare to restore the original state of the target node by setting it to Off
-    request:
-      url: "{hsm_base_url}/hsm/v2/State/Components/{node_xname}/StateData"
-      json: {"State":"Off"}
-      method: PATCH
-      verify: !bool "{verify}"
-    response:
-      status_code: 204
-
-  - name: Restore the original state of the target node
-    request:
-      url: "{hsm_base_url}/hsm/v2/State/Components/{node_xname}/StateData"
-      json: {"State":"{state_initial}"}
-      method: PATCH
-      verify: !bool "{verify}"
-    response:
-      status_code: 204

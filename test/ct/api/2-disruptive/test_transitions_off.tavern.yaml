@@ -76,7 +76,7 @@ test_name: Verify transitions powers off a compute node that is powered on
 stages:
   - name: Retrieve a compute node from HSM to be used in later stages
     request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute&locked=False"
       method: GET
       verify: !bool "{verify}"
     response:
@@ -89,7 +89,7 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      json: {"operation":"on","taskDeadlineMinutes":1,"location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -115,7 +115,7 @@ stages:
 
   - name: Poll until the on transition operation has completed
     #TODO: this configuration
-    max_retries: 30
+    max_retries: 62
     delay_after: 1
     request:
       url: "{pcs_base_url}/transitions/{transition_id_prep}"
@@ -259,7 +259,7 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      json: {"operation":"force-off","taskDeadlineMinutes":1,"location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -285,7 +285,7 @@ stages:
 
   - name: Poll until the force-off transition operation has completed
     #TODO: this configuration
-    max_retries: 30
+    max_retries: 62
     delay_after: 1
     request:
       url: "{pcs_base_url}/transitions/{transition_id_actual}"
@@ -430,7 +430,7 @@ test_name: Verify transitions keeps power off for a compute node that is already
 stages:
   - name: Retrieve a compute node from HSM to be used in later stages
     request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute&locked=False"
       method: GET
       verify: !bool "{verify}"
     response:
@@ -443,7 +443,7 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      json: {"operation":"force-off","taskDeadlineMinutes":1,"location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -469,7 +469,7 @@ stages:
 
   - name: Poll until the initial force-off transition operation has completed
     #TODO: this configuration
-    max_retries: 30
+    max_retries: 62
     delay_after: 1
     request:
       url: "{pcs_base_url}/transitions/{transition_id_prep}"
@@ -613,7 +613,7 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      json: {"operation":"force-off","taskDeadlineMinutes":1,"location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -639,7 +639,7 @@ stages:
 
   - name: Poll until the second force-off transition operation has completed
     #TODO: this configuration
-    max_retries: 30
+    max_retries: 62
     delay_after: 1
     request:
       url: "{pcs_base_url}/transitions/{transition_id_actual}"
@@ -784,7 +784,7 @@ test_name: Verify transitions powers off multiple compute nodes that are powered
 stages:
   - name: Retrieve two compute nodes from HSM to be used in later stages
     request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute&locked=False"
       method: GET
       verify: !bool "{verify}"
     response:
@@ -798,7 +798,7 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
+      json: {"operation":"on","taskDeadlineMinutes":1,"location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -824,7 +824,7 @@ stages:
 
   - name: Poll until the on transition operation has completed
     #TODO: this configuration
-    max_retries: 30
+    max_retries: 62
     delay_after: 1
     request:
       url: "{pcs_base_url}/transitions/{transition_id_prep}"
@@ -970,7 +970,7 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
+      json: {"operation":"force-off","taskDeadlineMinutes":1,"location":[{"xname":"{node_1_xname}"},{"xname":"{node_2_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -996,7 +996,7 @@ stages:
 
   - name: Poll until the force-off transition operation has completed
     #TODO: this configuration
-    max_retries: 30
+    max_retries: 62
     delay_after: 1
     request:
       url: "{pcs_base_url}/transitions/{transition_id_actual}"
@@ -1156,7 +1156,7 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{chassis_xname}"}]}
+      json: {"operation":"on","taskDeadlineMinutes":1,"location":[{"xname":"{chassis_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -1182,7 +1182,7 @@ stages:
 
   - name: Poll until the on transition operation has completed
     #TODO: this configuration
-    max_retries: 30
+    max_retries: 62
     delay_after: 1
     request:
       url: "{pcs_base_url}/transitions/{transition_id_prep}"
@@ -1326,7 +1326,7 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{chassis_xname}"}]}
+      json: {"operation":"force-off","taskDeadlineMinutes":1,"location":[{"xname":"{chassis_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -1352,7 +1352,7 @@ stages:
 
   - name: Poll until the force-off transition operation has completed
     #TODO: this configuration
-    max_retries: 30
+    max_retries: 62
     delay_after: 1
     request:
       url: "{pcs_base_url}/transitions/{transition_id_actual}"
@@ -1510,7 +1510,7 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{compute_module_xname}"}]}
+      json: {"operation":"on","taskDeadlineMinutes":1,"location":[{"xname":"{compute_module_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -1536,7 +1536,7 @@ stages:
 
   - name: Poll until the on transition operation has completed
     #TODO: this configuration
-    max_retries: 30
+    max_retries: 62
     delay_after: 1
     request:
       url: "{pcs_base_url}/transitions/{transition_id_prep}"
@@ -1680,7 +1680,7 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{compute_module_xname}"}]}
+      json: {"operation":"force-off","taskDeadlineMinutes":1,"location":[{"xname":"{compute_module_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -1706,7 +1706,7 @@ stages:
 
   - name: Poll until the force-off transition operation has completed
     #TODO: this configuration
-    max_retries: 30
+    max_retries: 62
     delay_after: 1
     request:
       url: "{pcs_base_url}/transitions/{transition_id_actual}"
@@ -1851,7 +1851,7 @@ test_name: Verify that off transition operations can be aborted
 stages:
   - name: Retrieve a compute node from HSM to be used in later stages
     request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute&locked=False"
       method: GET
       verify: !bool "{verify}"
     response:
@@ -1864,7 +1864,7 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"on","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      json: {"operation":"on","taskDeadlineMinutes":1,"location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -1890,7 +1890,7 @@ stages:
 
   - name: Poll until the on transition operation has completed
     #TODO: this configuration
-    max_retries: 30
+    max_retries: 62
     delay_after: 1
     request:
       url: "{pcs_base_url}/transitions/{transition_id_prep}"
@@ -2034,7 +2034,7 @@ stages:
     request:
       url: "{pcs_base_url}/transitions"
       #TODO: taskDeadlineMinutes configuration?
-      json: {"operation":"force-off","taskDeadlineMinutes":5,"location":[{"xname":"{node_xname}"}]}
+      json: {"operation":"force-off","taskDeadlineMinutes":1,"location":[{"xname":"{node_xname}"}]}
       method: POST
       verify: !bool "{verify}"
     response:
@@ -2074,9 +2074,9 @@ stages:
             enum:
               - "Accepted - abort initiated"
 
-  - name: Poll until the aborted force-off transition operation has completed
+  - name: Poll until the aborted force-off transition operation has been aborted
     #TODO: this configuration
-    max_retries: 30
+    max_retries: 62
     delay_after: 1
     request:
       url: "{pcs_base_url}/transitions/{transition_id_actual}"
@@ -2097,7 +2097,9 @@ stages:
                 type: str
                 required: True
                 enum:
+                  #TODO
                   - "completed"
+                  - "aborted"
 
   - name: Retrieve the data for the aborted force-off transition
     request:
@@ -2133,7 +2135,9 @@ stages:
                 type: str
                 required: True
                 enum:
+                  #TODO
                   - "completed"
+                  - "aborted"
               taskCounts:
                 type: map
                 required: True

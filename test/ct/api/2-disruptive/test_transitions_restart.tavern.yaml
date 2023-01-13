@@ -53,7 +53,7 @@ test_name: Verify transitions restarts a compute node that is powered on
 stages:
   - name: Retrieve a compute node from HSM to be used in later stages
     request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute&locked=False"
       method: GET
       verify: !bool "{verify}"
     response:
@@ -407,7 +407,7 @@ test_name: Verify transitions handles attempts to restart compute nodes that are
 stages:
   - name: Retrieve a compute node from HSM to be used in later stages
     request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute&locked=False"
       method: GET
       verify: !bool "{verify}"
     response:
@@ -731,7 +731,7 @@ test_name: Verify transitions restarts multiple compute nodes that are powered o
 stages:
   - name: Retrieve two compute nodes from HSM to be used in later stages
     request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute&locked=False"
       method: GET
       verify: !bool "{verify}"
     response:
