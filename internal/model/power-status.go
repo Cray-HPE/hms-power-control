@@ -1,7 +1,5 @@
 /*
- * MIT License
- *
- * (C) Copyright [2021] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -9,6 +7,7 @@
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
+ *
  * The above copyright notice and this permission notice shall be included
  * in all copies or substantial portions of the Software.
  *
@@ -19,7 +18,6 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
  */
 
 package model
@@ -46,27 +44,32 @@ const (
 func ToPowerStateFilter(psf string) (PSF PowerStateFilter, err error) {
 
 	if len(psf) == 0 {
-		err = nil
 		PSF = PowerStateFilter_Nil
+		err = nil
 		return
 	}
-	if strings.ToLower(psf) == "on" {
+	if strings.ToLower(psf) == "on" ||
+	   strings.ToLower(psf) == "poweringoff" {
 		PSF = PowerStateFilter_On
 		err = nil
-	} else if strings.ToLower(psf) == "off" {
+	} else if strings.ToLower(psf) == "off" ||
+	          strings.ToLower(psf) == "poweringon" {
 		PSF = PowerStateFilter_Off
 		err = nil
 	} else if strings.ToLower(psf) == "undefined" {
 		PSF = PowerStateFilter_Undefined
 		err = nil
 	} else {
-		err = errors.New("invalid PowerStateFilter type " + psf)
+		err = errors.New("invalid powerStateFilter type: " + psf)
 		PSF = PowerStateFilter_Nil
 	}
 	return
 }
 
 func (psf PowerStateFilter) String() string {
+	if (int(psf) < 0) {
+		return "invalid"
+	}
 	return [...]string{"on", "off", "undefined"}[psf]
 }
 
@@ -80,6 +83,7 @@ const (
 	ManagementStateFilter_Nil         ManagementStateFilter = iota - 1
 	ManagementStateFilter_available                         // available = 0
 	ManagementStateFilter_unavailable                       //  1
+	ManagementStateFilter_undefined                         //  2
 )
 
 func ToManagementStateFilter(msf string) (MSF ManagementStateFilter, err error) {
@@ -97,17 +101,33 @@ func ToManagementStateFilter(msf string) (MSF ManagementStateFilter, err error) 
 		MSF = ManagementStateFilter_unavailable
 		err = nil
 	} else {
-		err = errors.New("invalid ManagementStateFilter type " + msf)
+		err = errors.New("invalid ManagementStateFilter type: " + msf)
 		MSF = ManagementStateFilter_Nil
 	}
 	return
 }
 
 func (msf ManagementStateFilter) String() string {
-	return [...]string{"available", "unavailable"}[msf]
+	if (int(msf) < 0) {
+		return "invalid"
+	}
+	return [...]string{"available", "unavailable", "undefined"}[msf]
 }
 
 //https://levelup.gitconnected.com/implementing-enums-in-golang-9537c433d6e2
 func (msf ManagementStateFilter) EnumIndex() int {
 	return int(msf)
+}
+
+type PowerStatusComponent struct {
+	XName                     string   `json:"xname"`
+	PowerState                string   `json:"powerState"`
+	ManagementState           string   `json:"managementState"`
+	Error                     string   `json:"error"`
+	SupportedPowerTransitions []string `json:"supportedPowerTransitions"`
+	LastUpdated               string   `json:"lastUpdated"` //RFC3339Nano
+}
+
+type PowerStatus struct {
+	Status []PowerStatusComponent `json:"status"`
 }

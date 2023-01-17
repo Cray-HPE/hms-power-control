@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * (C) Copyright [2021] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,24 +26,29 @@ package main
 
 import (
 	"context"
-	"github.com/Cray-HPE/hms-power-control/internal/api"
-	"github.com/Cray-HPE/hms-power-control/internal/logger"
-	"github.com/namsral/flag"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"os/signal"
-	"stash.us.cray.com/HMS/hms-base"
-	"stash.us.cray.com/HMS/hms-certs/pkg/hms_certs"
-	trsapi "stash.us.cray.com/HMS/hms-trs-app-api/pkg/trs_http_api"
 	"strconv"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/Cray-HPE/hms-base"
+	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
+	"github.com/Cray-HPE/hms-power-control/internal/api"
+	"github.com/Cray-HPE/hms-power-control/internal/credstore"
+	"github.com/Cray-HPE/hms-power-control/internal/domain"
+	"github.com/Cray-HPE/hms-power-control/internal/hsm"
+	"github.com/Cray-HPE/hms-power-control/internal/logger"
+	"github.com/Cray-HPE/hms-power-control/internal/storage"
+	trsapi "github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api"
+	"github.com/namsral/flag"
+	"github.com/sirupsen/logrus"
 )
 
 // Default Port to use
-const defaultPORT = "29495"
+const defaultPORT = "28007"
 
 const defaultSMSServer = "https://api-gw-service-nmn/apis/smd"
 
@@ -62,6 +67,10 @@ var (
 	caURI               string
 	rfClientLock        *sync.RWMutex = &sync.RWMutex{}
 	serviceName         string
+	DSP                 storage.StorageProvider
+	HSM                 hsm.HSMProvider
+	CS                  credstore.CredStoreProvider
+	DLOCK               storage.DistributedLockProvider
 )
 
 func main() {
@@ -83,6 +92,7 @@ func main() {
 	var StateManagerServer string
 	var hsmlockEnabled bool = true
 	var runControl bool = false //noting to run yet!
+	var credCacheDuration int = 600 //In seconds. 10 mins?
 
 	srv := &http.Server{Addr: defaultPORT}
 
@@ -97,6 +107,8 @@ func main() {
 	flag.BoolVar(&VaultEnabled, "vault_enabled", true, "Should vault be used for credentials?")
 	flag.StringVar(&VaultKeypath, "vault_keypath", "secret/hms-creds",
 		"Keypath for Vault credentials.")
+	flag.IntVar(&credCacheDuration, "cred_cache_duration", 600,
+		"Duration in seconds to cache vault credentials.")
 
 	flag.Parse()
 
@@ -180,6 +192,60 @@ func main() {
 	rfClient, _ = hms_certs.CreateRetryableHTTPClientPair("", dfltMaxHTTPTimeout, dfltMaxHTTPRetries, dfltMaxHTTPBackoff)
 	svcClient, _ = hms_certs.CreateRetryableHTTPClientPair("", dfltMaxHTTPTimeout, dfltMaxHTTPRetries, dfltMaxHTTPBackoff)
 
+	//STORAGE/DISTLOCK CONFIGURATION
+	envstr = os.Getenv("STORAGE")
+	if envstr == "" || envstr == "MEMORY" {
+		tmpStorageImplementation := &storage.MEMStorage{
+			Logger: logger.Log,
+		}
+		DSP = tmpStorageImplementation
+		logger.Log.Info("Storage Provider: In Memory")
+		tmpDistLockImplementation := &storage.MEMLockProvider{}
+		DLOCK = tmpDistLockImplementation
+		logger.Log.Info("Distributed Lock Provider: In Memory")
+	} else if envstr == "ETCD" {
+		tmpStorageImplementation := &storage.ETCDStorage{
+			Logger: logger.Log,
+		}
+		DSP = tmpStorageImplementation
+		logger.Log.Info("Storage Provider: ETCD")
+		tmpDistLockImplementation := &storage.ETCDLockProvider{}
+		DLOCK = tmpDistLockImplementation
+		logger.Log.Info("Distributed Lock Provider: ETCD")
+	}
+	DSP.Init(logger.Log)
+	DLOCK.Init(logger.Log)
+	//TODO: there should be a Ping() to insure dist lock mechanism is alive
+
+	//Hardware State Manager CONFIGURATION
+	HSM = &hsm.HSMv2{}
+	hsmGlob := hsm.HSM_GLOBALS{
+		SvcName: serviceName,
+		Logger: logger.Log,
+		Running: &Running,
+		LockEnabled: hsmlockEnabled,
+		SMUrl: StateManagerServer,
+		SVCHttpClient: svcClient,
+	}
+	HSM.Init(&hsmGlob)
+	//TODO: there should be a Ping() to insure HSM is alive
+
+	//Vault CONFIGURATION
+	tmpCS := &credstore.VAULTv0{}
+
+	CS = tmpCS
+	if VaultEnabled {
+		var credStoreGlob credstore.CREDSTORE_GLOBALS
+		credStoreGlob.NewGlobals(logger.Log, &Running, credCacheDuration, VaultKeypath)
+		CS.Init(&credStoreGlob)
+	}
+
+	//DOMAIN CONFIGURATION
+	var domainGlobals domain.DOMAIN_GLOBALS
+	domainGlobals.NewGlobals(&BaseTRSTask, &TLOC_rf, &TLOC_svc, rfClient, svcClient,
+	                         rfClientLock, &Running, &DSP, &HSM, VaultEnabled,
+	                         &CS, &DLOCK)
+
 	//Wait for vault PKI to respond for CA bundle.  Once this happens, re-do
 	//the globals.  This goroutine will run forever checking if the CA trust
 	//bundle has changed -- if it has, it will reload it and re-do the globals.
@@ -192,7 +258,7 @@ func main() {
 			var err error
 			var caChain string
 			var prevCaChain string
-			//RFTransportReady := false
+			RFTransportReady := false
 
 			tdelay := time.Duration(0)
 			for {
@@ -240,14 +306,14 @@ func main() {
 				prevCaChain = caChain
 
 				//update RF tloc and rfclient to the global areas! //TODO im not sure what part of this code is still needed; im guessing part of it at least!
-				//domainGlobals.RFTloc = &TLOC_rf
-				//domainGlobals.RFHttpClient = rfClient
+				domainGlobals.RFTloc = &TLOC_rf
+				domainGlobals.RFHttpClient = rfClient
 				//hsmGlob.RFTloc = &TLOC_rf
 				//hsmGlob.RFHttpClient = rfClient
 				//HSM.Init(&hsmGlob)
 				rfClientLock.Unlock()
-				//RFTransportReady = true
-				//domainGlobals.RFTransportReady = &RFTransportReady
+				RFTransportReady = true
+				domainGlobals.RFTransportReady = &RFTransportReady
 			}
 		}
 	}()
@@ -255,7 +321,35 @@ func main() {
 	///////////////////////////////
 	//INITIALIZATION
 	//////////////////////////////
-	//domain.Init(&domainGlobals)
+	domain.Init(&domainGlobals)
+
+	dlockTimeout := 60
+	pwrSampleInterval := 30
+	envstr = os.Getenv("PCS_POWER_SAMPLE_INTERVAL")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_POWER_SAMPLE_INTERVAL, defaulting to %d",
+				pwrSampleInterval)
+		} else {
+			pwrSampleInterval = tps
+		}
+	}
+	envstr = os.Getenv("PCS_DISTLOCK_TIMEOUT")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_DISTLOCK_TIMEOUT, defaulting to %d",
+				dlockTimeout)
+		} else {
+			dlockTimeout = tps
+		}
+	}
+	domain.PowerStatusMonitorInit(&domainGlobals,
+		(time.Duration(dlockTimeout)*time.Second),
+		logger.Log,(time.Duration(pwrSampleInterval)*time.Second))
+
+	domain.StartRecordsReaper()
 
 	///////////////////////////////
 	//SIGNAL HANDLING -- //TODO does this need to move up ^ so it happens sooner?
@@ -286,6 +380,7 @@ func main() {
 
 		close(idleConnsClosed)
 	}()
+
 
 	///////////////////////
 	// START

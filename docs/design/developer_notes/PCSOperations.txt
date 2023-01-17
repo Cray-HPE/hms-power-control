@@ -33,10 +33,10 @@ POST /transitions
    o Create reservations for targs that need them.  Go lib keeps these alive.
      Reservations are best-effort -- not "all or nothing".
 
-   o Get the HW state of the targets.  Use ETCD HW state records, or
-     go to the HW and ask (TBD).  If any targets are already at the destination
-     state, remove these from the list and mark the return data for that target
-     as 'compete', or maybe 'already there' in taskStateDescription.
+   o Get the HW state of the targets. Use ETCD HW state records. If any targets
+     are already at the destination state, remove these from the list and mark
+     the return data for that target as 'complete', or maybe 'already there' in
+     taskStatusDescription.
 
    o Fetch BMC creds for all target BMCs. (need to mod the pkg to do in 
      parallel - need JIRA)
@@ -47,10 +47,7 @@ POST /transitions
 
    o Call tloc.Launch()
 
-   o As results of Launch() come in, update the task record in ETCD via
-     R/M/W, or just update the in-memory copy and write to ETCD (won't 
-     survive an instance crash though).  (Maybe memcached?  This would allow
-     the in-memory record to be persistent unless all instances die.)
+   o As results of Launch() come in, update the task record in ETCD.
 
      NOTE: for an INIT transition, rather than just do a single HW operation,
      we have to do the following:
@@ -73,9 +70,12 @@ POST /transitions
      fail the operation with an error msg stating why.
 
      (During this time, anybody can call the API's /transitions endpoint to 
-     query a task by ID.  This results only in reads of ETCD task records.
-     Thus, there is always only one instance writer and potentially many
-     readers.  This *should* preclude the need for any record locking...)
+     query a task by ID. This results only in reads of ETCD task records.
+     Thus, the only writers are the transition goroutine, the transition keep
+     alive goroutine, and calls to DELETE /transitions/<ID>. The writers will
+     make use of ETCD TAS (Test-and-Set) operations to update records in the
+     form of R/M/TAS. This will prevent overwriting and allow for abort
+     signaling across instances via ETCD)
 
  o When Launch() completes, release any reservations PCS obtained for targets.
 
@@ -107,13 +107,13 @@ GET /transitions/{transitionID}
 
 DELETE /transitions/{transitionID}
 
- o Verify that the record referenced by the ID is valid, and delete it from
-   ETCD.   DELETE of an active task is an abort.
+ o Verify that the record referenced by the ID is valid, and change its status
+   to 'abort-signaled' in ETCD if the transition is active.
 
    If the task is active:
 
-   o Goroutine that is executing the task has to have a chan to signal an 
-     abort.  Write the kill value into that chan.
+   o Goroutine that is executing the task has to do R/M/TAS operations when
+     updating ETCD to detect when an abort has been signaled.
 
      o Update the ETCD task record to show it is "aborted".  DO NOT DELETE
        the record -- the reaper will do this.
