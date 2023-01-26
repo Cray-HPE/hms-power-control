@@ -73,7 +73,7 @@ tags:
   - name: transitions
     description: Endpoints that perform power operations to a set of xnames
   - name: power-status
-    description: Endpoints that retreive power status of xnames
+    description: Endpoints that retrieve power status of xnames
   - name: power-cap
     description: Endpoints that retrieve or set power cap parameters
 
@@ -291,7 +291,7 @@ paths:
               $ref: '#/components/schemas/power_cap_snapshot_req'
       responses:
         '200':
-          description: OK. The data was succesfully retrieved
+          description: OK. The data was successfully retrieved
           content:
             application/json:
               schema:
@@ -327,7 +327,7 @@ paths:
               $ref: '#/components/schemas/power_cap_patch'
       responses:
         '200':
-          description: OK. The data was succesfully retrieved
+          description: OK. The data was successfully retrieved
           content:
             application/json:
               schema:
@@ -350,7 +350,7 @@ paths:
       summary: Get a list of power-cap tasks (snapshots or sets)
       responses:
         '200':
-          description: OK. The data was succesfully retrieved
+          description: OK. The data was successfully retrieved
           content:
             application/json:
               schema:
@@ -378,7 +378,7 @@ paths:
             $ref: '#/components/schemas/task_id'
       responses:
         '200':
-          description: OK. The data was succesfully retrieved.  Task Info is only present for task status operations (PATCH power-cap or POST power-cap/snapshot)
+          description: OK. The data was successfully retrieved.  Task Info is only present for task status operations (PATCH power-cap or POST power-cap/snapshot)
           content:
             application/json:
               schema:
@@ -483,7 +483,7 @@ components:
           description: What the power state was detected.
         managementState:
           type: string
-          description: Describes if the device is currently available for commands via its managment controller
+          description: Describes if the device is currently available for commands via its management controller
           enum:
             - unavailable
             - available
@@ -874,11 +874,11 @@ components:
         hostLimitMax:
           type: integer
           example: 900
-          description: Node maximum power draw, measured in watts, as reported by underlying redfish implemention
+          description: Node maximum power draw, measured in watts, as reported by underlying Redfish implementation
         hostLimitMin:
           type: integer
           example: 360
-          description: Node minimum power draw, measured in watts, as reported by underlying redfish implemention
+          description: Node minimum power draw, measured in watts, as reported by underlying Redfish implementation
         powerupPower:
           type: integer
           example: 250
