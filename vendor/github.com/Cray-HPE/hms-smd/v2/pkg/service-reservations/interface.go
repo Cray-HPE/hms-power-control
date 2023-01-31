@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2020-2022] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2020-2023] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -38,7 +38,7 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/sirupsen/logrus"
 	"github.com/Cray-HPE/hms-base"
-	"github.com/Cray-HPE/hms-smd/pkg/sm"
+	"github.com/Cray-HPE/hms-smd/v2/pkg/sm"
 )
 
 const HSM_DEFAULT_RESERVATION_PATH = "/hsm/v2/locks/service/reservations"
@@ -90,22 +90,25 @@ type ServiceReservation interface {
 	Aquire(xnames []string) error
 
 	//Same as Aquire() will acquire what it can, indicate which succeeded/failed
-	FlexAquire(xname []string) (ReservationCreateResponse,error)
+	FlexAquire(xname []string) (ReservationCreateResponse, error)
+
+	//Restarts periodic renew for already owned reservations
+	Reacquire(reservationKeys []Key, flex bool) (ReservationReleaseRenewResponse, error)
 
 	//Validate that I still own the lock for the xnames listed.
 	Check(xnames []string) bool
 
 	//Validate which locks I still own from the xnames listed.
-	FlexCheck(xnames []string) (ReservationCreateResponse,bool)
+	FlexCheck(xnames []string) (ReservationCreateResponse, bool)
 
 	//Validate deputy keys given by another actor
-	ValidateDeputyKeys(keys []Key) (ReservationCheckResponse,error)
+	ValidateDeputyKeys(keys []Key) (ReservationCheckResponse, error)
 
 	//Release the locks on the xnames
 	Release(xnames []string) error
 
 	//Release from a list of xnames, only fail on total failure
-	FlexRelease(xnames []string) (ReservationReleaseRenewResponse,error)
+	FlexRelease(xnames []string) (ReservationReleaseRenewResponse, error)
 
 	Status() map[string]Reservation
 }
@@ -195,9 +198,12 @@ func (i *Production) doRenewal() {
 			}
 		}
 
-		var renewalParameters ReservationRenewalParameters
-		renewalParameters.ProcessingModel = "flexible"
-		renewalParameters.ReservationDuration = i.defaultTermMinutes
+		if len(renewalCandidates) == 0 {
+			i.logger.Debug("doRenewal() - CONTINUE - Nothing to renew")
+			continue
+		}
+
+		var resKeys []Key
 
 		for _, xname := range renewalCandidates {
 			if res, ok := i.reservedMap[xname]; ok {
@@ -208,87 +214,120 @@ func (i *Production) doRenewal() {
 				}
 
 				//add the key to the list
-				renewalParameters.ReservationKeys = append(renewalParameters.ReservationKeys, key)
+				resKeys = append(resKeys, key)
 			}
 		}
 
-		if len(renewalCandidates) == 0 {
-			i.logger.Debug("doRenewal() - CONTINUE - Nothing to renew")
+		response, err := i.doRenew(resKeys, true)
+		if err != nil {
+			i.logger.WithField("error", err).Error("doRenewal() - CONTINUE")
 			continue
 		}
-		marshalReleaseParams, _ := json.Marshal(renewalParameters)
-		stringReleaseParams := string(marshalReleaseParams)
-		targetURL, _ := url.Parse(i.stateManagerServer + i.reservationPath + "/renew")
 
-		i.logger.WithField("params", stringReleaseParams).Trace("doRenewal() - Sending command")
+		i.logger.WithFields(logrus.Fields{"Total": response.Counts.Total,
+			"Success": response.Counts.Success,
+			"Failure": response.Counts.Failure}).Debug("doRenewal() - renewal action complete")
+		i.logger.WithFields(logrus.Fields{"Total": response.Counts.Total,
+			"Success": response.Counts.Success,
+			"Failure": response.Counts.Failure}).Info("ServiceReservations - renewal action complete")
 
-		newRequest, err := http.NewRequest("POST", targetURL.String(), bytes.NewBuffer([]byte(stringReleaseParams)))
-		if err != nil {
-			i.logger.WithField("error", err).Error("doRenewal() - CONTINUE")
-			continue //go to sleep
-		}
-		base.SetHTTPUserAgent(newRequest,serviceName)
-
-		reqContext, _ := context.WithTimeout(context.Background(), time.Second*40)
-		req, err := retryablehttp.FromRequest(newRequest)
-		req = req.WithContext(reqContext)
-		if err != nil {
-			i.logger.WithField("error", err).Error("doRenewal() - CONTINUE")
-			continue //go to sleep
-		}
-
-		req.Header.Add("Content-Type", "application/json")
-
-		//make request
-		resp, err := i.httpClient.Do(req)
-		if err != nil {
-			i.logger.WithField("error", err).Error("doRenewal() - CONTINUE")
-			continue //go to sleep
-		}
-
-		//process response
-		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			i.logger.WithField("error", err).Error("doRenewal() - CONTINUE")
-			continue //go to sleep
-		}
-
-		i.logger.WithField("response", string(body)).Trace("doRenewal() - Received response")
-
-		switch statusCode := resp.StatusCode; statusCode {
-
-		case http.StatusOK:
-			var response ReservationReleaseRenewResponse
-			err = json.Unmarshal(body, &response)
-			if err != nil {
-				i.logger.WithField("error", err).Error("doRenewal() - CONTINUE")
-				continue
+		// Remove the failed ones
+		for _, v := range response.Failure {
+			if _, ok := i.reservedMap[v.ID]; ok {
+				i.logger.WithFields(logrus.Fields{"reservation": i.reservedMap[v.ID]}).Trace("doRenewal() - deleting failures")
+				i.reservationMutex.Lock()
+				delete(i.reservedMap, v.ID)
+				i.reservationMutex.Unlock()
 			}
-
-			i.logger.WithFields(logrus.Fields{"Total": response.Counts.Total,
-				"Success": response.Counts.Success,
-				"Failure": response.Counts.Failure}).Debug("doRenewal() - renewal action complete")
-			i.logger.WithFields(logrus.Fields{"Total": response.Counts.Total,
-				"Success": response.Counts.Success,
-				"Failure": response.Counts.Failure}).Info("ServiceReservations - renewal action complete")
-
-			// Remove the failed ones
-			for _, v := range response.Failure {
-				if _, ok := i.reservedMap[v.ID]; ok {
-					i.logger.WithFields(logrus.Fields{"reservation": i.reservedMap[v.ID]}).Trace("doRenewal() - deleting failures")
-					i.reservationMutex.Lock()
-					delete(i.reservedMap, v.ID)
-					i.reservationMutex.Unlock()
-				}
-			}
-
-		//Die silently?
-		default:
-			i.logger.WithFields(logrus.Fields{"error": "failed to renew", "renewalCandidates": renewalCandidates}).Error("doRenewal() - CONTINUE")
-			continue
 		}
+
 		i.logger.Trace("doRenewal() - BOTTOM Loop")
+	}
+}
+
+// Send a renew request to HSM
+func (i *Production) doRenew(reservationKeys []Key, flex bool) (ReservationReleaseRenewResponse, error) {
+	var response ReservationReleaseRenewResponse
+
+	i.logger.Trace("doRenew() - START")
+
+	processingModel := CLProcessingModelFlex
+	if !flex {
+		processingModel = CLProcessingModelRigid
+	}
+
+	renewalParameters := ReservationRenewalParameters{
+		ProcessingModel: processingModel,
+		ReservationDuration: i.defaultTermMinutes,
+		ReservationKeys: reservationKeys,
+	}
+
+	if len(renewalParameters.ReservationKeys) == 0 {
+		i.logger.Debug("doRenew() - END - Nothing to renew")
+		return response, fmt.Errorf("Nothing to renew")
+	}
+
+	marshalReleaseParams, _ := json.Marshal(renewalParameters)
+	stringReleaseParams := string(marshalReleaseParams)
+	targetURL, _ := url.Parse(i.stateManagerServer + i.reservationPath + "/renew")
+
+	i.logger.WithField("params", stringReleaseParams).Trace("doRenew() - Sending command")
+
+	newRequest, err := http.NewRequest("POST", targetURL.String(), bytes.NewBuffer([]byte(stringReleaseParams)))
+	if err != nil {
+		i.logger.WithField("error", err).Error("doRenew() - END")
+		return response, err
+	}
+	base.SetHTTPUserAgent(newRequest, serviceName)
+
+	reqContext, _ := context.WithTimeout(context.Background(), time.Second*40)
+	req, err := retryablehttp.FromRequest(newRequest)
+	req = req.WithContext(reqContext)
+	if err != nil {
+		i.logger.WithField("error", err).Error("doRenew() - END")
+		return response, err
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	//make request
+	resp, err := i.httpClient.Do(req)
+	if err != nil {
+		i.logger.WithField("error", err).Error("doRenew() - END")
+		return response, err
+	}
+
+	//process response
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		i.logger.WithField("error", err).Error("doRenew() - END")
+		return response, err
+	}
+
+	i.logger.WithField("response", string(body)).Trace("doRenew() - Received response")
+
+	switch statusCode := resp.StatusCode; statusCode {
+
+	case http.StatusOK:
+		err = json.Unmarshal(body, &response)
+		if err != nil {
+			i.logger.WithField("error", err).Error("doRenew() - END")
+			return response, err
+		}
+		i.logger.Trace("doRenew() - END")
+		return response, nil
+
+	case http.StatusBadRequest:
+		var errResponse Problem7807
+		_ = json.Unmarshal(body, &errResponse)
+		err = errors.New(errResponse.Detail)
+		i.logger.WithField("error", err).Error("doRenew() - END")
+		return response, err
+
+	default:
+		i.logger.WithFields(logrus.Fields{"error": "failed to renew"}).Error("doRenew() - END")
+		return response, fmt.Errorf("failed to renew")
 	}
 }
 
@@ -471,6 +510,47 @@ func (i *Production) FlexAquire(xnames []string) (ReservationCreateResponse,erro
 	}
 
 	return resResponse,nil
+}
+
+//Restarts periodic renew for already owned reservations
+func (i *Production) Reacquire(reservations []Reservation, flex bool) (ReservationReleaseRenewResponse, error) {
+	var (
+		response  ReservationReleaseRenewResponse
+		resKeys   []Key
+	)
+
+	i.logger.Trace("Reacquire() - START")
+
+	resMap := make(map[string]Reservation)
+
+	for _, res := range reservations {
+		resMap[res.Xname] = res
+		key := Key{
+			ID: res.Xname,
+			Key: res.ReservationKey,
+		}
+		resKeys = append(resKeys, key)
+	}
+	if len(resKeys) == 0 {
+		i.logger.Debug("Reacquire() - END - Nothing to reacquire")
+		return response, fmt.Errorf("Nothing to reacquire")
+	}
+	response, err := i.doRenew(resKeys, flex)
+	if err != nil {
+		i.logger.WithField("error", err).Error("Reacquire() - END")
+		return response, err
+	}
+
+	// Add the successfully renewed components
+	for _, id := range response.Success.ComponentIDs {
+		if res, ok := resMap[id]; ok {
+			i.reservationMutex.Lock()
+			i.reservedMap[res.Xname] = res
+			i.reservationMutex.Unlock()
+		}
+	}
+	i.logger.Trace("Reacquire() - END")
+	return response, nil
 }
 
 func (i *Production) Check(xnames []string) bool {

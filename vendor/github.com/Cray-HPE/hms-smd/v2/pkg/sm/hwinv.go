@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2018-2021] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2018-2023] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -28,7 +28,7 @@ import (
 	"strconv"
 
 	base "github.com/Cray-HPE/hms-base"
-	rf "github.com/Cray-HPE/hms-smd/pkg/redfish"
+	rf "github.com/Cray-HPE/hms-smd/v2/pkg/redfish"
 )
 
 var ErrHWLocInvalid = base.NewHMSError("sm", "ID is empty or not a valid xname")
@@ -908,9 +908,9 @@ func NewHWInvByLocs(hwlocs []HWInvByLoc) ([]*HWInvByLoc, error) {
 			c := new(rf.EpManager)
 			c.Type = hwloc.Type
 			c.ID = hwloc.ID
-			c.ManagerRF.Manufacturer = hwloc.PopulatedFRU.HMSNodeBMCFRUInfo.Manufacturer
-			c.ManagerRF.PartNumber = hwloc.PopulatedFRU.HMSNodeBMCFRUInfo.PartNumber
-			c.ManagerRF.SerialNumber = hwloc.PopulatedFRU.HMSNodeBMCFRUInfo.SerialNumber
+			c.ManagerRF.Manufacturer = hwloc.PopulatedFRU.HMSRouterBMCFRUInfo.Manufacturer
+			c.ManagerRF.PartNumber = hwloc.PopulatedFRU.HMSRouterBMCFRUInfo.PartNumber
+			c.ManagerRF.SerialNumber = hwloc.PopulatedFRU.HMSRouterBMCFRUInfo.SerialNumber
 			hwloc.PopulatedFRU.FRUID, err = rf.GetManagerFRUID(c)
 			if err != nil {
 				errlog.Printf("FRUID Error: %s\n", err.Error())

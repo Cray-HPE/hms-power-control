@@ -44,7 +44,6 @@ type TransitionComponent struct {
 	PState      *model.PowerStatusComponent
 	HSMData     *hsm.HsmData
 	Task        *model.TransitionTask
-	DeputyKey   string
 	Actions     map[string]string
 	ActionCount int // Number of actions until task competion
 }
@@ -320,8 +319,6 @@ func doTransition(transitionID uuid.UUID) {
 	//   HSM has plus a recently captured power state from hardware.
 	///////////////////////////////////////////////////////////////////////////
 
-	logger.Log.Errorf("Xnames %v\nxnameMap %v", xnames, xnameMap)
-
 	// Expand the list of xnames to include power controlled subcomponents. This way we
 	// already have the information for additional components we might need to add.
 	pStates, missingXnames, err := getPowerStateHierarchy(xnames)
@@ -535,8 +532,6 @@ func doTransition(transitionID uuid.UUID) {
 				continue
 			}
 			comp.Task.Status = model.TransitionTaskStatusFailed
-			// comp.Task.Error = "Error acquiring reservations"
-			// comp.Task.StatusDesc = "Failed to achieve transition"
 			comp.Task.Error = err.Error()
 			comp.Task.StatusDesc = "Error acquiring reservations"
 			err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
@@ -554,52 +549,65 @@ func doTransition(transitionID uuid.UUID) {
 		// Check to see if we got everything back. ReserveComponents returns
 		// everything that either was successfully reserved or had a valid
 		// deputy key.
-		if len(resData) != len(reservationData) {
-			resMap := make(map[string]*hsm.ReservationData)
-			for _, res := range reservationData {
-				resMap[res.XName] = res
-			}
-			for _, res := range resData {
-				if _, ok := resMap[res.XName]; !ok {
-					var depErrMsg string
-					var powerAction string
-					comp := xnameMap[res.XName]
-					comp.Task.Status = model.TransitionTaskStatusFailed
-					if res.DeputyKey == "" {
-						// TODO: Check ExpirationTime and wait to try again?
-						//       Could be that we restarted and just need to
-						//       wait for the old locks to fall off.
-						comp.Task.Error = "Unable to reserve component"
-						depErrMsg = fmt.Sprintf("Unable to reserve dependent component, %s.", comp.Task.Xname)
-					} else {
-						// We were given a deputy key that was invalid so we tried
-						// reserving the component but we failed to reserve it.
-						comp.Task.Error = "Invalid deputy key and unable to reserve component"
-						depErrMsg = fmt.Sprintf("Invalid deputy key and unable to reserve dependent component, %s.", comp.Task.Xname)
-					}
-					comp.Task.StatusDesc = "Failed to achieve transition"
-					switch(comp.Task.Operation) {
-					case model.Operation_SoftRestart: fallthrough
-					case model.Operation_HardRestart: fallthrough
-					case model.Operation_SoftOff: fallthrough
-					case model.Operation_Off:
+		resMap := make(map[string]*hsm.ReservationData)
+		for _, res := range reservationData {
+			resMap[res.XName] = res
+		}
+		for _, res := range resData {
+			reservation, ok := resMap[res.XName]
+			if !ok {
+				var depErrMsg string
+				var powerAction string
+				comp := xnameMap[res.XName]
+				if comp.Task.Status != model.TransitionTaskStatusNew &&
+				   comp.Task.Status != model.TransitionTaskStatusInProgress {
+					// Don't change status on already completed tasks.
+					continue
+				}
+				comp.Task.Status = model.TransitionTaskStatusFailed
+				if res.DeputyKey == "" {
+					// TODO: Check ExpirationTime and wait to try again?
+					//       Could be that we restarted and just need to
+					//       wait for the old locks to fall off.
+					comp.Task.Error = "Unable to reserve component"
+					depErrMsg = fmt.Sprintf("Unable to reserve dependent component, %s.", comp.Task.Xname)
+				} else {
+					// We were given a deputy key that was invalid so we tried
+					// reserving the component but we failed to reserve it.
+					comp.Task.Error = "Invalid deputy key and unable to reserve component"
+					depErrMsg = fmt.Sprintf("Invalid deputy key and unable to reserve dependent component, %s.", comp.Task.Xname)
+				}
+				comp.Task.StatusDesc = "Failed to achieve transition"
+				switch(comp.Task.Operation) {
+				case model.Operation_SoftRestart: fallthrough
+				case model.Operation_HardRestart: fallthrough
+				case model.Operation_SoftOff: fallthrough
+				case model.Operation_Off:
+					powerAction = "gracefulshutdown"
+				case model.Operation_ForceOff:
+					powerAction = "forceoff"
+				case model.Operation_On:
+					powerAction = "on"
+				case model.Operation_Init:
+					if strings.ToLower(comp.PState.PowerState) == "on" {
 						powerAction = "gracefulshutdown"
-					case model.Operation_ForceOff:
-						powerAction = "forceoff"
-					case model.Operation_On:
+					} else {
 						powerAction = "on"
-					case model.Operation_Init:
-						if strings.ToLower(comp.PState.PowerState) == "on" {
-							powerAction = "gracefulshutdown"
-						} else {
-							powerAction = "on"
-						}
 					}
-					failDependentComps(xnameMap, powerAction, comp.Task.Xname, depErrMsg)
-					err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
-					if err != nil {
-						logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
-					}
+				}
+				failDependentComps(xnameMap, powerAction, comp.Task.Xname, depErrMsg)
+				err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
+				if err != nil {
+					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
+				}
+			} else {
+				// Store the keys in the task
+				comp := xnameMap[res.XName]
+				comp.Task.ReservationKey = reservation.ReservationKey
+				comp.Task.DeputyKey = reservation.DeputyKey
+				err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
+				if err != nil {
+					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
 				}
 			}
 		}
@@ -1194,12 +1202,7 @@ func setupTransitionTasks(tr *model.Transition) (map[string]*TransitionComponent
 
 	// Vet and turn the list of requested xnames into a map
 	for _, loc := range tr.Location {
-		if comp, ok := xnameMap[loc.Xname]; ok {
-			// Is a duplicate or from a restart.
-			// Restarted tasks will need just the deputy key readded.
-			if comp.DeputyKey == "" {
-				comp.DeputyKey = loc.DeputyKey
-			}
+		if _, ok := xnameMap[loc.Xname]; ok {
 			continue
 		}
 
@@ -1207,6 +1210,7 @@ func setupTransitionTasks(tr *model.Transition) (map[string]*TransitionComponent
 		// communicate reasons for failures.
 		task := model.NewTransitionTask(tr.TransitionID, tr.Operation)
 		task.Xname = loc.Xname
+		task.DeputyKey = loc.DeputyKey
 
 		// Weed out invalid xnames and components we can't power control here.
 		compType := base.GetHMSType(loc.Xname)
@@ -1235,10 +1239,7 @@ func setupTransitionTasks(tr *model.Transition) (map[string]*TransitionComponent
 		if err != nil {
 			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
 		}
-		xnameMap[loc.Xname] = &TransitionComponent{
-			Task:      &task,
-			DeputyKey: loc.DeputyKey,
-		}
+		xnameMap[loc.Xname] = &TransitionComponent{Task: &task}
 		if task.Status == model.TransitionTaskStatusNew {
 			xnames = append(xnames, loc.Xname)
 		}
@@ -1259,6 +1260,17 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 	for xname, comp := range xnameMap {
 		if comp.Task.Status != model.TransitionTaskStatusNew &&
 		   comp.Task.Status != model.TransitionTaskStatusInProgress {
+			// Add completed tasks that might already have a valid reservation
+			// in HSM to our reservations list so they'll get properly released.
+			if comp.Task.ReservationKey != "" {
+				res := hsm.ReservationData{
+					XName: xname,
+					ReservationKey: comp.Task.ReservationKey,
+					DeputyKey: comp.Task.DeputyKey,
+				}
+				resData = append(resData, res)
+			}
+			
 			continue
 		}
 
@@ -1501,10 +1513,12 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 		}
 		// Form the ReservationData array for use with the HSM API for acquiring component reservations.
 		if comp.Task.Status == model.TransitionTaskStatusNew ||
-		   comp.Task.Status == model.TransitionTaskStatusInProgress {
+		   comp.Task.Status == model.TransitionTaskStatusInProgress ||
+		   comp.Task.ReservationKey != "" {
 			res := hsm.ReservationData{
 				XName: xname,
-				DeputyKey: comp.DeputyKey,
+				ReservationKey: comp.Task.ReservationKey, // Only present if the transition was restarted
+				DeputyKey: comp.Task.DeputyKey,
 			}
 			resData = append(resData, res)
 		}

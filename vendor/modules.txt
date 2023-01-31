@@ -15,11 +15,11 @@ github.com/Cray-HPE/hms-hmetcd
 # github.com/Cray-HPE/hms-securestorage v1.12.2
 ## explicit
 github.com/Cray-HPE/hms-securestorage
-# github.com/Cray-HPE/hms-smd v1.48.0
+# github.com/Cray-HPE/hms-smd/v2 v2.4.0
 ## explicit
-github.com/Cray-HPE/hms-smd/pkg/redfish
-github.com/Cray-HPE/hms-smd/pkg/service-reservations
-github.com/Cray-HPE/hms-smd/pkg/sm
+github.com/Cray-HPE/hms-smd/v2/pkg/redfish
+github.com/Cray-HPE/hms-smd/v2/pkg/service-reservations
+github.com/Cray-HPE/hms-smd/v2/pkg/sm
 # github.com/Cray-HPE/hms-trs-app-api v1.6.3
 ## explicit
 github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api

@@ -26,7 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
 	"github.com/Cray-HPE/hms-base"
-	reservation "github.com/Cray-HPE/hms-smd/pkg/service-reservations"
+	reservation "github.com/Cray-HPE/hms-smd/v2/pkg/service-reservations"
 )
 
 type HSM_GLOBALS struct {

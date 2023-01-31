@@ -41,6 +41,8 @@ github.com/Cray-HPE/hms-securestorage v1.12.2 h1:H5n0i6ldzewd5p7PI2Hktr/+9cYfSCu
 github.com/Cray-HPE/hms-securestorage v1.12.2/go.mod h1:P4CMKqQVlx/lv+AdyEjNQubZw2FKNyo/IAtFNgQ3VuI=
 github.com/Cray-HPE/hms-smd v1.48.0 h1:hJXAU9Vip3Oo1ywltPZMxeTS5qKn+s4ATzk7pIPq2Z4=
 github.com/Cray-HPE/hms-smd v1.48.0/go.mod h1:7J7taeRXmceyLPHdKlLbucb10lqTrJxTUo3RhaTGMhs=
+github.com/Cray-HPE/hms-smd/v2 v2.4.0 h1:lq4fO2vYEDSvEiG8G9+fnXhzkAhX7x5fQ/h9WNMwaYU=
+github.com/Cray-HPE/hms-smd/v2 v2.4.0/go.mod h1:1O8a0qXZE654yDHNczLXtZCZE8VH6wc5U3GmNBPWlr4=
 github.com/Cray-HPE/hms-trs-app-api v1.6.3 h1:aES3CLgDWGFv36A2VUh3uuJLNggtOv50L1cDGma5fgM=
 github.com/Cray-HPE/hms-trs-app-api v1.6.3/go.mod h1:RbB2pYCrZ5N3d0ho4nzTAz9ifI2GYpAdf4Qeco748KQ=
 github.com/Cray-HPE/hms-trs-kafkalib v1.5.2 h1:MhV6SE0HmEcMnuAb/dVclfXd+49udbVCYr2ze0CDXoI=

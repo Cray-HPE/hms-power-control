@@ -34,20 +34,21 @@ import (
 	"os"
 	"strings"
 	"time"
-	"github.com/sirupsen/logrus"
+
 	"github.com/Cray-HPE/hms-base"
-	"github.com/Cray-HPE/hms-smd/pkg/sm"
-	reservation "github.com/Cray-HPE/hms-smd/pkg/service-reservations"
+	"github.com/Cray-HPE/hms-smd/v2/pkg/sm"
+	reservation "github.com/Cray-HPE/hms-smd/v2/pkg/service-reservations"
+	"github.com/sirupsen/logrus"
 )
 
 const (
-	hsmLivenessPath = "/hsm/v2/service/liveness"
-	hsmStateComponentsPath = "/hsm/v2/State/Components"
-	hsmStateComponentsQueryPath = "/hsm/v2/State/Components/Query"
+	hsmLivenessPath                   = "/hsm/v2/service/liveness"
+	hsmStateComponentsPath            = "/hsm/v2/State/Components"
+	hsmStateComponentsQueryPath       = "/hsm/v2/State/Components/Query"
 	hsmInventoryComponentEndpointPath = "/hsm/v2/Inventory/ComponentEndpoints"
-	hsmReservationCheckPath = "/hsm/v2/locks/service/reservations/check"
-	hsmReservationPath = "/hsm/v2/locks/service/reservations"
-	hsmReservationReleasePath = "/hsm/v2/locks/service/reservations/release"
+	hsmReservationCheckPath           = "/hsm/v2/locks/service/reservations/check"
+	hsmReservationPath                = "/hsm/v2/locks/service/reservations"
+	hsmReservationReleasePath         = "/hsm/v2/locks/service/reservations/release"
 
 	HSM_MAX_COMPONENT_QUERY = 2000
 )
@@ -63,13 +64,13 @@ func (b *HSMv2) Init(globals *HSM_GLOBALS) error {
 	b.HSMGlobals = HSM_GLOBALS{}
 	b.HSMGlobals = *globals
 
-	if (b.HSMGlobals.Logger == nil) {
+	if b.HSMGlobals.Logger == nil {
 		//Set up logger with defaults.
 		b.HSMGlobals.Logger = logrus.New()
 	}
 
 	svcName := b.HSMGlobals.SvcName
-	if (svcName == "") {
+	if svcName == "" {
 		svcName = "PCS"
 	}
 
@@ -110,18 +111,18 @@ func (b *HSMv2) Init(globals *HSM_GLOBALS) error {
 		logy.SetFormatter(Formatter)
 
 		b.HSMGlobals.Reservation = &reservation.Production{}
-		b.HSMGlobals.Reservation.InitInstance(b.HSMGlobals.SMUrl, "", 1, logy,svcName)
+		b.HSMGlobals.Reservation.InitInstance(b.HSMGlobals.SMUrl, "", 1, logy, svcName)
 	}
 
 	//Make sure certain things are set up
 
-	if (b.HSMGlobals.MaxComponentQuery == 0) {
+	if b.HSMGlobals.MaxComponentQuery == 0 {
 		b.HSMGlobals.MaxComponentQuery = HSM_MAX_COMPONENT_QUERY
 	}
-	if (b.HSMGlobals.SVCHttpClient == nil) {
+	if b.HSMGlobals.SVCHttpClient == nil {
 		return fmt.Errorf("ERROR: no microservice HTTP client is present.")
 	}
-	if (b.HSMGlobals.SMUrl == "") {
+	if b.HSMGlobals.SMUrl == "" {
 		return fmt.Errorf("ERROR: no State Manager base URL is present.")
 	}
 
@@ -152,63 +153,93 @@ func (b *HSMv2) Ping() (err error) {
 	return
 }
 
-// Check each component in the given list.  If it has a deputy key, make 
-// sure it's valid.  Any component without a deputy or with an invalid one,
-// aquire a reservation for that component.  The return array contains only
-// components for which we aquired a reservation, as a convenience to the
-// caller so they don't have to create this list themselves.
-
-func (b *HSMv2) ReserveComponents(compList []ReservationData) ([]*ReservationData,error) {
+// Check each component in the given list. If it already has a reservation key,
+// try to reacquire the reservation so the auto-renew thread will have it.
+// If it has a deputy key, make sure it's valid. Any component without keys or
+// with invalid keys, acquire a reservation for that component. The return array
+// contains only components for which we aquired a reservation, as a convenience
+// to the caller so they don't have to create this list themselves.
+func (b *HSMv2) ReserveComponents(compList []ReservationData) ([]*ReservationData, error) {
 	var retData []*ReservationData
 	var aquireList []string
 	var depKeys []reservation.Key
+	var resKeys []reservation.Reservation
 
-	if (!b.HSMGlobals.LockEnabled) {
-		return retData,nil
+	if !b.HSMGlobals.LockEnabled {
+		return retData, nil
 	}
-	if (len(compList) == 0) {
-		return retData,nil
+	if len(compList) == 0 {
+		return retData, nil
 	}
 
-	//First check any component record with deputy keys.  Any that are
-	//valid, skip.  If invalid or no deputy key, add to the list to 
-	//reserve.
+	// First check any component record with deputy keys. Any that are
+	// valid, skip. If invalid or no deputy key, add to the list to 
+	// reserve.
 
 	compMap := make(map[string]*ReservationData)
 
-	for ix,comp := range(compList) {
+	for ix, comp := range compList {
 		compMap[comp.XName] = &compList[ix]
 		compMap[comp.XName].needRsv = true
 		compMap[comp.XName].ReservationOwner = false
 		compMap[comp.XName].Error = nil
-		if (comp.DeputyKey != "") {
-			depKeys = append(depKeys,reservation.Key{ID: comp.XName, Key: comp.DeputyKey})
+		if comp.ReservationKey != "" {
+			res := reservation.Reservation{
+				Xname: comp.XName,
+				ReservationKey: comp.ReservationKey,
+				DeputyKey: comp.DeputyKey,
+			}
+			resKeys = append(resKeys, res)
+		} else if comp.DeputyKey != "" {
+			depKeys = append(depKeys, reservation.Key{ID: comp.XName, Key: comp.DeputyKey})
 		}
 	}
 
-	if (len(depKeys) > 0) {
-		depList,depErr := b.HSMGlobals.Reservation.ValidateDeputyKeys(depKeys)
-		if (depErr != nil) {
-			return retData,fmt.Errorf("ERROR validating deputy keys: %v",depErr)
+	// Reacquire any reservations we may have previously held
+	if len(resKeys) > 0 {
+		resList, resErr := b.HSMGlobals.Reservation.Reacquire(resKeys, true)
+		if resErr != nil {
+			return retData, fmt.Errorf("ERROR reacquiring reservations: %v", resErr)
 		}
 
-		//Mark all components with valid deputy keys as NOT the 
-		//reservation owner
+		if len(resList.Success.ComponentIDs) > 0 {
+			chkResp, chkErr := b.HSMGlobals.Reservation.FlexCheck(resList.Success.ComponentIDs)
+			if resErr != nil {
+				return retData, fmt.Errorf("ERROR checking reacquired reservations: %v", chkErr)
+			}
 
-		for _,comp := range(depList.Success) {
+			for _, comp := range chkResp.Success {
+				compMap[comp.ID].ReservationOwner = true
+				compMap[comp.ID].needRsv = false
+				compMap[comp.ID].ReservationKey = comp.ReservationKey
+				compMap[comp.ID].DeputyKey = comp.DeputyKey
+				compMap[comp.ID].ExpirationTime = comp.ExpirationTime
+				retData = append(retData, compMap[comp.ID])
+			}
+		}
+	}
+
+	if len(depKeys) > 0 {
+		depList, depErr := b.HSMGlobals.Reservation.ValidateDeputyKeys(depKeys)
+		if depErr != nil {
+			return retData, fmt.Errorf("ERROR validating deputy keys: %v", depErr)
+		}
+
+		// Mark all components with valid deputy keys as NOT the 
+		// reservation owner
+		for _, comp := range depList.Success {
 			compMap[comp.ID].ReservationOwner = false
 			compMap[comp.ID].ReservationKey = ""
 			compMap[comp.ID].ExpirationTime = ""
 			compMap[comp.ID].needRsv = false
-			retData = append(retData,compMap[comp.ID])
+			retData = append(retData, compMap[comp.ID])
 		}
 	}
 
 	// Whatever comps are left over, we need to aquire their reservations
-
-	for k,v := range(compMap) {
-		if (v.needRsv == true) {
-			aquireList = append(aquireList,k)
+	for k, v := range compMap {
+		if v.needRsv {
+			aquireList = append(aquireList, k)
 		}
 	}
 
@@ -216,21 +247,21 @@ func (b *HSMv2) ReserveComponents(compList []ReservationData) ([]*ReservationDat
 		return retData, nil
 	}
 
-	acList,acErr := b.HSMGlobals.Reservation.FlexAquire(aquireList)
-	if (acErr != nil) {
-		return retData,fmt.Errorf("ERROR aquiring needed reservations: %v",acErr)
+	acList, acErr := b.HSMGlobals.Reservation.FlexAquire(aquireList)
+	if acErr != nil {
+		return retData, fmt.Errorf("ERROR aquiring needed reservations: %v", acErr)
 	}
 
-	for _,rr := range(acList.Success) {
+	for _, rr := range acList.Success {
 		compMap[rr.ID].ReservationOwner = true
 		compMap[rr.ID].needRsv = false
 		compMap[rr.ID].ReservationKey = rr.ReservationKey
 		compMap[rr.ID].DeputyKey = rr.DeputyKey
 		compMap[rr.ID].ExpirationTime = rr.ExpirationTime
-		retData = append(retData,compMap[rr.ID])
+		retData = append(retData, compMap[rr.ID])
 	}
 
-	return retData,nil
+	return retData, nil
 }
 
 // Check each component's deputy key for validity.  Any error results in
@@ -240,34 +271,33 @@ func (b *HSMv2) ReserveComponents(compList []ReservationData) ([]*ReservationDat
 //
 // NOTE: not having a deputy key associated with a component is not an error.
 // This func is only checking non-nil keys for validity.
-
 func (b *HSMv2) CheckDeputyKeys(compList []ReservationData) error {
 	var keyList []reservation.Key
 	cmap := make(map[string]*ReservationData)
 
-	for ix,comp := range(compList) {
+	for ix, comp := range compList {
 		cmap[comp.XName] = &compList[ix]
 		compList[ix].Error = nil
-		if (comp.DeputyKey != "") {
-			keyList = append(keyList,reservation.Key{ID: comp.XName, Key: comp.DeputyKey})
+		if comp.DeputyKey != "" {
+			keyList = append(keyList, reservation.Key{ID: comp.XName, Key: comp.DeputyKey})
 		}
 	}
 
-	if (len(keyList) == 0) {
+	if len(keyList) == 0 {
 		return nil
 	}
 
-	checkList,cerr := b.HSMGlobals.Reservation.ValidateDeputyKeys(keyList)
-	if (cerr != nil) {
+	checkList, cerr := b.HSMGlobals.Reservation.ValidateDeputyKeys(keyList)
+	if cerr != nil {
 		return fmt.Errorf("Error in deputy key check: %v", cerr)
 	}
 
-	for _,comp := range(checkList.Success) {
+	for _, comp := range checkList.Success {
 		cmap[comp.ID].ExpirationTime =  comp.ExpirationTime
 		cmap[comp.ID].Error = nil
 	}
 
-	for _,comp := range(checkList.Failure) {
+	for _, comp := range checkList.Failure {
 		cmap[comp.ID].Error = errors.New(comp.Reason)
 	}
 
@@ -278,9 +308,7 @@ func (b *HSMv2) CheckDeputyKeys(compList []ReservationData) error {
 //deputy key.  If no error is returned, caller must check all components
 //to see if any of them failed.  The returned array contains components
 //for who the release failed, for caller's convenience
-
-
-func (b *HSMv2) ReleaseComponents(compList []ReservationData) ([]*ReservationData,error) {
+func (b *HSMv2) ReleaseComponents(compList []ReservationData) ([]*ReservationData, error) {
 	var retData []*ReservationData
 
 	if !b.HSMGlobals.LockEnabled {
@@ -292,33 +320,33 @@ func (b *HSMv2) ReleaseComponents(compList []ReservationData) ([]*ReservationDat
 
 	for ix,comp := range(compList) {
 		compMap[comp.XName] = &compList[ix]
-		if (comp.ReservationOwner) {
-			clearList = append(clearList,comp.XName)
+		if comp.ReservationOwner {
+			clearList = append(clearList, comp.XName)
 		}
 	}
 
-	if (len(clearList) == 0) {
-		return retData,nil
+	if len(clearList) == 0 {
+		return retData, nil
 	}
 
-	rsv,rsvErr := b.HSMGlobals.Reservation.FlexRelease(clearList)
-	if (rsvErr != nil) {
-		return retData,fmt.Errorf("ERROR releasing reservations: %v",rsvErr)
+	rsv, rsvErr := b.HSMGlobals.Reservation.FlexRelease(clearList)
+	if rsvErr != nil {
+		return retData, fmt.Errorf("ERROR releasing reservations: %v", rsvErr)
 	}
 
-	for _,rr := range(rsv.Success.ComponentIDs) {
+	for _, rr := range rsv.Success.ComponentIDs {
 		compMap[rr].ReservationOwner = false
 		compMap[rr].ReservationKey = ""
 		compMap[rr].ExpirationTime = ""
 		compMap[rr].DeputyKey = ""
 		compMap[rr].Error = nil
 	}
-	for _,rr := range(rsv.Failure) {
+	for _, rr := range rsv.Failure {
 		compMap[rr.ID].Error = errors.New(rr.Reason)
-		retData = append(retData,compMap[rr.ID])
+		retData = append(retData, compMap[rr.ID])
 	}
 
-	return retData,nil
+	return retData, nil
 }
 
 // Given a map of previously-created HSM component data, populate
@@ -326,22 +354,20 @@ func (b *HSMv2) ReleaseComponents(compList []ReservationData) ([]*ReservationDat
 //
 // TODO: We currently don't return any components NOT found in HSM.
 // Should we do so, and populate minimal data + the Error field?
-
 func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 	xnames := []string{}
-	for _,comp := range(hd) {
-		xnames = append(xnames,comp.BaseData.ID)
+	for _, comp := range(hd) {
+		xnames = append(xnames, comp.BaseData.ID)
 	}
 
 	compIX := 0
 	for numComps := len(hd); numComps > 0; numComps = numComps - b.HSMGlobals.MaxComponentQuery {
 		idCount := numComps
-		if (idCount > b.HSMGlobals.MaxComponentQuery) {
+		if idCount > b.HSMGlobals.MaxComponentQuery {
 			idCount = b.HSMGlobals.MaxComponentQuery
 		}
 
 		//Construct the URL
-
 		urlSuffix := ""
 		for ix := 0; ix < idCount; ix ++ {
 			urlSuffix = urlSuffix + "&id=" + xnames[compIX]
@@ -351,40 +377,38 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 					"?" + strings.TrimLeft(urlSuffix,"&")
 
 		//Make the HSM call
-
-		req,err := http.NewRequest(http.MethodGet,smurl,nil)
-		if (err != nil) {
+		req, err := http.NewRequest(http.MethodGet, smurl, nil)
+		if err != nil {
 			return fmt.Errorf("ERROR creating HTTP request for '%s': %v",
-				smurl,err)
+				smurl, err)
 		}
 
-		reqContext,_ := context.WithTimeout(context.Background(), 40 * time.Second)
+		reqContext, _ := context.WithTimeout(context.Background(), 40 * time.Second)
 		req = req.WithContext(reqContext)
 
-		rsp,rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
-		if (rsperr != nil) {
-			return fmt.Errorf("Error in http request '%s': %v",smurl,rsperr)
+		rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
+		if rsperr != nil {
+			return fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 		}
 
-		body,bderr := ioutil.ReadAll(rsp.Body)
-		if (bderr != nil) {
+		body, bderr := ioutil.ReadAll(rsp.Body)
+		if bderr != nil {
 			return fmt.Errorf("Error reading response body for '%s': %v",
-				smurl,bderr)
+				smurl, bderr)
 		}
 
 		var jdata sm.ComponentEndpointArray
-		bderr = json.Unmarshal(body,&jdata)
-		if (bderr != nil) {
+		bderr = json.Unmarshal(body, &jdata)
+		if bderr != nil {
 			return fmt.Errorf("Error unmarshalling response body for '%s': %v",
-				smurl,bderr)
+				smurl, bderr)
 		}
 
 		//Update the data from HSM into the HSM data map
-
-		for _,comp := range(jdata.ComponentEndpoints) {
-			_,ok := hd[comp.ID]
-			if (!ok) {
-				b.HSMGlobals.Logger.Warnf("HSM inventory/component item '%s' not found in internal map!  Ignoring.",
+		for _, comp := range jdata.ComponentEndpoints {
+			_, ok := hd[comp.ID]
+			if !ok {
+				b.HSMGlobals.Logger.Warnf("HSM inventory/component item '%s' not found in internal map! Ignoring.",
 					comp.ID)
 				continue
 			}
@@ -392,13 +416,12 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 			//NOTE: the PowerURL field is only populated for components that
 			//a BMC can serve power capping info for.  Thus, it's only for
 			//nodes, really.  BMCs, etc. won't have this.
-
 			switch (comp.ComponentEndpointType) {
 				case sm.CompEPTypeChassis:	//chassis
 					hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
 					hd[comp.ID].PowerStatusURI = comp.OdataID
-					if (comp.RedfishChassisInfo != nil) {
-						if (comp.RedfishChassisInfo.Actions != nil) {
+					if comp.RedfishChassisInfo != nil {
+						if comp.RedfishChassisInfo.Actions != nil {
 							hd[comp.ID].PowerActionURI = comp.RedfishChassisInfo.Actions.ChassisReset.Target
 							hd[comp.ID].AllowableActions = comp.RedfishChassisInfo.Actions.ChassisReset.AllowableValues
 						}
@@ -418,7 +441,8 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 				case sm.CompEPTypeManager:	//BMC
 					hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
 					hd[comp.ID].PowerStatusURI = comp.OdataID
-					if ((comp.RedfishManagerInfo != nil) && (comp.RedfishManagerInfo.Actions != nil)) {
+					if comp.RedfishManagerInfo != nil &&
+					   comp.RedfishManagerInfo.Actions != nil {
 						hd[comp.ID].PowerActionURI = comp.RedfishManagerInfo.Actions.ManagerReset.Target
 						hd[comp.ID].AllowableActions = comp.RedfishManagerInfo.Actions.ManagerReset.AllowableValues
 					}
@@ -430,7 +454,8 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 				case sm.CompEPTypeOutlet:	//PDU outlet/power connector
 					hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
 					hd[comp.ID].PowerStatusURI = comp.OdataID
-					if ((comp.RedfishOutletInfo != nil) && (comp.RedfishOutletInfo.Actions != nil)) {
+					if comp.RedfishOutletInfo != nil &&
+					   comp.RedfishOutletInfo.Actions != nil {
 						hd[comp.ID].PowerActionURI = comp.RedfishOutletInfo.Actions.PowerControl.Target
 						hd[comp.ID].AllowableActions = comp.RedfishOutletInfo.Actions.PowerControl.AllowableValues
 					}
@@ -522,74 +547,69 @@ func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmDa
 }
 
 // Fetch component info from HSM.
-
-func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray,error) {
+func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error) {
 	var queryData CompQuery
 	var retData base.ComponentArray
 
 	smurl := b.HSMGlobals.SMUrl + hsmStateComponentsQueryPath
 	queryData.ComponentIDs = xnames
-	ba,baerr := json.Marshal(&queryData)
-	if (baerr != nil) {
-		return retData,fmt.Errorf("Error marshalling HSM component query data: %v",
+	ba, baerr := json.Marshal(&queryData)
+	if baerr != nil {
+		return retData, fmt.Errorf("Error marshalling HSM component query data: %v",
 			baerr)
 	}
 
-	req,err := http.NewRequest(http.MethodPost,smurl,bytes.NewBuffer(ba))
-	if (err != nil) {
-		return retData,fmt.Errorf("ERROR creating HTTP request for '%s': %v",
-			smurl,err)
+	req, err := http.NewRequest(http.MethodPost, smurl, bytes.NewBuffer(ba))
+	if err != nil {
+		return retData, fmt.Errorf("ERROR creating HTTP request for '%s': %v",
+			smurl, err)
 	}
 
-	reqContext,_ := context.WithTimeout(context.Background(), 40 * time.Second)
+	reqContext, _ := context.WithTimeout(context.Background(), 40 * time.Second)
 	req = req.WithContext(reqContext)
 
-	rsp,rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
-	if (rsperr != nil) {
-		return retData,fmt.Errorf("Error in http request '%s': %v",smurl,rsperr)
+	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
+	if rsperr != nil {
+		return retData, fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 	}
 
-	body,bderr := ioutil.ReadAll(rsp.Body)
-	if (bderr != nil) {
-		return retData,fmt.Errorf("Error reading response body for '%s': %v",
-			smurl,bderr)
+	body, bderr := ioutil.ReadAll(rsp.Body)
+	if bderr != nil {
+		return retData, fmt.Errorf("Error reading response body for '%s': %v",
+			smurl, bderr)
 	}
 
-	bderr = json.Unmarshal(body,&retData)
-	if (bderr != nil) {
-		return retData,fmt.Errorf("Error unmarshalling response body for '%s': %v",
-			smurl,bderr)
+	bderr = json.Unmarshal(body, &retData)
+	if bderr != nil {
+		return retData, fmt.Errorf("Error unmarshalling response body for '%s': %v",
+			smurl, bderr)
 	}
 
-	return retData,nil
+	return retData, nil
 }
 
 // Fill in various data for each requested component from HSM.
-
-func (b *HSMv2) FillHSMData(xnames []string) (map[string]*HsmData,error) {
+func (b *HSMv2) FillHSMData(xnames []string) (map[string]*HsmData, error) {
 	hdata := make(map[string]*HsmData)
 
 	//Get state/component data to fill in ID/Type/Role
-
-	compArray,caerr := b.GetStateComponents(xnames)
-	if (caerr != nil) {
-		return hdata,fmt.Errorf("ERROR fetching State/Component data from HSM: %v",
+	compArray, caerr := b.GetStateComponents(xnames)
+	if caerr != nil {
+		return hdata, fmt.Errorf("ERROR fetching State/Component data from HSM: %v",
 			caerr)
 	}
 
 	//Populate map with what we have so far
-
-	for _,comp := range(compArray.Components) {
+	for _, comp := range compArray.Components {
 		hdata[(*comp).ID] = &HsmData{BaseData: (*comp)}
 	}
 
 	//Get Inventory/ComponentEndpoint data to fill in Hostname/Domain/FQDN/URIs
-
 	inverr := b.FillComponentEndpointData(hdata)
-	if (inverr != nil) {
-		return hdata,fmt.Errorf("ERROR fetching Inventory/ComponentEndpoints data from HSM: %v",
+	if inverr != nil {
+		return hdata, fmt.Errorf("ERROR fetching Inventory/ComponentEndpoints data from HSM: %v",
 			inverr)
 	}
 
-	return hdata,nil
+	return hdata, nil
 }
