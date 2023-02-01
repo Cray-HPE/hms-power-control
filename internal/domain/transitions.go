@@ -247,7 +247,6 @@ func TriggerTransition(transition model.Transition) (pb model.Passback) {
 // Main worker for executing transitions
 func doTransition(transitionID uuid.UUID) {
 	var (
-		reservationData []*hsm.ReservationData
 		xnameHierarchy  []string
 		isSoft          bool
 		noWait          bool
@@ -508,7 +507,7 @@ func doTransition(transitionID uuid.UUID) {
 	}
 
 	// Sort components into groups so they can follow a proper power sequence
-	seqMap, resData := sequenceComponents(tr.Operation, xnameMap)
+	seqMap, reservationData := sequenceComponents(tr.Operation, xnameMap)
 
 	///////////////////////////////////////////////////////////////////////////
 	// o Reserve components. This will make sure we aren't already operating on
@@ -522,7 +521,7 @@ func doTransition(transitionID uuid.UUID) {
 
 	// ReserveComponents() will validate any deputy keys and reserve any
 	// components with an invalid deputy key or without a deputy key.
-	reservationData, err = (*GLOB.HSM).ReserveComponents(resData)
+	resData, err := (*GLOB.HSM).ReserveComponents(reservationData)
 	if err != nil {
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error acquiring reservations")
 		// An error occurred while reserving components. This does not include partial failure. Fail everything.
@@ -550,10 +549,10 @@ func doTransition(transitionID uuid.UUID) {
 		// everything that either was successfully reserved or had a valid
 		// deputy key.
 		resMap := make(map[string]*hsm.ReservationData)
-		for _, res := range reservationData {
+		for _, res := range resData {
 			resMap[res.XName] = res
 		}
-		for _, res := range resData {
+		for _, res := range reservationData {
 			reservation, ok := resMap[res.XName]
 			if !ok {
 				var depErrMsg string
@@ -611,7 +610,7 @@ func doTransition(transitionID uuid.UUID) {
 				}
 			}
 		}
-		defer (*GLOB.HSM).ReleaseComponents(resData)
+		defer (*GLOB.HSM).ReleaseComponents(reservationData)
 	}
 
 	///////////////////////////////////////////////////////////////////////////
@@ -669,12 +668,12 @@ func doTransition(transitionID uuid.UUID) {
 		}
 
 		// Check reservations are good
-		err := (*GLOB.HSM).CheckDeputyKeys(resData)
+		err := (*GLOB.HSM).CheckDeputyKeys(reservationData)
 		if err != nil {
 			// TODO: Couldn't reach HSM. Retry?
 			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Couldn't check reservations")
 		}
-		for _, res := range resData {
+		for _, res := range reservationData {
 			// Check res.Error for errors and fail components that don't have valid reservations.
 			if res.Error != nil {
 				comp, ok := xnameMap[res.XName]
@@ -947,7 +946,7 @@ func doTransition(transitionID uuid.UUID) {
 	// o When Launch() completes, release any reservations PCS obtained for targets.
 	///////////////////////////////////////////////////////////////////////////
 
-	// (*GLOB.HSM).ReleaseComponents(resData) <- defered above
+	// (*GLOB.HSM).ReleaseComponents(reservationData) <- defered above
 
 	///////////////////////////////////////////////////////////////////////////
 	// o Once the service inst is done executing its task, "close out" the ETCD task
