@@ -103,15 +103,16 @@ type Transition struct {
 }
 
 type TransitionTask struct {
-	TaskID       uuid.UUID `json:"taskID"`
-	TransitionID uuid.UUID `json:"transitionID"`
-	Operation    Operation `json:"operation"` // != Transition.Operation Tasks the redfish power command being issued (for recovery purposes)
-	State        TaskState `json:"TaskState"`
-	Xname        string    `json:"xname"`
-	DeputyKey    uuid.UUID `json:"deputyKey,omitempty"`
-	Status       string    `json:"taskStatus"`
-	StatusDesc   string    `json:"taskStatusDescription"`
-	Error        string    `json:"error,omitempty"`
+	TaskID         uuid.UUID `json:"taskID"`
+	TransitionID   uuid.UUID `json:"transitionID"`
+	Operation      Operation `json:"operation"` // != Transition.Operation Tasks the redfish power command being issued (for recovery purposes)
+	State          TaskState `json:"TaskState"`
+	Xname          string    `json:"xname"`
+	ReservationKey string    `json:"reservationKey,omitempty"`
+	DeputyKey      string    `json:"deputyKey,omitempty"`
+	Status         string    `json:"taskStatus"`
+	StatusDesc     string    `json:"taskStatusDescription"`
+	Error          string    `json:"error,omitempty"`
 }
 
 //////////////
