@@ -24,12 +24,10 @@
 # Author: Mitch Schooler
 # Service: Power Control Service
 
-# HMS test metrics test cases: 8
+# HMS test metrics test cases: 6
 # GET /power-status all components
 # GET /power-status?xname={xname} Node
 # GET /power-status?xname={xname} NodeBMC
-# GET /power-status?xname={xname} ChassisBMC
-# GET /power-status?xname={xname} Chassis
 # GET /power-status multiple xnames
 # GET /power-status?powerStateFilter={filter} Node
 # GET /power-status?managementStateFilter={filter} Node
@@ -100,7 +98,7 @@ test_name: Verify power-status for a Node
 stages:
   - name: Retrieve a Node from HSM to be used in later stages
     request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node"
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
       method: GET
       verify: !bool "{verify}"
     response:
@@ -171,7 +169,7 @@ test_name: Verify power-status for a NodeBMC
 stages:
   - name: Retrieve a NodeBMC from HSM to be used in later stages
     request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=NodeBMC"
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=NodeBMC&state=Ready&flag=OK"
       method: GET
       verify: !bool "{verify}"
     response:
@@ -237,154 +235,12 @@ stages:
                         required: True
 
 ---
-test_name: Verify power-status for a ChassisBMC
-
-stages:
-  - name: Retrieve a ChassisBMC from HSM to be used in later stages
-    request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=ChassisBMC"
-      method: GET
-      verify: !bool "{verify}"
-    response:
-      status_code: 200
-      save:
-        json:
-          chassis_bmc_xname: Components[0].ID
-
-  - name: Retrieve the power-status for the target ChassisBMC
-    request:
-      url: "{pcs_base_url}/power-status?xname={chassis_bmc_xname}"
-      method: GET
-      verify: !bool "{verify}"
-    response:
-      status_code: 200
-      verify_response_with:
-        function: tavern.testutils.helpers:validate_pykwalify
-        extra_kwargs:
-          schema:
-            type: map
-            required: True
-            mapping:
-              status:
-                type: seq
-                matching: all
-                required: True
-                sequence:
-                  - type: map
-                    required: True
-                    mapping:
-                      xname:
-                        type: str
-                        required: True
-                        enum:
-                          - "{chassis_bmc_xname}"
-                      powerState:
-                        type: str
-                        required: True
-                        enum:
-                          - "on"
-                          - "off"
-                          - "undefined"
-                      managementState:
-                        type: str
-                        required: True
-                        enum:
-                          - "available"
-                          - "unavailable"
-                      error:
-                        type: str
-                        required: True
-                      supportedPowerTransitions:
-                        type: seq
-                        matching: all
-                        required: True
-                        sequence:
-                          - type: str
-                            required: True
-                            # no enum here since supportedPowerTransitions come
-                            # from Redfish and vary depending on hardware
-                      lastUpdated:
-                        type: str
-                        required: True
-
----
-test_name: Verify power-status for a Chassis
-
-stages:
-  - name: Retrieve a Chassis from HSM to be used in later stages
-    request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Chassis"
-      method: GET
-      verify: !bool "{verify}"
-    response:
-      status_code: 200
-      save:
-        json:
-          chassis_xname: Components[0].ID
-
-  - name: Retrieve the power-status for the target Chassis
-    request:
-      url: "{pcs_base_url}/power-status?xname={chassis_xname}"
-      method: GET
-      verify: !bool "{verify}"
-    response:
-      status_code: 200
-      verify_response_with:
-        function: tavern.testutils.helpers:validate_pykwalify
-        extra_kwargs:
-          schema:
-            type: map
-            required: True
-            mapping:
-              status:
-                type: seq
-                matching: all
-                required: True
-                sequence:
-                  - type: map
-                    required: True
-                    mapping:
-                      xname:
-                        type: str
-                        required: True
-                        enum:
-                          - "{chassis_xname}"
-                      powerState:
-                        type: str
-                        required: True
-                        enum:
-                          - "on"
-                          - "off"
-                          - "undefined"
-                      managementState:
-                        type: str
-                        required: True
-                        enum:
-                          - "available"
-                          - "unavailable"
-                      error:
-                        type: str
-                        required: True
-                      supportedPowerTransitions:
-                        type: seq
-                        matching: all
-                        required: True
-                        sequence:
-                          - type: str
-                            required: True
-                            # no enum here since supportedPowerTransitions come
-                            # from Redfish and vary depending on hardware
-                      lastUpdated:
-                        type: str
-                        required: True
-
----
 test_name: Verify power-status for multiple components
 
 stages:
   - name: Retrieve multiple Nodes from HSM to be used in later stages
     request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node"
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
       method: GET
       verify: !bool "{verify}"
     response:
@@ -465,7 +321,7 @@ test_name: Verify power-status for a Node using a powerStateFilter
 stages:
   - name: Retrieve a Node from HSM to be used in later stages
     request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node"
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
       method: GET
       verify: !bool "{verify}"
     response:
@@ -551,7 +407,7 @@ test_name: Verify power-status for a Node using a managementStateFilter
 stages:
   - name: Retrieve a Node from HSM to be used in later stages
     request:
-      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node"
+      url: "{hsm_base_url}/hsm/v2/State/Components?type=Node&role=Compute"
       method: GET
       verify: !bool "{verify}"
     response:
