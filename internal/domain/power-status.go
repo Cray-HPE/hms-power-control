@@ -213,8 +213,7 @@ func GetPowerStatus(xnames []string,
 	var robj pcsmodel.Passback
 	rcomps.Status = make([]pcsmodel.PowerStatusComponent, 0, len(xnames))
 
-	psUndef := pwrStateFilter == pcsmodel.PowerStateFilter_Nil ||
-	           pwrStateFilter == pcsmodel.PowerStateFilter_Undefined
+	psUndef := pwrStateFilter == pcsmodel.PowerStateFilter_Nil
 	msUndef := mgmtStateFilter == pcsmodel.ManagementStateFilter_Nil ||
 	           mgmtStateFilter == pcsmodel.ManagementStateFilter_undefined
 
@@ -334,7 +333,7 @@ func updateComponentMap() error {
 					newComp := componentPowerInfo{}
 					newComp.PSComp.XName = v.BaseData.ID
 					newComp.PSComp.PowerState = pcsmodel.PowerStateFilter_Undefined.String()
-					newComp.PSComp.ManagementState = pcsmodel.ManagementStateFilter_undefined.String()
+					newComp.PSComp.ManagementState = pcsmodel.ManagementStateFilter_unavailable.String()
 					newComp.PSComp.SupportedPowerTransitions = toPCSPowerActions(v.AllowableActions)
 					newComp.HSMData.RfFQDN = v.RfFQDN
 					newComp.HSMData.PowerStatusURI = v.PowerStatusURI
@@ -573,7 +572,7 @@ func getHWStatesFromHW() error {
 		if v.task.Request.Response == nil {
 			//TODO: should this "ride through" transient failures?
 			updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
-			              pcsmodel.ManagementStateFilter_undefined,
+			              pcsmodel.ManagementStateFilter_unavailable,
 			              "No response from target")
 			continue
 		}
@@ -592,12 +591,12 @@ func getHWStatesFromHW() error {
 				glogger.Errorf("%s: Bad response from '%s', power state undefined: %d/%s",
 				               fname, xname, scode, http.StatusText(scode))
 				updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
-				              pcsmodel.ManagementStateFilter_undefined,
+				              pcsmodel.ManagementStateFilter_unavailable,
 				              v.task.Request.Response.Status)
 
 			case http.StatusUnauthorized:
 				updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
-				              pcsmodel.ManagementStateFilter_undefined,
+				              pcsmodel.ManagementStateFilter_unavailable,
 				              v.task.Request.Response.Status)
 				//Insure the next sweep gets new creds from Vault.
 				hwStateMap[xname].BmcUsername = ""
@@ -606,7 +605,7 @@ func getHWStatesFromHW() error {
 			default:
 				if scode >= 206 {
 					updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
-					              pcsmodel.ManagementStateFilter_undefined,
+					              pcsmodel.ManagementStateFilter_unavailable,
 					              v.task.Request.Response.Status)
 				} else {
 					needState = true
