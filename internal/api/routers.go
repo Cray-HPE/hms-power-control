@@ -73,6 +73,13 @@ func NewRouter() *mux.Router {
 			Path(route.Pattern).
 			Name(route.Name).
 			Handler(handler)
+
+		// With v1
+		router.
+			Methods(route.Method).
+			Path("/v1" + route.Pattern).
+			Name(route.Name).
+			Handler(handler)
 	}
 
 	return router
