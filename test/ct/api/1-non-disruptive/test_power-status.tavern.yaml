@@ -259,61 +259,61 @@ stages:
     response:
       status_code: 200
       verify_response_with:
-        function: tavern.testutils.helpers:validate_pykwalify
-        extra_kwargs:
-          schema:
-            type: map
-            required: True
-            mapping:
-              status:
-                type: seq
-                matching: all
-                required: True
-                sequence:
-                  - type: map
-                    required: True
-                    mapping:
-                      xname:
-                        type: str
-                        required: True
-                        enum:
-                          - "{node1_xname}"
-                          - "{node2_xname}"
-                          - "{node3_xname}"
-                      powerState:
-                        type: str
-                        required: True
-                        enum:
-                          - "on"
-                          - "off"
-                          - "undefined"
-                      managementState:
-                        type: str
-                        required: True
-                        enum:
-                          - "available"
-                          - "unavailable"
-                      error:
-                        type: str
-                        required: True
-                      supportedPowerTransitions:
-                        type: seq
-                        matching: all
-                        required: True
-                        sequence:
-                          - type: str
-                            required: True
-                            # no enum here since supportedPowerTransitions come
-                            # from Redfish and vary depending on hardware
-                      lastUpdated:
-                        type: str
-                        required: True
-        function: tavern.testutils.helpers:validate_content
-        extra_kwargs:
-          comparisons:
-            - jmespath: "length(@.status)"
-              operator: "eq"
-              expected: 3
+        - function: tavern.testutils.helpers:validate_pykwalify
+          extra_kwargs:
+            schema:
+              type: map
+              required: True
+              mapping:
+                status:
+                  type: seq
+                  matching: all
+                  required: True
+                  sequence:
+                    - type: map
+                      required: True
+                      mapping:
+                        xname:
+                          type: str
+                          required: True
+                          enum:
+                            - "{node1_xname}"
+                            - "{node2_xname}"
+                            - "{node3_xname}"
+                        powerState:
+                          type: str
+                          required: True
+                          enum:
+                            - "on"
+                            - "off"
+                            - "undefined"
+                        managementState:
+                          type: str
+                          required: True
+                          enum:
+                            - "available"
+                            - "unavailable"
+                        error:
+                          type: str
+                          required: True
+                        supportedPowerTransitions:
+                          type: seq
+                          matching: all
+                          required: True
+                          sequence:
+                            - type: str
+                              required: True
+                              # no enum here since supportedPowerTransitions come
+                              # from Redfish and vary depending on hardware
+                        lastUpdated:
+                          type: str
+                          required: True
+        - function: tavern.testutils.helpers:validate_content
+          extra_kwargs:
+            comparisons:
+              - jmespath: "length(@.status)"
+                operator: "eq"
+                expected: 3
 
 ---
 test_name: Verify power-status for a Node using a powerStateFilter
@@ -349,57 +349,57 @@ stages:
     response:
       status_code: 200
       verify_response_with:
-        function: tavern.testutils.helpers:validate_pykwalify
-        extra_kwargs:
-          schema:
-            type: map
-            required: True
-            mapping:
-              status:
-                type: seq
-                matching: all
-                required: True
-                sequence:
-                  - type: map
-                    required: True
-                    mapping:
-                      xname:
-                        type: str
-                        required: True
-                        enum:
-                          - "{node_xname}"
-                      powerState:
-                        type: str
-                        required: True
-                        enum:
-                          - "{node_power_state}"
-                      managementState:
-                        type: str
-                        required: True
-                        enum:
-                          - "available"
-                          - "unavailable"
-                      error:
-                        type: str
-                        required: True
-                      supportedPowerTransitions:
-                        type: seq
-                        matching: all
-                        required: True
-                        sequence:
-                          - type: str
-                            required: True
-                            # no enum here since supportedPowerTransitions come
-                            # from Redfish and vary depending on hardware
-                      lastUpdated:
-                        type: str
-                        required: True
-        function: tavern.testutils.helpers:validate_content
-        extra_kwargs:
-          comparisons:
-            - jmespath: "length(@.status)"
-              operator: "eq"
-              expected: 1
+        - function: tavern.testutils.helpers:validate_pykwalify
+          extra_kwargs:
+            schema:
+              type: map
+              required: True
+              mapping:
+                status:
+                  type: seq
+                  matching: all
+                  required: True
+                  sequence:
+                    - type: map
+                      required: True
+                      mapping:
+                        xname:
+                          type: str
+                          required: True
+                          enum:
+                            - "{node_xname}"
+                        powerState:
+                          type: str
+                          required: True
+                          enum:
+                            - "{node_power_state}"
+                        managementState:
+                          type: str
+                          required: True
+                          enum:
+                            - "available"
+                            - "unavailable"
+                        error:
+                          type: str
+                          required: True
+                        supportedPowerTransitions:
+                          type: seq
+                          matching: all
+                          required: True
+                          sequence:
+                            - type: str
+                              required: True
+                              # no enum here since supportedPowerTransitions come
+                              # from Redfish and vary depending on hardware
+                        lastUpdated:
+                          type: str
+                          required: True
+        - function: tavern.testutils.helpers:validate_content
+          extra_kwargs:
+            comparisons:
+              - jmespath: "length(@.status)"
+                operator: "eq"
+                expected: 1
 
 ---
 test_name: Verify power-status for a Node using a managementStateFilter
@@ -435,55 +435,55 @@ stages:
     response:
       status_code: 200
       verify_response_with:
-        function: tavern.testutils.helpers:validate_pykwalify
-        extra_kwargs:
-          schema:
-            type: map
-            required: True
-            mapping:
-              status:
-                type: seq
-                matching: all
-                required: True
-                sequence:
-                  - type: map
-                    required: True
-                    mapping:
-                      xname:
-                        type: str
-                        required: True
-                        enum:
-                          - "{node_xname}"
-                      powerState:
-                        type: str
-                        required: True
-                        enum:
-                          - "on"
-                          - "off"
-                          - "undefined"
-                      managementState:
-                        type: str
-                        required: True
-                        enum:
-                          - "{node_management_state}"
-                      error:
-                        type: str
-                        required: True
-                      supportedPowerTransitions:
-                        type: seq
-                        matching: all
-                        required: True
-                        sequence:
-                          - type: str
-                            required: True
-                            # no enum here since supportedPowerTransitions come
-                            # from Redfish and vary depending on hardware
-                      lastUpdated:
-                        type: str
-                        required: True
-        function: tavern.testutils.helpers:validate_content
-        extra_kwargs:
-          comparisons:
-            - jmespath: "length(@.status)"
-              operator: "eq"
-              expected: 1
+        - function: tavern.testutils.helpers:validate_pykwalify
+          extra_kwargs:
+            schema:
+              type: map
+              required: True
+              mapping:
+                status:
+                  type: seq
+                  matching: all
+                  required: True
+                  sequence:
+                    - type: map
+                      required: True
+                      mapping:
+                        xname:
+                          type: str
+                          required: True
+                          enum:
+                            - "{node_xname}"
+                        powerState:
+                          type: str
+                          required: True
+                          enum:
+                            - "on"
+                            - "off"
+                            - "undefined"
+                        managementState:
+                          type: str
+                          required: True
+                          enum:
+                            - "{node_management_state}"
+                        error:
+                          type: str
+                          required: True
+                        supportedPowerTransitions:
+                          type: seq
+                          matching: all
+                          required: True
+                          sequence:
+                            - type: str
+                              required: True
+                              # no enum here since supportedPowerTransitions come
+                              # from Redfish and vary depending on hardware
+                        lastUpdated:
+                          type: str
+                          required: True
+        - function: tavern.testutils.helpers:validate_content
+          extra_kwargs:
+            comparisons:
+              - jmespath: "length(@.status)"
+                operator: "eq"
+                expected: 1
