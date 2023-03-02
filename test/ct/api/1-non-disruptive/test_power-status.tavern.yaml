@@ -53,6 +53,8 @@ stages:
                 type: seq
                 matching: all
                 required: True
+                range:
+                  min: 1
                 sequence:
                   - type: map
                     required: True
@@ -88,9 +90,6 @@ stages:
                       lastUpdated:
                         type: str
                         required: True
-      save:
-        json:
-          first_xname_id: status[0].xname
 
 ---
 test_name: Verify power-status for a Node
