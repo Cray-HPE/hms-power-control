@@ -486,6 +486,11 @@ func getHWStatesFromHW() error {
 		}
 	}
 
+	if activeTasks == 0 {
+		glogger.Warnf("%s: No TRS tasks to launch", fname)
+		return nil
+	}
+
 	//Launch
 
 	rchan,err := (*tloc).Launch(&taskList)
