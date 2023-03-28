@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - CASMHMS-5919 - Fixed issue causing PCS hardware scan to hang.
 
+### Changed
+
+- Increased the log level of status API messages.
+
 ## [1.6.0] - 2023-02-28
 
 ### Fixed

@@ -259,18 +259,18 @@ func doTransition(transitionID uuid.UUID) {
 		return
 	}
 
-	defer logger.Log.Debugf("Transition %s Completed", tr.TransitionID.String())
+	defer logger.Log.Infof("Transition %s Completed", tr.TransitionID.String())
 
 	// Restarting a transition
 	if tr.Status != model.TransitionStatusNew {
-		logger.Log.Debugf("Restarting Transition %s", tr.TransitionID.String())
+		logger.Log.Infof("Restarting Transition %s", tr.TransitionID.String())
 		if tr.Status == model.TransitionStatusCompleted ||
 		   tr.Status == model.TransitionStatusAborted {
 			// Shouldn't pick up completed Transitions anyway
 			return
 		}
 	} else {
-		logger.Log.Debugf("Starting Transition %s", tr.TransitionID.String())
+		logger.Log.Infof("Starting Transition %s", tr.TransitionID.String())
 	}
 
 	// Start the Keep Alive thread
@@ -1052,13 +1052,13 @@ func doAbort(tr model.Transition, xnameMap map[string]*TransitionComponent) {
 // Periodically updates the LastActiveTime field of the given transition. Will kill itself
 // if the transition moves to the Completed or Aborted state or gets deleted.
 func transitionKeepAlive(transitionID uuid.UUID, cancelChan chan bool) {
-	logger.Log.Debugf("Starting keep alive for Transition, %s.", transitionID.String())
+	logger.Log.Infof("Starting keep alive for Transition, %s.", transitionID.String())
 	keepAlive := time.NewTicker(time.Duration(model.TransitionKeepAliveInterval) * time.Second)
 	defer keepAlive.Stop()
 	for {
 		select {
 		case <-cancelChan:
-			logger.Log.Debugf("Keep alive for Transition, %s, has been cancelled.", transitionID.String())
+			logger.Log.Infof("Keep alive for Transition, %s, has been cancelled.", transitionID.String())
 			return
 		case <-keepAlive.C:
 			for {
@@ -1082,7 +1082,7 @@ func transitionKeepAlive(transitionID uuid.UUID, cancelChan chan bool) {
 				// End states
 				if transition.Status == model.TransitionStatusAborted ||
 				   transition.Status == model.TransitionStatusCompleted {
-					logger.Log.Debugf("Transition %s is finished. Stopping keep alive thread", transitionID.String())
+					logger.Log.Infof("Transition %s is finished. Stopping keep alive thread", transitionID.String())
 					return
 				}
 				transitionOld := transition

@@ -909,7 +909,7 @@ func getPowerStatusMaster() bool {
 }
 
 func startPowerStatusMaster(lastUpdated time.Time) {
-	glogger.Debugf("Starting keep alive for power status master")
+	glogger.Infof("Starting keep alive for power status master")
 	keepAlive := time.NewTicker(time.Duration(powerStatusMasterInterval) * time.Second)
 	defer keepAlive.Stop()
 	for {
@@ -927,7 +927,7 @@ func startPowerStatusMaster(lastUpdated time.Time) {
 			}
 			if !success {
 				// Someone else became master
-				glogger.Debugf("Lost power status master")
+				glogger.Infof("Lost power status master")
 				isPowerStatusMaster = false
 				return
 			}
