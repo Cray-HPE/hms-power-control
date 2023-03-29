@@ -49,7 +49,17 @@ func Logger(inner http.Handler, name string) http.Handler {
 
 		inner.ServeHTTP(w, r)
 
-		if name != "servicestatusAPI" {
+		if name == "GetLiveness" || 
+		   name == "GetReadiness" ||
+		   name == "GetHealth" {
+			logger.Log.Debugf(
+				"%s %s %s %s",
+				r.Method,
+				r.RequestURI,
+				name,
+				time.Since(start),
+			)
+		} else {
 			logger.Log.Printf(
 				"%s %s %s %s",
 				r.Method,
