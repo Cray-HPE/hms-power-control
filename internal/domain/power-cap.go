@@ -546,10 +546,6 @@ func doPowerCapTask(taskID uuid.UUID) {
 			} else if comp.PowerCapURI == "" {
 				op.Status = model.PowerCapOpStatusFailed
 				op.Component.Error = "Missing Power Cap URI"
-			} else if comp.BaseData.State != base.StateReady.String() {
-				// Nodes must be in the 'Ready' (booted) state in HSM for power capping to work.
-				op.Status = model.PowerCapOpStatusFailed
-				op.Component.Error = "Invalid state, component is not 'Ready'"
 			} else if comp.BaseData.Role == base.RoleManagement.String() {
 				// Power capping Management nodes is dangerous to the system. Lets not.
 				op.Status = model.PowerCapOpStatusUnsupported
