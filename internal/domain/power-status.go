@@ -234,6 +234,7 @@ func GetPowerStatus(xnames []string,
 				case xnametypes.ComputeModule: fallthrough
 				case xnametypes.RouterModule:  fallthrough
 				case xnametypes.HSNBoard:      fallthrough
+				case xnametypes.MgmtSwitch:    fallthrough
 				case xnametypes.CabinetPDUPowerConnector:
 					pcomp.Error = "Component not found in component map."
 
@@ -326,6 +327,7 @@ func updateComponentMap() error {
 			case xnametypes.RouterBMC:     fallthrough
 			case xnametypes.Node:          fallthrough
 			case xnametypes.HSNBoard:      fallthrough
+			case xnametypes.MgmtSwitch:    fallthrough
 			case xnametypes.CabinetPDUPowerConnector:
 				_, ok := hwStateMap[v.BaseData.ID]
 				if !ok {
@@ -460,6 +462,7 @@ func getHWStatesFromHW() error {
 			case xnametypes.ComputeModule: fallthrough
 			case xnametypes.RouterModule:  fallthrough
 			case xnametypes.HSNBoard:      fallthrough
+			case xnametypes.MgmtSwitch:    fallthrough
 			case xnametypes.CabinetPDUPowerConnector:
 				if v.HSMData.RfFQDN == "" || v.HSMData.PowerStatusURI == "" {
 					glogger.Warnf("%s: Missing FQDN or power status URI for %s", fname, k)
@@ -677,6 +680,26 @@ func getHWStatesFromHW() error {
 				}
 				powerState,_ = pcsmodel.ToPowerStateFilter(info.PowerState)
 				updateHWState(xname, powerState, pcsmodel.ManagementStateFilter_available, "")
+
+			case xnametypes.MgmtSwitch:
+				var info rf.Chassis
+				err = json.Unmarshal(v.body, &info)
+				if err != nil {
+					glogger.Errorf("%s: ERROR unmarshalling power payload for '%s': %v", fname, rqURL, err)
+					//Power state unknown, but got a response, so mgmt state OK
+					updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
+						pcsmodel.ManagementStateFilter_available,
+						"Unable to unmarshal power payload")
+					break
+				}
+				if strings.ToLower(string(info.Status.State)) == "unavailableoffline" {
+					updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
+						pcsmodel.ManagementStateFilter_unavailable,
+						"Management switch is unreachable")
+				} else {
+					powerState, _ = pcsmodel.ToPowerStateFilter(info.PowerState)
+					updateHWState(xname, powerState, pcsmodel.ManagementStateFilter_available, "")
+				}
 
 			case xnametypes.CabinetPDUPowerConnector:
 				var info rf.Outlet
