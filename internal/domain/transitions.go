@@ -84,7 +84,7 @@ var PowerSequenceFull = []PowerSeqElem{
 		// Not all of these components support GracefulRestart but, if they did,
 		// since power isn't being dropped doing them all (except BMCs) at the
 		// same time should be fine.
-		CompTypes: []base.HMSType{base.Node, base.HSNBoard, base.RouterModule, base.ComputeModule, base.Chassis, base.CabinetPDUPowerConnector, base.MgmtSwitch},
+		CompTypes: []base.HMSType{base.Node, base.HSNBoard, base.RouterModule, base.ComputeModule, base.Chassis, base.CabinetPDUPowerConnector, base.MgmtSwitch, base.MgmtHLSwitch, base.CDUMgmtSwitch},
 	}, {
 		Action:    "gracefulrestart",
 		// Restart BMCs after everything else because restarting the BMC will cause
@@ -353,7 +353,9 @@ func doTransition(transitionID uuid.UUID) {
 			   compType != base.ChassisBMC &&
 			   compType != base.NodeBMC &&
 			   compType != base.RouterBMC &&
-			   compType != base.MgmtSwitch {
+			   compType != base.MgmtSwitch &&
+			   compType != base.MgmtHLSwitch &&
+			   compType != base.CDUMgmtSwitch {
 				comp.Task.Error = "No power control for component type " + compType.String()
 			} else {
 				comp.Task.Error = "Missing xname"
@@ -1119,6 +1121,8 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 			case base.Chassis:       fallthrough
 			case base.ComputeModule: fallthrough
 			case base.MgmtSwitch:    fallthrough
+			case base.MgmtHLSwitch:  fallthrough
+			case base.CDUMgmtSwitch: fallthrough
 			case base.CabinetPDUPowerConnector:
 				pState, err := (*GLOB.DSP).GetPowerStatus(xname)
 				if err != nil {
@@ -1225,6 +1229,8 @@ func setupTransitionTasks(tr *model.Transition) (map[string]*TransitionComponent
 		case base.ComputeModule: fallthrough
 		case base.RouterModule:  fallthrough
 		case base.MgmtSwitch:    fallthrough
+		case base.MgmtHLSwitch:  fallthrough
+		case base.CDUMgmtSwitch: fallthrough
 		case base.CabinetPDUPowerConnector:
 			task.StatusDesc = "Gathering data"
 		case base.HMSTypeInvalid:
