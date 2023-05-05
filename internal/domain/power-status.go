@@ -235,6 +235,8 @@ func GetPowerStatus(xnames []string,
 				case xnametypes.RouterModule:  fallthrough
 				case xnametypes.HSNBoard:      fallthrough
 				case xnametypes.MgmtSwitch:    fallthrough
+				case xnametypes.MgmtHLSwitch:  fallthrough
+				case xnametypes.CDUMgmtSwitch: fallthrough
 				case xnametypes.CabinetPDUPowerConnector:
 					pcomp.Error = "Component not found in component map."
 
@@ -328,6 +330,8 @@ func updateComponentMap() error {
 			case xnametypes.Node:          fallthrough
 			case xnametypes.HSNBoard:      fallthrough
 			case xnametypes.MgmtSwitch:    fallthrough
+			case xnametypes.MgmtHLSwitch:  fallthrough
+			case xnametypes.CDUMgmtSwitch: fallthrough
 			case xnametypes.CabinetPDUPowerConnector:
 				_, ok := hwStateMap[v.BaseData.ID]
 				if !ok {
@@ -463,6 +467,8 @@ func getHWStatesFromHW() error {
 			case xnametypes.RouterModule:  fallthrough
 			case xnametypes.HSNBoard:      fallthrough
 			case xnametypes.MgmtSwitch:    fallthrough
+			case xnametypes.MgmtHLSwitch:  fallthrough
+			case xnametypes.CDUMgmtSwitch: fallthrough
 			case xnametypes.CabinetPDUPowerConnector:
 				if v.HSMData.RfFQDN == "" || v.HSMData.PowerStatusURI == "" {
 					glogger.Warnf("%s: Missing FQDN or power status URI for %s", fname, k)
@@ -681,7 +687,9 @@ func getHWStatesFromHW() error {
 				powerState,_ = pcsmodel.ToPowerStateFilter(info.PowerState)
 				updateHWState(xname, powerState, pcsmodel.ManagementStateFilter_available, "")
 
-			case xnametypes.MgmtSwitch:
+			case xnametypes.MgmtSwitch:    fallthrough
+			case xnametypes.MgmtHLSwitch:  fallthrough
+			case xnametypes.CDUMgmtSwitch:
 				var info rf.Chassis
 				err = json.Unmarshal(v.body, &info)
 				if err != nil {
