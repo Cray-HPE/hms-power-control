@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- CASMHMS-5995 - Memory leak in transitions and power-cap domain functions.
+- CASMHMS-5998 - Memory leak in transitions and power-cap domain functions.
+- CASMHMS-5996 - power-cap naming mismatch between snapshots and parsed HSM data.
 
 ## [1.9.0] - 2023-05-03
 

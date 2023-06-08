@@ -511,7 +511,7 @@ func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmDa
 			var min int
 			var max int
 			if isHpeApollo6500 || isHpeServer {
-				ctl.Name = "Node Power Control"
+				ctl.Name = "Node Power Limit"
 			}
 			if ctl.OEM != nil {
 				if ctl.OEM.Cray != nil {
