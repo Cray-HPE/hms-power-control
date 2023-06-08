@@ -651,11 +651,5 @@ func (b *HSMv2) FillHSMData(xnames []string) (map[string]*HsmData, error) {
 			inverr)
 	}
 
-	// //Get powermaps data to fill in PoweredBy
-	// pmerr := b.FillPowerMapData(hdata)
-	// if pmerr != nil {
-		// return hdata, fmt.Errorf("ERROR fetching powermaps data from HSM: %v", pmerr)
-	// }
-
 	return hdata, nil
 }
