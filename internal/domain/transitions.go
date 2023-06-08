@@ -41,17 +41,23 @@ import (
 )
 
 type TransitionComponent struct {
-	PState      *model.PowerStatusComponent
-	HSMData     *hsm.HsmData
-	Task        *model.TransitionTask
-	Actions     map[string]string
-	ActionCount int // Number of actions until task competion
+	PState        *model.PowerStatusComponent
+	HSMData       *hsm.HsmData
+	PowerSupplies []PowerSupply
+	Task          *model.TransitionTask
+	Actions       map[string]string
+	ActionCount   int // Number of actions until task competion
 }
 
 type PowerSeqElem struct {
 	Action    string
 	CompTypes []base.HMSType
 	Wait      int
+}
+
+type PowerSupply struct {
+	ID    string
+	State model.PowerStateFilter
 }
 
 var PowerSequenceFull = []PowerSeqElem{
@@ -439,6 +445,34 @@ func doTransition(transitionID uuid.UUID) {
 			}
 		}
 	}
+	
+	///////////////////////////////////////////////////////////////////////////
+	// o Get the power maps data from HSM.
+	///////////////////////////////////////////////////////////////////////////
+	err = (*GLOB.HSM).FillPowerMapData(hsmData)
+	if err != nil {
+		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error retrieving HSM power maps data")
+		// Failed to get data from HSM. Fail everything.
+		for _, xname := range xnames {
+			comp, ok := xnameMap[xname]
+			if !ok {
+				// We don't care about xnames not in our list
+				continue
+			}
+			if comp.Task.Status != model.TransitionTaskStatusNew &&
+			   comp.Task.Status != model.TransitionTaskStatusInProgress {
+				// Skip it if it is already complete
+				continue
+			}
+			comp.Task.Status = model.TransitionTaskStatusFailed
+			comp.Task.Error = "Error retrieving HSM data"
+			comp.Task.StatusDesc = "Failed to achieve transition"
+			err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
+			if err != nil {
+				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
+			}
+		}
+	}
 
 	// Attach collected data and add any dependent components (i.e. Rosettas).
 	for _, xname := range xnames {
@@ -464,9 +498,11 @@ func doTransition(transitionID uuid.UUID) {
 		for _, action := range hData.AllowableActions {
 			actions[strings.ToLower(action)] = action
 		}
+
 		comp.PState = &ps
 		comp.HSMData = hData
 		comp.Actions = actions
+		comp.PowerSupplies = getPowerSupplies(hData)
 
 		// Add any Rosettas if we're powering off RouterModules
 		if (base.GetHMSType(xname) == base.RouterModule) &&
@@ -496,6 +532,7 @@ func doTransition(transitionID uuid.UUID) {
 					PState: &switchPs,
 					HSMData: switchHData,
 					Actions: switchActions,
+					PowerSupplies: getPowerSupplies(switchHData),
 				}
 			}
 		}
@@ -824,6 +861,7 @@ func doTransition(transitionID uuid.UUID) {
 					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
 				}
 			}
+			(*GLOB.RFTloc).Close(&trsTaskList)
 		}
 
 		// TRS section for getting power state for confirmation.
@@ -1604,7 +1642,9 @@ func getOpForPowerAction(powerAction string) model.Operation {
 // - If the failed component was a node and the power action was soft-off (no ForceOff).
 //   Find and fail parent ComputeModule.
 //
-// - If the failed component
+// - If either of the above are true, check to see if any components supplying power are
+//   in the list. If so and it would result in the component becoming unpowered, fail the
+//   operation for one of the components that supply power.
 //
 //
 // Other components will fail organically. Chassis won't power off if slots are
@@ -1612,23 +1652,49 @@ func getOpForPowerAction(powerAction string) model.Operation {
 // Setting tasks in xnameMap to failed affects the instances in the sequence map.
 // The newly failed parent components will get skipped when it is their turn.
 func failDependentComps(xnameMap map[string]*TransitionComponent, powerAction string, xname string, errMsg string) {
-	parent := ""
+	var parents []string
 	if (powerAction == "gracefulshutdown" || powerAction == "forceoff") && base.GetHMSType(xname) == base.HSNBoard {
-		parent = base.GetHMSCompParent(xname)
+		parent := base.GetHMSCompParent(xname)
+		parents = append(parents, parent)
 	} else if powerAction == "gracefulshutdown" && base.GetHMSType(xname) == base.Node {
-		parent = base.GetHMSCompParent(xname) // NodeBMC
+		parent := base.GetHMSCompParent(xname) // NodeBMC
 		parent = base.GetHMSCompParent(parent) // ComputeModule
+		parents = append(parents, parent)
 	}
-	if parent != "" {
-		pComp, ok := xnameMap[parent]
-		if ok {
-			// If we have the parent, set it to failed.
-			pComp.Task.Status = model.TransitionTaskStatusFailed
-			pComp.Task.Error = errMsg
-			pComp.Task.StatusDesc = errMsg
-			err := (*GLOB.DSP).StoreTransitionTask(*pComp.Task)
-			if err != nil {
-				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
+	if len(parents) > 0 {
+		comp, ok := xnameMap[xname]
+		// If we have powerMap data, look at the list of components supplying power
+		// to the one we're working on. If there is at least one power supply in the
+		// 'on' state that is not in our operation list, there is no need to fail any
+		// in our operation list.
+		if ok && len(comp.PowerSupplies) > 0 {
+			willHavePower := false
+			failSupplyXname := ""
+			for _, supply := range comp.PowerSupplies {
+				if _, found := xnameMap[supply.ID]; !found && supply.State == model.PowerStateFilter_On {
+					willHavePower = true
+					break
+				} else if supply.State == model.PowerStateFilter_On {
+					// It doesn't matter if there is more than one in our list. We only
+					// need to fail one of them. We'll take the last one.
+					failSupplyXname = supply.ID
+				}
+			}
+			if !willHavePower && failSupplyXname != "" {
+				parents = append(parents, failSupplyXname)
+			}
+		}
+		for _, parent := range parents {
+			pComp, ok := xnameMap[parent]
+			if ok {
+				// If we have the parent, set it to failed.
+				pComp.Task.Status = model.TransitionTaskStatusFailed
+				pComp.Task.Error = errMsg
+				pComp.Task.StatusDesc = errMsg
+				err := (*GLOB.DSP).StoreTransitionTask(*pComp.Task)
+				if err != nil {
+					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
+				}
 			}
 		}
 	}
@@ -1751,4 +1817,20 @@ func waitForBMC(compList []*TransitionComponent) {
 		}
 		time.Sleep(15 * time.Second)
 	}
+}
+
+func getPowerSupplies(hData *hsm.HsmData) (powerSupplies []PowerSupply) {
+	for _, pConnector := range hData.PoweredBy {
+		powerState := model.PowerStateFilter_Undefined
+		pState, err := (*GLOB.DSP).GetPowerStatus(pConnector)
+		if err == nil {
+			powerState, _ = model.ToPowerStateFilter(pState.PowerState)
+		}
+		powerSupply := PowerSupply{
+			ID:    pConnector,
+			State: powerState,
+		}
+		powerSupplies = append(powerSupplies, powerSupply)
+	}
+	return
 }
