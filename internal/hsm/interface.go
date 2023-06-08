@@ -38,5 +38,6 @@ type HSMProvider interface {
 	CheckDeputyKeys(comp []ReservationData) error
 	FillComponentEndpointData(hd map[string]*HsmData) error
 	GetStateComponents(xnames []string) (base.ComponentArray,error)
+	FillPowerMapData(hd map[string]*HsmData) error
 	FillHSMData(xnames []string) (map[string]*HsmData,error)
 }

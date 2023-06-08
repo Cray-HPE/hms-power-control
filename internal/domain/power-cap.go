@@ -741,6 +741,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing power capping operation")
 			}
 		}
+		(*GLOB.RFTloc).Close(&trsTaskList)
 	}
 
 	// Task Complete

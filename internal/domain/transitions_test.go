@@ -25,9 +25,6 @@
 package domain
 
 import (
-	// "bytes"
-	// "fmt"
-	// "io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -773,4 +770,305 @@ func (ts *Transitions_TS) TestSequenceComponents() {
 	ts.Assert().Equal(0, len(resultsSeq["forceoff"]),
 	                  "Test 2 failed with sequence map 'forceoff' len, %d. Expected %d",
 	                  len(resultsSeq["forceoff"]), 0)
+}
+
+func (ts *Transitions_TS) TestGetPowerSupplies() {
+	var (
+		t          *testing.T
+		testParams hsm.HsmData
+		results    []PowerSupply
+	)
+	t = ts.T()
+
+	/////////
+	// Test 1 - getPowerSupplies() - 2 power supplies, 1 missing
+	/////////
+	t.Logf("Test 1 - getPowerSupplies() - 2 power supplies, 1 missing")
+	connectorXname1 := "x0m0p0v10"
+	connectorXname2 := "x0m0p1v10"
+	testParams = hsm.HsmData{
+		PoweredBy: []string{connectorXname1, connectorXname2},
+	}
+	connectorPowerStatus := model.PowerStatusComponent{
+		XName:           connectorXname1,
+		PowerState:      model.PowerStateFilter_On.String(),
+		ManagementState: model.ManagementStateFilter_available.String(),
+	}
+	(*GLOB.DSP).StorePowerStatus(connectorPowerStatus)
+
+	results = getPowerSupplies(&testParams)
+
+	ts.Assert().Equal(2, len(results),
+	                  "Test 1 failed with powerSupply array len, %d. Expected %d",
+	                  len(results), 2)
+	ts.Assert().Equal(connectorXname1, results[0].ID,
+	                  "Test 1 failed with powerSupply[0] ID, %s. Expected %s",
+	                  results[0].ID, connectorXname1)
+	ts.Assert().Equal(model.PowerStateFilter_On, results[0].State,
+	                  "Test 1 failed with powerSupply[0] State, %s. Expected %s",
+	                  results[0].State.String(), model.PowerStateFilter_On.String())
+	ts.Assert().Equal(connectorXname2, results[1].ID,
+	                  "Test 1 failed with powerSupply[1] ID, %s. Expected %s",
+	                  results[1].ID, connectorXname2)
+	ts.Assert().Equal(model.PowerStateFilter_Undefined, results[1].State,
+	                  "Test 1 failed with powerSupply[1] State, %s. Expected %s",
+	                  results[1].State.String(), model.PowerStateFilter_Undefined.String())
+
+	/////////
+	// Test 2 - getPowerSupplies() - 2 power supplies
+	/////////
+	t.Logf("Test 2 - getPowerSupplies() - 2 power supplies")
+	connectorXname1 = "x0m0p0v10"
+	connectorXname2 = "x0m0p1v10"
+	testParams = hsm.HsmData{
+		PoweredBy: []string{connectorXname1, connectorXname2},
+	}
+	connectorPowerStatus = model.PowerStatusComponent{
+		XName:           connectorXname2,
+		PowerState:      model.PowerStateFilter_Off.String(),
+		ManagementState: model.ManagementStateFilter_available.String(),
+	}
+	(*GLOB.DSP).StorePowerStatus(connectorPowerStatus)
+
+	results = getPowerSupplies(&testParams)
+
+	ts.Assert().Equal(2, len(results),
+	                  "Test 1 failed with powerSupply array len, %d. Expected %d",
+	                  len(results), 2)
+	ts.Assert().Equal(connectorXname1, results[0].ID,
+	                  "Test 1 failed with powerSupply[0] ID, %s. Expected %s",
+	                  results[0].ID, connectorXname1)
+	ts.Assert().Equal(model.PowerStateFilter_On, results[0].State,
+	                  "Test 1 failed with powerSupply[0] State, %s. Expected %s",
+	                  results[0].State.String(), model.PowerStateFilter_On.String())
+	ts.Assert().Equal(connectorXname2, results[1].ID,
+	                  "Test 1 failed with powerSupply[1] ID, %s. Expected %s",
+	                  results[1].ID, connectorXname2)
+	ts.Assert().Equal(model.PowerStateFilter_Off, results[1].State,
+	                  "Test 1 failed with powerSupply[1] State, %s. Expected %s",
+	                  results[1].State.String(), model.PowerStateFilter_Off.String())
+
+	/////////
+	// Test 3 - getPowerSupplies() - No power supplies
+	/////////
+	t.Logf("Test 3 - getPowerSupplies() - No power supplies")
+	testParams = hsm.HsmData{}
+
+	results = getPowerSupplies(&testParams)
+
+	ts.Assert().Equal(0, len(results),
+	                  "Test 1 failed with powerSupply array len, %d. Expected %d",
+	                  len(results), 0)
+}
+
+func (ts *Transitions_TS) TestFailDependentComps() {
+	var (
+		t            *testing.T
+		testXnameMap map[string]*TransitionComponent
+	)
+	t = ts.T()
+
+	/////////
+	// Test 1 - failDependentComps() - Node 2 power supplies, 1 in our list, will lose power
+	/////////
+	t.Logf("Test 1 - failDependentComps() - Node 2 power supplies, 1 in our list, will lose power")
+	nodeXname := "x0c0s0b0n0"
+	moduleXname := "x0c0s0"
+	connectorXname1 := "x0m0p0v10"
+	connectorXname2 := "x0m0p1v10"
+	transactionID := uuid.New()
+
+	task1 := model.NewTransitionTask(transactionID, model.Operation_SoftOff)
+	task1.Xname = nodeXname
+
+	task2 := model.NewTransitionTask(transactionID, model.Operation_SoftOff)
+	task2.Xname = moduleXname
+
+	task3 := model.NewTransitionTask(transactionID, model.Operation_SoftOff)
+	task3.Xname = connectorXname1
+
+	powerSupplies := []PowerSupply{
+		PowerSupply{
+			ID:    connectorXname1,
+			State: model.PowerStateFilter_On,
+		},
+		PowerSupply{
+			ID:    connectorXname2,
+			State: model.PowerStateFilter_Off,
+		},
+	}
+
+	testXnameMap = map[string]*TransitionComponent{
+		"x0c0s0b0n0": &TransitionComponent{
+			Task:          &task1,
+			PowerSupplies: powerSupplies,
+		},
+		"x0c0s0": &TransitionComponent{
+			Task: &task2,
+		},
+		"x0m0p0v10": &TransitionComponent{
+			Task: &task3,
+		},
+	}
+
+	failDependentComps(testXnameMap, "gracefulshutdown", nodeXname, "Test Error")
+
+	ts.Assert().Equal(model.TransitionTaskStatusFailed, task2.Status,
+	                  "Test 1 failed with computeModule Task.Status, %s. Expected %s",
+	                  task2.Status, model.TransitionTaskStatusFailed)
+	ts.Assert().Equal(model.TransitionTaskStatusFailed, task3.Status,
+	                  "Test 1 failed with powerConnector Task.Status, %s. Expected %s",
+	                  task3.Status, model.TransitionTaskStatusFailed)
+
+	/////////
+	// Test 2 - failDependentComps() - Node 2 power supplies, 1 in our list, will not lose power
+	/////////
+	t.Logf("Test 2 - failDependentComps() - Node 2 power supplies, 1 in our list, will not lose power")
+	nodeXname = "x0c0s0b0n0"
+	moduleXname = "x0c0s0"
+	connectorXname1 = "x0m0p0v10"
+	connectorXname2 = "x0m0p1v10"
+	transactionID = uuid.New()
+
+	task1 = model.NewTransitionTask(transactionID, model.Operation_SoftOff)
+	task1.Xname = nodeXname
+
+	task2 = model.NewTransitionTask(transactionID, model.Operation_SoftOff)
+	task2.Xname = moduleXname
+
+	task3 = model.NewTransitionTask(transactionID, model.Operation_SoftOff)
+	task3.Xname = connectorXname1
+
+	powerSupplies = []PowerSupply{
+		PowerSupply{
+			ID:    connectorXname1,
+			State: model.PowerStateFilter_On,
+		},
+		PowerSupply{
+			ID:    connectorXname2,
+			State: model.PowerStateFilter_On,
+		},
+	}
+
+	testXnameMap = map[string]*TransitionComponent{
+		"x0c0s0b0n0": &TransitionComponent{
+			Task:          &task1,
+			PowerSupplies: powerSupplies,
+		},
+		"x0c0s0": &TransitionComponent{
+			Task: &task2,
+		},
+		"x0m0p0v10": &TransitionComponent{
+			Task: &task3,
+		},
+	}
+
+	failDependentComps(testXnameMap, "gracefulshutdown", nodeXname, "Test Error")
+
+	ts.Assert().Equal(model.TransitionTaskStatusFailed, task2.Status,
+	                  "Test 1 failed with computeModule Task.Status, %s. Expected %s",
+	                  task2.Status, model.TransitionTaskStatusFailed)
+	ts.Assert().Equal(model.TransitionTaskStatusNew, task3.Status,
+	                  "Test 1 failed with powerConnector Task.Status, %s. Expected %s",
+	                  task3.Status, model.TransitionTaskStatusNew)
+
+	/////////
+	// Test 3 - failDependentComps() - Node missing power supplies, 1 in our list
+	/////////
+	t.Logf("Test 3 - failDependentComps() - Node missing power supplies, 1 in our list")
+	nodeXname = "x0c0s0b0n0"
+	moduleXname = "x0c0s0"
+	connectorXname1 = "x0m0p0v10"
+	transactionID = uuid.New()
+
+	task1 = model.NewTransitionTask(transactionID, model.Operation_SoftOff)
+	task1.Xname = nodeXname
+
+	task2 = model.NewTransitionTask(transactionID, model.Operation_SoftOff)
+	task2.Xname = moduleXname
+
+	task3 = model.NewTransitionTask(transactionID, model.Operation_SoftOff)
+	task3.Xname = connectorXname1
+
+	testXnameMap = map[string]*TransitionComponent{
+		"x0c0s0b0n0": &TransitionComponent{
+			Task: &task1,
+		},
+		"x0c0s0": &TransitionComponent{
+			Task: &task2,
+		},
+		"x0m0p0v10": &TransitionComponent{
+			Task: &task3,
+		},
+	}
+
+	failDependentComps(testXnameMap, "gracefulshutdown", nodeXname, "Test Error")
+
+	ts.Assert().Equal(model.TransitionTaskStatusFailed, task2.Status,
+	                  "Test 1 failed with computeModule Task.Status, %s. Expected %s",
+	                  task2.Status, model.TransitionTaskStatusFailed)
+	ts.Assert().Equal(model.TransitionTaskStatusNew, task3.Status,
+	                  "Test 1 failed with powerConnector Task.Status, %s. Expected %s",
+	                  task3.Status, model.TransitionTaskStatusNew)
+
+	/////////
+	// Test 4 - failDependentComps() - Node 2 power supplies, both in our list
+	/////////
+	t.Logf("Test 4 - failDependentComps() - Node 2 power supplies, both in our list")
+	nodeXname = "x0c0s0b0n0"
+	moduleXname = "x0c0s0"
+	connectorXname1 = "x0m0p0v10"
+	connectorXname2 = "x0m0p1v10"
+	transactionID = uuid.New()
+
+	task1 = model.NewTransitionTask(transactionID, model.Operation_SoftOff)
+	task1.Xname = nodeXname
+
+	task2 = model.NewTransitionTask(transactionID, model.Operation_SoftOff)
+	task2.Xname = moduleXname
+
+	task3 = model.NewTransitionTask(transactionID, model.Operation_SoftOff)
+	task3.Xname = connectorXname1
+
+	task4 := model.NewTransitionTask(transactionID, model.Operation_SoftOff)
+	task4.Xname = connectorXname2
+
+	powerSupplies = []PowerSupply{
+		PowerSupply{
+			ID:    connectorXname1,
+			State: model.PowerStateFilter_On,
+		},
+		PowerSupply{
+			ID:    connectorXname2,
+			State: model.PowerStateFilter_On,
+		},
+	}
+
+	testXnameMap = map[string]*TransitionComponent{
+		"x0c0s0b0n0": &TransitionComponent{
+			Task:          &task1,
+			PowerSupplies: powerSupplies,
+		},
+		"x0c0s0": &TransitionComponent{
+			Task: &task2,
+		},
+		"x0m0p0v10": &TransitionComponent{
+			Task: &task3,
+		},
+		"x0m0p1v10": &TransitionComponent{
+			Task: &task4,
+		},
+	}
+
+	failDependentComps(testXnameMap, "gracefulshutdown", nodeXname, "Test Error")
+
+	ts.Assert().Equal(model.TransitionTaskStatusFailed, task2.Status,
+	                  "Test 1 failed with computeModule Task.Status, %s. Expected %s",
+	                  task2.Status, model.TransitionTaskStatusFailed)
+	ts.Assert().Equal(model.TransitionTaskStatusNew, task3.Status,
+	                  "Test 1 failed with powerConnector Task.Status, %s. Expected %s",
+	                  task3.Status, model.TransitionTaskStatusNew)
+	ts.Assert().Equal(model.TransitionTaskStatusFailed, task4.Status,
+	                  "Test 1 failed with powerConnector Task.Status, %s. Expected %s",
+	                  task4.Status, model.TransitionTaskStatusFailed)
 }
