@@ -75,6 +75,9 @@ type HsmData struct {
 	PowerCapControlsCount int                 `json:"powerCapControlsCount"`
 	PowerCapCtlInfoCount  int                 `json:"powerCapCtlInfoCount"`
 	PowerCaps             map[string]PowerCap `json:"powerCaps"`
+
+// For PCS transitions
+	PoweredBy []string
 }
 
 // PowerCap defines values useful to PCS for power capping.
