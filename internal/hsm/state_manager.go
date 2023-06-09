@@ -49,6 +49,7 @@ const (
 	hsmReservationCheckPath           = "/hsm/v2/locks/service/reservations/check"
 	hsmReservationPath                = "/hsm/v2/locks/service/reservations"
 	hsmReservationReleasePath         = "/hsm/v2/locks/service/reservations/release"
+	hsmPowerMapPath                   = "/hsm/v2/sysinfo/powermaps"
 
 	HSM_MAX_COMPONENT_QUERY = 2000
 )
@@ -586,6 +587,45 @@ func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error)
 	}
 
 	return retData, nil
+}
+
+// Fetch power map from HSM.
+func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
+	var retData []sm.PowerMap
+
+	smurl := b.HSMGlobals.SMUrl + hsmPowerMapPath
+
+	req, err := http.NewRequest(http.MethodGet, smurl, nil)
+	if err != nil {
+		return fmt.Errorf("ERROR creating HTTP request for '%s': %v", smurl, err)
+	}
+
+	reqContext, _ := context.WithTimeout(context.Background(), 40 * time.Second)
+	req = req.WithContext(reqContext)
+
+	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
+	if rsperr != nil {
+		return fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
+	}
+
+	body, bderr := ioutil.ReadAll(rsp.Body)
+	if bderr != nil {
+		return fmt.Errorf("Error reading response body for '%s': %v", smurl, bderr)
+	}
+
+	bderr = json.Unmarshal(body, &retData)
+	if bderr != nil {
+		return fmt.Errorf("Error unmarshalling response body for '%s': %v", smurl, bderr)
+	}
+
+	for _, pm := range retData {
+		_, ok := hd[pm.ID]
+		if ok {
+			hd[pm.ID].PoweredBy = pm.PoweredBy
+		}
+	}
+
+	return nil
 }
 
 // Fill in various data for each requested component from HSM.
