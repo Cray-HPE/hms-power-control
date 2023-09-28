@@ -112,6 +112,7 @@ var PowerSequenceFull = []PowerSeqElem{
 }
 
 func GetTransition(transitionID uuid.UUID) (pb model.Passback) {
+	var tasks []model.TransitionTask
 	// Get the transition
 	transition, err := (*GLOB.DSP).GetTransition(transitionID)
 	if err != nil {
@@ -129,12 +130,15 @@ func GetTransition(transitionID uuid.UUID) (pb model.Passback) {
 		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition")
 		return
 	}
-	// Get the operations for the task
-	tasks, err := (*GLOB.DSP).GetAllTasksForTransition(transitionID)
-	if err != nil {
-		pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
-		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition tasks")
-		return
+	// Compressed transitions don't have tasks anymore. No need to look them up.
+	if !transition.IsCompressed {
+		// Get the tasks for the transition
+		tasks, err = (*GLOB.DSP).GetAllTasksForTransition(transitionID)
+		if err != nil {
+			pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
+			logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition tasks")
+			return
+		}
 	}
 
 	// Build the response struct
@@ -158,11 +162,15 @@ func GetTransitionStatuses() (pb model.Passback) {
 	}
 	// Get the tasks for each transition
 	for _, transition := range transitions {
-		tasks, err := (*GLOB.DSP).GetAllTasksForTransition(transition.TransitionID)
-		if err != nil {
-			pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
-			logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition tasks")
-			return
+		var tasks []model.TransitionTask
+		// Compressed transitions don't have tasks anymore. No need to look them up.
+		if !transition.IsCompressed {
+			tasks, err = (*GLOB.DSP).GetAllTasksForTransition(transition.TransitionID)
+			if err != nil {
+				pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
+				logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition tasks")
+				return
+			}
 		}
 		// Build the response struct
 		transitionRsp := model.ToTransitionResp(transition, tasks, false)
@@ -301,11 +309,7 @@ func doTransition(transitionID uuid.UUID) {
 		// All xnames were invalid
 		err = errors.New("No components to operate on")
 		logrus.WithFields(logrus.Fields{"ERROR": err}).Error("No components to operate on")
-		tr.Status = model.TransitionStatusCompleted
-		err = (*GLOB.DSP).StoreTransition(tr)
-		if err != nil {
-			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
-		}
+		compressAndCompleteTransition(tr, model.TransitionStatusCompleted)
 		return
 	}
 
@@ -377,11 +381,7 @@ func doTransition(transitionID uuid.UUID) {
 		// No xnames found
 		err = errors.New("No xnames to operate on")
 		logrus.WithFields(logrus.Fields{"ERROR": err}).Error("No xnames to operate on")
-		tr.Status = model.TransitionStatusCompleted
-		err = (*GLOB.DSP).StoreTransition(tr)
-		if err != nil {
-			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
-		}
+		compressAndCompleteTransition(tr, model.TransitionStatusCompleted)
 		return
 	}
 
@@ -578,11 +578,7 @@ func doTransition(transitionID uuid.UUID) {
 				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
 			}
 		}
-		tr.Status = model.TransitionStatusCompleted
-		err = (*GLOB.DSP).StoreTransition(tr)
-		if err != nil {
-			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
-		}
+		compressAndCompleteTransition(tr, model.TransitionStatusCompleted)
 		return
 	} else {
 		// Check to see if we got everything back. ReserveComponents returns
@@ -995,11 +991,7 @@ func doTransition(transitionID uuid.UUID) {
 	///////////////////////////////////////////////////////////////////////////
 
 	// Task Complete
-	tr.Status = model.TransitionStatusCompleted
-	err = (*GLOB.DSP).StoreTransition(tr)
-	if err != nil {
-		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
-	}
+	compressAndCompleteTransition(tr, model.TransitionStatusCompleted)
 	return
 }
 
@@ -1071,7 +1063,6 @@ func checkAbort(tr model.Transition) (bool, error) {
 
 // Fail any tasks that have not finished and mark the transition as "Aborted".
 func doAbort(tr model.Transition, xnameMap map[string]*TransitionComponent) {
-	tr.Status = model.TransitionStatusAborted
 	for _, comp := range xnameMap {
 		if comp.Task.Status == model.TransitionTaskStatusNew ||
 		   comp.Task.Status == model.TransitionTaskStatusInProgress {
@@ -1084,10 +1075,7 @@ func doAbort(tr model.Transition, xnameMap map[string]*TransitionComponent) {
 			}
 		}
 	}
-	err := (*GLOB.DSP).StoreTransition(tr)
-	if err != nil {
-		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
-	}
+	compressAndCompleteTransition(tr, model.TransitionStatusAborted)
 }
 
 // Periodically updates the LastActiveTime field of the given transition. Will kill itself
@@ -1766,7 +1754,18 @@ func transitionsReaper() {
 		} else if transition.Status == model.TransitionStatusAborted ||
 		          transition.Status == model.TransitionStatusCompleted {
 			numComplete++
+			// Compress the completed transition if the it was not previuosly compressed
+			// upon completion (probably because it was stored by an older version
+			// of PCS).
+			if !transition.IsCompressed {
+				compressAndCompleteTransition(transition, transition.Status)
+			}
 		}
+	}
+
+	if GLOB.MaxNumCompleted <= 0 {
+		// No limit
+		return
 	}
 
 	// Additionally, delete records if we've exceeded our maximum.
@@ -1869,6 +1868,34 @@ func getPowerSupplies(hData *hsm.HsmData) (powerSupplies []PowerSupply) {
 			State: powerState,
 		}
 		powerSupplies = append(powerSupplies, powerSupply)
+	}
+	return
+}
+
+func compressAndCompleteTransition(transition model.Transition, status string) {
+	// Get the tasks for the transition
+	tasks, err := (*GLOB.DSP).GetAllTasksForTransition(transition.TransitionID)
+	if err != nil {
+		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error retreiving tasks for transition, %s.", transition.TransitionID.String())
+		return
+	}
+	// Build the response struct
+	rsp := model.ToTransitionResp(transition, tasks, true)
+	transition.TaskCounts = rsp.TaskCounts
+	transition.Tasks = rsp.Tasks
+	transition.Status = status
+	transition.IsCompressed = true
+	err = (*GLOB.DSP).StoreTransition(transition)
+	if err != nil {
+		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition")
+		// Don't delete the tasks if we were unsuccessful storing the transition.
+		return
+	}
+	for _, task := range tasks {
+		err = (*GLOB.DSP).DeleteTransitionTask(transition.TransitionID, task.TaskID)
+		if err != nil {
+			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error deleting transition task, %s.", task.TaskID.String())
+		}
 	}
 	return
 }

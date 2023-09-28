@@ -99,6 +99,11 @@ type Transition struct {
 	AutomaticExpirationTime time.Time            `json:"automaticExpirationTime"`
 	Status                  string               `json:"transitionStatus"`
 	TaskIDs                 []uuid.UUID
+
+	// Only populated when the task is completed
+	IsCompressed bool                 `json:"isCompressed"`
+	TaskCounts   TransitionTaskCounts `json:"taskCounts"`
+	Tasks        []TransitionTaskResp `json:"tasks,omitempty"`
 }
 
 type TransitionTask struct {
@@ -167,6 +172,15 @@ func ToTransitionResp(transition Transition, tasks []TransitionTask, full bool) 
 		CreateTime: transition.CreateTime,
 		AutomaticExpirationTime: transition.AutomaticExpirationTime,
 		TransitionStatus: transition.Status,
+	}
+
+	// Is a compressed record
+	if transition.IsCompressed {
+		rsp.TaskCounts = transition.TaskCounts
+		if full {
+			rsp.Tasks = transition.Tasks
+		}
+		return rsp
 	}
 
 	counts := TransitionTaskCounts{}

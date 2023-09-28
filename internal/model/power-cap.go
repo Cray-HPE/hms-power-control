@@ -87,6 +87,11 @@ type PowerCapTask struct {
 	AutomaticExpirationTime time.Time                  `json:"automaticExpirationTime"`
 	TaskStatus              string                     `json:"taskStatus"`
 	OperationIDs            []uuid.UUID
+
+	// Only populated when the task is completed
+	IsCompressed bool                `json:"isCompressed"`
+	TaskCounts   PowerCapTaskCounts  `json:"taskCounts"`
+	Components   []PowerCapComponent `json:"components,omitempty"`
 }
 
 type PowerCapOperation struct {

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- CASMHMS-6058 - Reduced ETCD storage size of completed power cap tasks and transitions.
 - CASMHMS-6058 - Made record expiration and the maximum number of completed records configurable.
 
 ## [1.10.0] - 2023-06-08
