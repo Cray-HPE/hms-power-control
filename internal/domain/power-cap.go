@@ -189,7 +189,7 @@ type PowerMetric struct {
 func SnapshotPowerCap(parameters model.PowerCapSnapshotParameter) (pb model.Passback) {
 
 	// Create task
-	task := model.NewPowerCapSnapshotTask(parameters)
+	task := model.NewPowerCapSnapshotTask(parameters, GLOB.ExpireTimeMins)
 
 	// Store task
 	err := (*GLOB.DSP).StorePowerCapTask(task)
@@ -212,7 +212,7 @@ func SnapshotPowerCap(parameters model.PowerCapSnapshotParameter) (pb model.Pass
 // Start a power cap patch task for setting power limits for nodes.
 func PatchPowerCap(parameters model.PowerCapPatchParameter) (pb model.Passback) {
 	// Create task
-	task := model.NewPowerCapPatchTask(parameters)
+	task := model.NewPowerCapPatchTask(parameters, GLOB.ExpireTimeMins)
 
 	// Store task
 	err := (*GLOB.DSP).StorePowerCapTask(task)
@@ -950,9 +950,58 @@ func powerCapReaper() {
 		return
 	}
 
+	numComplete := 0
 	for _, task := range tasks {
 		expired := task.AutomaticExpirationTime.Before(time.Now())
 		if expired {
+			// Get the operations for the power cap task
+			ops, err := (*GLOB.DSP).GetAllPowerCapOperationsForTask(task.TaskID)
+			if err != nil {
+				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error retreiving operations for power cap task, %s.", task.TaskID.String())
+				continue
+			}
+			for _, op := range ops {
+				err = (*GLOB.DSP).DeletePowerCapOperation(task.TaskID, op.OperationID)
+				if err != nil {
+					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error deleting operation, %s, for power cap task, %s.", op.OperationID.String(), task.TaskID.String())
+				}
+			}
+			err = (*GLOB.DSP).DeletePowerCapTask(task.TaskID)
+			if err != nil {
+				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Error deleting power cap task, %s.", task.TaskID.String())
+			}
+		} else if task.TaskStatus == model.PowerCapTaskStatusCompleted {
+			numComplete++
+		}
+	}
+
+	// Additionally, delete records if we've exceeded our maximum.
+	numDelete := numComplete - GLOB.MaxNumCompleted
+	if numDelete > 0 {
+		// Find the oldest 'numDelete' records and delete them.
+		tasksToDelete := make([]*model.PowerCapTask, numDelete)
+		for _, task := range tasks {
+			if task.TaskStatus != model.PowerCapTaskStatusCompleted { continue }
+			for i := 0; i < numDelete; i++ {
+				if tasksToDelete[i] == nil {
+					tasksToDelete[i] = &task
+				} else if tasksToDelete[i].TaskCreateTime.Before(task.TaskCreateTime) {
+					// Found an older record. Shift the array elements.
+					currTask := &task
+					for j := i; j < numDelete; j++ {
+						if tasksToDelete[j] == nil {
+							tasksToDelete[j] = currTask
+							break
+						}
+						tmpTask := tasksToDelete[j]
+						tasksToDelete[j] = currTask
+						currTask = tmpTask
+					}
+					break
+				}
+			}
+		}
+		for _, task := range tasksToDelete {
 			// Get the operations for the power cap task
 			ops, err := (*GLOB.DSP).GetAllPowerCapOperationsForTask(task.TaskID)
 			if err != nil {

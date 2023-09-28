@@ -1719,6 +1719,7 @@ func transitionsReaper() {
 		return
 	}
 
+	numComplete := 0
 	for _, transition := range transitions {
 		expired := transition.AutomaticExpirationTime.Before(time.Now())
 		abandoned := transition.LastActiveTime.Before(time.Now().Add(time.Duration(model.TransitionKeepAliveInterval) * -3 * time.Second))
@@ -1762,6 +1763,43 @@ func transitionsReaper() {
 			if ok {
 				go doTransition(transition.TransitionID)
 			}
+		} else if transition.Status == model.TransitionStatusAborted ||
+		          transition.Status == model.TransitionStatusCompleted {
+			numComplete++
+		}
+	}
+
+	// Additionally, delete records if we've exceeded our maximum.
+	numDelete := numComplete - GLOB.MaxNumCompleted
+	if numDelete > 0 {
+		// Find the oldest 'numDelete' records and delete them.
+		tToDelete := make([]*model.Transition, numDelete)
+		for _, transition := range transitions {
+			if transition.Status != model.TransitionStatusAborted &&
+			   transition.Status != model.TransitionStatusCompleted {
+				continue
+			}
+			for i := 0; i < numDelete; i++ {
+				if tToDelete[i] == nil {
+					tToDelete[i] = &transition
+				} else if tToDelete[i].CreateTime.Before(transition.CreateTime) {
+					// Found an older record. Shift the array elements.
+					currTransition := &transition
+					for j := i; j < numDelete; j++ {
+						if tToDelete[j] == nil {
+							tToDelete[j] = currTransition
+							break
+						}
+						tmpTransition := tToDelete[j]
+						tToDelete[j] = currTransition
+						currTransition = tmpTransition
+					}
+					break
+				}
+			}
+		}
+		for _, transition := range tToDelete {
+			deleteTransition(transition.TransitionID)
 		}
 	}
 }

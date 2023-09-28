@@ -51,7 +51,6 @@ const (
 )
 
 const DefaultTaskDeadline = 5
-const TransitionExpireTimeHours = 24
 const TransitionKeepAliveInterval = 10
 
 ///////////////////////////
@@ -69,7 +68,7 @@ type LocationParameter struct {
 	DeputyKey string `json:"deputyKey,omitempty"`
 }
 
-func ToTransition(parameter TransitionParameter) (TR Transition, err error) {
+func ToTransition(parameter TransitionParameter, expirationTimeMins int) (TR Transition, err error) {
 	TR.TransitionID = uuid.New()
 	TR.Operation, err = ToOperationFilter(parameter.Operation)
 	if parameter.TaskDeadline != nil {
@@ -79,7 +78,7 @@ func ToTransition(parameter TransitionParameter) (TR Transition, err error) {
 	}
 	TR.Location = parameter.Location
 	TR.CreateTime = time.Now()
-	TR.AutomaticExpirationTime = time.Now().Add(time.Hour * time.Duration(TransitionExpireTimeHours))
+	TR.AutomaticExpirationTime = time.Now().Add(time.Minute * time.Duration(expirationTimeMins))
 	TR.LastActiveTime = time.Now()
 	TR.Status = TransitionStatusNew
 	TR.TaskIDs = []uuid.UUID{}

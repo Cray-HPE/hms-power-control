@@ -57,6 +57,8 @@ type DOMAIN_GLOBALS struct {
 	VaultEnabled      bool
 	CS                *credstore.CredStoreProvider
 	DistLock          *storage.DistributedLockProvider
+	MaxNumCompleted   int
+	ExpireTimeMins    int
 }
 
 func (g *DOMAIN_GLOBALS) NewGlobals(base *trs_http_api.HttpTask,
@@ -68,7 +70,8 @@ func (g *DOMAIN_GLOBALS) NewGlobals(base *trs_http_api.HttpTask,
                                     running *bool, dsp *storage.StorageProvider,
                                     hsm *hsm.HSMProvider, vaultEnabled bool,
                                     credStore *credstore.CredStoreProvider,
-                                    distLock *storage.DistributedLockProvider) {
+                                    distLock *storage.DistributedLockProvider,
+                                    maxNumCompleted int, expireTimeMins int) {
 	g.BaseTRSTask = base
 	g.RFTloc = tlocRF
 	g.HSMTloc = tlocSVC
@@ -81,6 +84,8 @@ func (g *DOMAIN_GLOBALS) NewGlobals(base *trs_http_api.HttpTask,
 	g.VaultEnabled = vaultEnabled
 	g.CS = credStore
 	g.DistLock = distLock
+	g.MaxNumCompleted = maxNumCompleted
+	g.ExpireTimeMins = expireTimeMins
 }
 
 // Periodically runs functions to prune expired transitions and power-capping
