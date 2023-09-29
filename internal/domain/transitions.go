@@ -1773,17 +1773,18 @@ func transitionsReaper() {
 	if numDelete > 0 {
 		// Find the oldest 'numDelete' records and delete them.
 		tToDelete := make([]*model.Transition, numDelete)
-		for _, transition := range transitions {
+		for t, transition := range transitions {
 			if transition.Status != model.TransitionStatusAborted &&
 			   transition.Status != model.TransitionStatusCompleted {
 				continue
 			}
 			for i := 0; i < numDelete; i++ {
 				if tToDelete[i] == nil {
-					tToDelete[i] = &transition
-				} else if tToDelete[i].CreateTime.Before(transition.CreateTime) {
+					tToDelete[i] = &transitions[t]
+					break
+				} else if tToDelete[i].CreateTime.After(transition.CreateTime) {
 					// Found an older record. Shift the array elements.
-					currTransition := &transition
+					currTransition := &transitions[t]
 					for j := i; j < numDelete; j++ {
 						if tToDelete[j] == nil {
 							tToDelete[j] = currTransition

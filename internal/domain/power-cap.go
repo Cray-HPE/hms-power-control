@@ -994,16 +994,18 @@ func powerCapReaper() {
 	// Additionally, delete records if we've exceeded our maximum.
 	numDelete := numComplete - GLOB.MaxNumCompleted
 	if numDelete > 0 {
+		logger.Log.Infof("Deleting %d overflow record(s)", numDelete)
 		// Find the oldest 'numDelete' records and delete them.
 		tasksToDelete := make([]*model.PowerCapTask, numDelete)
-		for _, task := range tasks {
+		for t, task := range tasks {
 			if task.TaskStatus != model.PowerCapTaskStatusCompleted { continue }
 			for i := 0; i < numDelete; i++ {
 				if tasksToDelete[i] == nil {
-					tasksToDelete[i] = &task
-				} else if tasksToDelete[i].TaskCreateTime.Before(task.TaskCreateTime) {
+					tasksToDelete[i] = &tasks[t]
+					break
+				} else if tasksToDelete[i].TaskCreateTime.After(task.TaskCreateTime) {
 					// Found an older record. Shift the array elements.
-					currTask := &task
+					currTask := &tasks[t]
 					for j := i; j < numDelete; j++ {
 						if tasksToDelete[j] == nil {
 							tasksToDelete[j] = currTask
