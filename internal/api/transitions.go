@@ -75,7 +75,7 @@ func CreateTransition(w http.ResponseWriter, req *http.Request) {
 	}
 
 	//Validate the transition (specifically the Operation type)
-	transition, err := model.ToTransition(parameters)
+	transition, err := model.ToTransition(parameters, domain.GLOB.ExpireTimeMins)
 	if err != nil {
 		pb = model.BuildErrorPassback(http.StatusBadRequest, err)
 		logrus.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Invalid operation")

@@ -87,6 +87,11 @@ type PowerCapTask struct {
 	AutomaticExpirationTime time.Time                  `json:"automaticExpirationTime"`
 	TaskStatus              string                     `json:"taskStatus"`
 	OperationIDs            []uuid.UUID
+
+	// Only populated when the task is completed
+	IsCompressed bool                `json:"isCompressed"`
+	TaskCounts   PowerCapTaskCounts  `json:"taskCounts"`
+	Components   []PowerCapComponent `json:"components,omitempty"`
 }
 
 type PowerCapOperation struct {
@@ -160,25 +165,25 @@ type PowerCapControls struct {
 // FUNCTIONS
 //////////////
 
-func NewPowerCapSnapshotTask(parameters PowerCapSnapshotParameter) PowerCapTask {
-	task := newPowerCapTask()
+func NewPowerCapSnapshotTask(parameters PowerCapSnapshotParameter, expirationTimeMins int) PowerCapTask {
+	task := newPowerCapTask(expirationTimeMins)
 	task.Type = PowerCapTaskTypeSnapshot
 	task.SnapshotParameters = &parameters
 	return task
 }
 
-func NewPowerCapPatchTask(parameters PowerCapPatchParameter) PowerCapTask {
-	task := newPowerCapTask()
+func NewPowerCapPatchTask(parameters PowerCapPatchParameter, expirationTimeMins int) PowerCapTask {
+	task := newPowerCapTask(expirationTimeMins)
 	task.Type = PowerCapTaskTypePatch
 	task.PatchParameters = &parameters
 	return task
 }
 
-func newPowerCapTask() PowerCapTask {
+func newPowerCapTask(expirationTimeMins int) PowerCapTask {
 	return PowerCapTask{
 		TaskID:                  uuid.New(),
 		TaskCreateTime:          time.Now(),
-		AutomaticExpirationTime: time.Now().Add(time.Hour * 24),
+		AutomaticExpirationTime: time.Now().Add(time.Minute * time.Duration(expirationTimeMins)),
 		TaskStatus:              PowerCapTaskStatusNew,
 		OperationIDs:            []uuid.UUID{},
 	}

@@ -65,7 +65,7 @@ func TestDoPowerCapTask(t *testing.T) {
 		Xnames: []string{"x0c0s0b0n0", "x0c0s1b0n0"},
 	}
 
-	task := model.NewPowerCapSnapshotTask(params)
+	task := model.NewPowerCapSnapshotTask(params, GLOB.ExpireTimeMins)
 
 	err = (*GLOB.DSP).StorePowerCapTask(task)
 	if err != nil {
@@ -114,7 +114,7 @@ func TestDoPowerCapTask(t *testing.T) {
 		}},
 	}}}
 
-	task2 := model.NewPowerCapPatchTask(params2)
+	task2 := model.NewPowerCapPatchTask(params2, GLOB.ExpireTimeMins)
 
 	err = (*GLOB.DSP).StorePowerCapTask(task2)
 	if err != nil {
@@ -275,7 +275,7 @@ func doSetup() error {
 	HSM.Init(&hsmGlob)
 
 	domainGlobals.NewGlobals(&BaseTRSTask, &TLOC_rf, &TLOC_svc, nil, nil,
-		rfClientLock, &Running, &DSP, &HSM, VaultEnabled, nil, nil)
+		rfClientLock, &Running, &DSP, &HSM, VaultEnabled, nil, nil, 20000, 1440)
 	Init(&domainGlobals)
 	return nil
 }

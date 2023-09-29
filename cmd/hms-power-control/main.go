@@ -52,6 +52,18 @@ const defaultPORT = "28007"
 
 const defaultSMSServer = "https://api-gw-service-nmn/apis/smd"
 
+// The ETCD database volume usage can grow significantly if services are making
+// many transition/power-cap requests in succession. These values can be used
+// to mitigate the usage. PCS will keep completed transactions/power-cap
+// operations until there are MAX_NUM_COMPLETED or they expire after
+// EXPIRE_TIME_MINS at which point PCS will start deleting the oldest entries.
+// NOTE: Transactions and power-cap operations are counted separately for
+//       MAX_NUM_COMPLETED.
+const (
+	defaultMaxNumCompleted = 20000 // Maximum number of completed records to keep (default 20k).
+	defaultExpireTimeMins = 1440   // Time, in mins, to keep completed records (default 24 hours).
+)
+
 const (
 	dfltMaxHTTPRetries = 5
 	dfltMaxHTTPTimeout = 40
@@ -93,6 +105,8 @@ func main() {
 	var hsmlockEnabled bool = true
 	var runControl bool = false //noting to run yet!
 	var credCacheDuration int = 600 //In seconds. 10 mins?
+	var maxNumCompleted int
+	var expireTimeMins int
 
 	srv := &http.Server{Addr: defaultPORT}
 
@@ -110,11 +124,16 @@ func main() {
 	flag.IntVar(&credCacheDuration, "cred_cache_duration", 600,
 		"Duration in seconds to cache vault credentials.")
 
+	flag.IntVar(&maxNumCompleted, "max_num_completed", defaultMaxNumCompleted, "Maximum number of completed records to keep.")
+	flag.IntVar(&expireTimeMins, "expire_time_mins", defaultExpireTimeMins, "The time, in mins, to keep completed records.")
+
 	flag.Parse()
 
 	logger.Log.Info("SMS Server: " + StateManagerServer)
 	logger.Log.Info("HSM Lock Enabled: ", hsmlockEnabled)
 	logger.Log.Info("Vault Enabled: ", VaultEnabled)
+	logger.Log.Info("Max Completed Records: ", maxNumCompleted)
+	logger.Log.Info("Completed Record Expire Time: ", expireTimeMins)
 	logger.Log.SetReportCaller(true)
 
 	///////////////////////////////
@@ -244,7 +263,7 @@ func main() {
 	var domainGlobals domain.DOMAIN_GLOBALS
 	domainGlobals.NewGlobals(&BaseTRSTask, &TLOC_rf, &TLOC_svc, rfClient, svcClient,
 	                         rfClientLock, &Running, &DSP, &HSM, VaultEnabled,
-	                         &CS, &DLOCK)
+	                         &CS, &DLOCK, maxNumCompleted, expireTimeMins)
 
 	//Wait for vault PKI to respond for CA bundle.  Once this happens, re-do
 	//the globals.  This goroutine will run forever checking if the CA trust
