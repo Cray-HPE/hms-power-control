@@ -711,6 +711,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 					taskErr = errors.New("empty body")
 					break
 				}
+				defer tdone.Request.Response.Body.Close()
 				body, err := ioutil.ReadAll(tdone.Request.Response.Body)
 				if err != nil {
 					taskErr = err
@@ -998,7 +999,9 @@ func powerCapReaper() {
 		// Find the oldest 'numDelete' records and delete them.
 		tasksToDelete := make([]*model.PowerCapTask, numDelete)
 		for t, task := range tasks {
-			if task.TaskStatus != model.PowerCapTaskStatusCompleted { continue }
+			if task.TaskStatus != model.PowerCapTaskStatusCompleted {
+				continue
+			}
 			for i := 0; i < numDelete; i++ {
 				if tasksToDelete[i] == nil {
 					tasksToDelete[i] = &tasks[t]
