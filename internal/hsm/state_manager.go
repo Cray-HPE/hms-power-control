@@ -1,17 +1,17 @@
 // MIT License
-// 
+//
 // (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
 // to deal in the Software without restriction, including without limitation
 // the rights to use, copy, modify, merge, publish, distribute, sublicense,
 // and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included
 // in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
@@ -19,7 +19,6 @@
 // OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
-
 
 package hsm
 
@@ -36,8 +35,8 @@ import (
 	"time"
 
 	"github.com/Cray-HPE/hms-base"
-	"github.com/Cray-HPE/hms-smd/v2/pkg/sm"
 	reservation "github.com/Cray-HPE/hms-smd/v2/pkg/service-reservations"
+	"github.com/Cray-HPE/hms-smd/v2/pkg/sm"
 	"github.com/sirupsen/logrus"
 )
 
@@ -59,7 +58,6 @@ const (
 type CompQuery struct {
 	ComponentIDs []string `json:"ComponentIDs"`
 }
-
 
 func (b *HSMv2) Init(globals *HSM_GLOBALS) error {
 	b.HSMGlobals = HSM_GLOBALS{}
@@ -174,7 +172,7 @@ func (b *HSMv2) ReserveComponents(compList []ReservationData) ([]*ReservationDat
 	}
 
 	// First check any component record with deputy keys. Any that are
-	// valid, skip. If invalid or no deputy key, add to the list to 
+	// valid, skip. If invalid or no deputy key, add to the list to
 	// reserve.
 
 	compMap := make(map[string]*ReservationData)
@@ -186,9 +184,9 @@ func (b *HSMv2) ReserveComponents(compList []ReservationData) ([]*ReservationDat
 		compMap[comp.XName].Error = nil
 		if comp.ReservationKey != "" {
 			res := reservation.Reservation{
-				Xname: comp.XName,
+				Xname:          comp.XName,
 				ReservationKey: comp.ReservationKey,
-				DeputyKey: comp.DeputyKey,
+				DeputyKey:      comp.DeputyKey,
 			}
 			resKeys = append(resKeys, res)
 		} else if comp.DeputyKey != "" {
@@ -226,7 +224,7 @@ func (b *HSMv2) ReserveComponents(compList []ReservationData) ([]*ReservationDat
 			return retData, fmt.Errorf("ERROR validating deputy keys: %v", depErr)
 		}
 
-		// Mark all components with valid deputy keys as NOT the 
+		// Mark all components with valid deputy keys as NOT the
 		// reservation owner
 		for _, comp := range depList.Success {
 			compMap[comp.ID].ReservationOwner = false
@@ -294,7 +292,7 @@ func (b *HSMv2) CheckDeputyKeys(compList []ReservationData) error {
 	}
 
 	for _, comp := range checkList.Success {
-		cmap[comp.ID].ExpirationTime =  comp.ExpirationTime
+		cmap[comp.ID].ExpirationTime = comp.ExpirationTime
 		cmap[comp.ID].Error = nil
 	}
 
@@ -313,13 +311,13 @@ func (b *HSMv2) ReleaseComponents(compList []ReservationData) ([]*ReservationDat
 	var retData []*ReservationData
 
 	if !b.HSMGlobals.LockEnabled {
-		return retData,nil
+		return retData, nil
 	}
 
 	var clearList []string
 	compMap := make(map[string]*ReservationData)
 
-	for ix,comp := range(compList) {
+	for ix, comp := range compList {
 		compMap[comp.XName] = &compList[ix]
 		if comp.ReservationOwner {
 			clearList = append(clearList, comp.XName)
@@ -357,7 +355,7 @@ func (b *HSMv2) ReleaseComponents(compList []ReservationData) ([]*ReservationDat
 // Should we do so, and populate minimal data + the Error field?
 func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 	xnames := []string{}
-	for _, comp := range(hd) {
+	for _, comp := range hd {
 		xnames = append(xnames, comp.BaseData.ID)
 	}
 
@@ -370,12 +368,12 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 
 		//Construct the URL
 		urlSuffix := ""
-		for ix := 0; ix < idCount; ix ++ {
+		for ix := 0; ix < idCount; ix++ {
 			urlSuffix = urlSuffix + "&id=" + xnames[compIX]
-			compIX ++
+			compIX++
 		}
 		smurl := b.HSMGlobals.SMUrl + hsmInventoryComponentEndpointPath +
-					"?" + strings.TrimLeft(urlSuffix,"&")
+			"?" + strings.TrimLeft(urlSuffix, "&")
 
 		//Make the HSM call
 		req, err := http.NewRequest(http.MethodGet, smurl, nil)
@@ -384,7 +382,7 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 				smurl, err)
 		}
 
-		reqContext, _ := context.WithTimeout(context.Background(), 40 * time.Second)
+		reqContext, _ := context.WithTimeout(context.Background(), 40*time.Second)
 		req = req.WithContext(reqContext)
 
 		rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
@@ -392,6 +390,7 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 			return fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 		}
 
+		defer rsp.Body.Close()
 		body, bderr := ioutil.ReadAll(rsp.Body)
 		if bderr != nil {
 			return fmt.Errorf("Error reading response body for '%s': %v",
@@ -417,53 +416,53 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 			//NOTE: the PowerURL field is only populated for components that
 			//a BMC can serve power capping info for.  Thus, it's only for
 			//nodes, really.  BMCs, etc. won't have this.
-			switch (comp.ComponentEndpointType) {
-				case sm.CompEPTypeChassis:	//chassis
-					hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
-					hd[comp.ID].PowerStatusURI = comp.OdataID
-					if comp.RedfishChassisInfo != nil {
-						if comp.RedfishChassisInfo.Actions != nil {
-							hd[comp.ID].PowerActionURI = comp.RedfishChassisInfo.Actions.ChassisReset.Target
-							hd[comp.ID].AllowableActions = comp.RedfishChassisInfo.Actions.ChassisReset.AllowableValues
-						}
+			switch comp.ComponentEndpointType {
+			case sm.CompEPTypeChassis: //chassis
+				hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
+				hd[comp.ID].PowerStatusURI = comp.OdataID
+				if comp.RedfishChassisInfo != nil {
+					if comp.RedfishChassisInfo.Actions != nil {
+						hd[comp.ID].PowerActionURI = comp.RedfishChassisInfo.Actions.ChassisReset.Target
+						hd[comp.ID].AllowableActions = comp.RedfishChassisInfo.Actions.ChassisReset.AllowableValues
 					}
+				}
 
-				case sm.CompEPTypeSystem:	//node
-					hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
-					hd[comp.ID].PowerStatusURI = comp.OdataID
-					if comp.RedfishSystemInfo != nil {
-						if comp.RedfishSystemInfo.Actions != nil {
-							hd[comp.ID].PowerActionURI = comp.RedfishSystemInfo.Actions.ComputerSystemReset.Target
-							hd[comp.ID].AllowableActions = comp.RedfishSystemInfo.Actions.ComputerSystemReset.AllowableValues
-						}
-						hd[comp.ID] = extractPowerCapInfo(hd[comp.ID], comp)
+			case sm.CompEPTypeSystem: //node
+				hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
+				hd[comp.ID].PowerStatusURI = comp.OdataID
+				if comp.RedfishSystemInfo != nil {
+					if comp.RedfishSystemInfo.Actions != nil {
+						hd[comp.ID].PowerActionURI = comp.RedfishSystemInfo.Actions.ComputerSystemReset.Target
+						hd[comp.ID].AllowableActions = comp.RedfishSystemInfo.Actions.ComputerSystemReset.AllowableValues
 					}
+					hd[comp.ID] = extractPowerCapInfo(hd[comp.ID], comp)
+				}
 
-				case sm.CompEPTypeManager:	//BMC
-					hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
-					hd[comp.ID].PowerStatusURI = comp.OdataID
-					if comp.RedfishManagerInfo != nil &&
-					   comp.RedfishManagerInfo.Actions != nil {
-						hd[comp.ID].PowerActionURI = comp.RedfishManagerInfo.Actions.ManagerReset.Target
-						hd[comp.ID].AllowableActions = comp.RedfishManagerInfo.Actions.ManagerReset.AllowableValues
-					}
+			case sm.CompEPTypeManager: //BMC
+				hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
+				hd[comp.ID].PowerStatusURI = comp.OdataID
+				if comp.RedfishManagerInfo != nil &&
+					comp.RedfishManagerInfo.Actions != nil {
+					hd[comp.ID].PowerActionURI = comp.RedfishManagerInfo.Actions.ManagerReset.Target
+					hd[comp.ID].AllowableActions = comp.RedfishManagerInfo.Actions.ManagerReset.AllowableValues
+				}
 
-				case sm.CompEPTypePDU:		//PDU outlet collection
-					hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
-					hd[comp.ID].PowerStatusURI = comp.OdataID
+			case sm.CompEPTypePDU: //PDU outlet collection
+				hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
+				hd[comp.ID].PowerStatusURI = comp.OdataID
 
-				case sm.CompEPTypeOutlet:	//PDU outlet/power connector
-					hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
-					hd[comp.ID].PowerStatusURI = comp.OdataID
-					if comp.RedfishOutletInfo != nil &&
-					   comp.RedfishOutletInfo.Actions != nil {
-						hd[comp.ID].PowerActionURI = comp.RedfishOutletInfo.Actions.PowerControl.Target
-						hd[comp.ID].AllowableActions = comp.RedfishOutletInfo.Actions.PowerControl.AllowableValues
-					}
+			case sm.CompEPTypeOutlet: //PDU outlet/power connector
+				hd[comp.ID].RfFQDN = comp.RfEndpointFQDN
+				hd[comp.ID].PowerStatusURI = comp.OdataID
+				if comp.RedfishOutletInfo != nil &&
+					comp.RedfishOutletInfo.Actions != nil {
+					hd[comp.ID].PowerActionURI = comp.RedfishOutletInfo.Actions.PowerControl.Target
+					hd[comp.ID].AllowableActions = comp.RedfishOutletInfo.Actions.PowerControl.AllowableValues
+				}
 
-				default:
-					b.HSMGlobals.Logger.Errorf("Unknown HSM Inventory/ComponentEndpoint type '%s'.",
-						comp.ComponentEndpointType)
+			default:
+				b.HSMGlobals.Logger.Errorf("Unknown HSM Inventory/ComponentEndpoint type '%s'.",
+					comp.ComponentEndpointType)
 			}
 		}
 	}
@@ -566,7 +565,7 @@ func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error)
 			smurl, err)
 	}
 
-	reqContext, _ := context.WithTimeout(context.Background(), 40 * time.Second)
+	reqContext, _ := context.WithTimeout(context.Background(), 40*time.Second)
 	req = req.WithContext(reqContext)
 
 	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
@@ -574,6 +573,7 @@ func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error)
 		return retData, fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 	}
 
+	defer rsp.Body.Close()
 	body, bderr := ioutil.ReadAll(rsp.Body)
 	if bderr != nil {
 		return retData, fmt.Errorf("Error reading response body for '%s': %v",
@@ -600,7 +600,7 @@ func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
 		return fmt.Errorf("ERROR creating HTTP request for '%s': %v", smurl, err)
 	}
 
-	reqContext, _ := context.WithTimeout(context.Background(), 40 * time.Second)
+	reqContext, _ := context.WithTimeout(context.Background(), 40*time.Second)
 	req = req.WithContext(reqContext)
 
 	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
@@ -608,6 +608,7 @@ func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
 		return fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 	}
 
+	defer rsp.Body.Close()
 	body, bderr := ioutil.ReadAll(rsp.Body)
 	if bderr != nil {
 		return fmt.Errorf("Error reading response body for '%s': %v", smurl, bderr)

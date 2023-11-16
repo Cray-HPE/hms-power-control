@@ -702,6 +702,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 					taskErr = errors.New("empty body")
 					break
 				}
+				defer tdone.Request.Response.Body.Close()
 				body, err := ioutil.ReadAll(tdone.Request.Response.Body)
 				if err != nil {
 					taskErr = err

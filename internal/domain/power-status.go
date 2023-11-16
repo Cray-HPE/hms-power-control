@@ -32,18 +32,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/credstore"
-	"github.com/Cray-HPE/hms-power-control/internal/storage"
 	pcshsm "github.com/Cray-HPE/hms-power-control/internal/hsm"
 	pcsmodel "github.com/Cray-HPE/hms-power-control/internal/model"
+	"github.com/Cray-HPE/hms-power-control/internal/storage"
 	rf "github.com/Cray-HPE/hms-smd/v2/pkg/redfish"
 	trsapi "github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api"
 	"github.com/Cray-HPE/hms-xname/xnametypes"
-	"github.com/Cray-HPE/hms-base"
 
 	"github.com/sirupsen/logrus"
 )
-
 
 // Power monitoring framework.  The general flow of this framework:
 //
@@ -53,10 +52,9 @@ import (
 // o Query BMCs for HW state, and store the results both in the in-memory
 //   cached component map and also in ETCD storage.
 // o If user asks for power status on a set of components, it is fetched from
-//   the ETCD-stored data.  This makes it possible for any instance of a 
+//   the ETCD-stored data.  This makes it possible for any instance of a
 //   multi-instance PCS service to be able to serve data retrieved by any other
 //   instance.
-
 
 // This is what gets stored in the in-memory component map.
 type componentPowerInfo struct {
@@ -93,11 +91,9 @@ var httpTimeout = 30 //seconds
 var isPowerStatusMaster = false
 var powerStatusMasterInterval = 15
 
-
 /////////////////////////////////////////////////////////////////////////////
 //                P U B L I C   F U N C T I O N S
 /////////////////////////////////////////////////////////////////////////////
-
 
 // Initialize and start power state monitoring.
 //
@@ -107,9 +103,9 @@ var powerStatusMasterInterval = 15
 // sampleInterval:    Time between HW status sampling.
 // Return:            nil on success, else error message.
 func PowerStatusMonitorInit(domGlb *DOMAIN_GLOBALS,
-                            distLockMaxTimeIn time.Duration,
-                            loggerIn *logrus.Logger,
-                            sampleInterval time.Duration) error {
+	distLockMaxTimeIn time.Duration,
+	loggerIn *logrus.Logger,
+	sampleInterval time.Duration) error {
 	if loggerIn == nil {
 		glogger = logrus.New()
 	} else {
@@ -168,25 +164,25 @@ func PowerStatusMonitorChangeInterval(newInterval time.Duration) error {
 	return nil
 }
 
-// Get power status for given components.  Filter by power state and 
+// Get power status for given components.  Filter by power state and
 // management state.  Any undefined filter results in all states for
 // the state category.
 //
 // xnames:          Array of component names for which to get power data
 // pwrStateFilter:  Power state filter.
-// mgmtStateFilter: Management state filter.  
+// mgmtStateFilter: Management state filter.
 // Return:          Passback object populated with model.PowerStatus object.
 func GetPowerStatus(xnames []string,
-                    pwrStateFilter pcsmodel.PowerStateFilter,
-                    mgmtStateFilter pcsmodel.ManagementStateFilter) (pb pcsmodel.Passback) {
+	pwrStateFilter pcsmodel.PowerStateFilter,
+	mgmtStateFilter pcsmodel.ManagementStateFilter) (pb pcsmodel.Passback) {
 	//Grab all KVs from ETCD, cycle through them to make a map, then
 	//match the xnames in the passed-in array.  Grab pertinent data and create
 	//a pcsmodel.PowerStatus object 'pstatus', and return it.
 
 	statusObj, err := (*kvStore).GetAllPowerStatus()
 	if err != nil {
-		//TODO: we don't have an HTTP status code from a failed 
-		//GetAllPowerStatus() call; might need to pass that back in a 
+		//TODO: we don't have an HTTP status code from a failed
+		//GetAllPowerStatus() call; might need to pass that back in a
 		//future mod.
 		return pcsmodel.BuildErrorPassback(http.StatusInternalServerError, err)
 	}
@@ -215,7 +211,7 @@ func GetPowerStatus(xnames []string,
 
 	psUndef := pwrStateFilter == pcsmodel.PowerStateFilter_Nil
 	msUndef := mgmtStateFilter == pcsmodel.ManagementStateFilter_Nil ||
-	           mgmtStateFilter == pcsmodel.ManagementStateFilter_undefined
+		mgmtStateFilter == pcsmodel.ManagementStateFilter_undefined
 
 	for _, name := range xnames {
 		stateMatch := true
@@ -225,26 +221,37 @@ func GetPowerStatus(xnames []string,
 			//error message reflect that.  Otherwise give a generic error.
 			pcomp := pcsmodel.PowerStatusComponent{XName: name}
 			htype := xnametypes.GetHMSType(name)
-			switch(htype) {
-				case xnametypes.Chassis:       fallthrough
-				case xnametypes.ChassisBMC:    fallthrough
-				case xnametypes.NodeBMC:       fallthrough
-				case xnametypes.RouterBMC:     fallthrough
-				case xnametypes.Node:          fallthrough
-				case xnametypes.ComputeModule: fallthrough
-				case xnametypes.RouterModule:  fallthrough
-				case xnametypes.HSNBoard:      fallthrough
-				case xnametypes.MgmtSwitch:    fallthrough
-				case xnametypes.MgmtHLSwitch:  fallthrough
-				case xnametypes.CDUMgmtSwitch: fallthrough
-				case xnametypes.CabinetPDUPowerConnector:
-					pcomp.Error = "Component not found in component map."
+			switch htype {
+			case xnametypes.Chassis:
+				fallthrough
+			case xnametypes.ChassisBMC:
+				fallthrough
+			case xnametypes.NodeBMC:
+				fallthrough
+			case xnametypes.RouterBMC:
+				fallthrough
+			case xnametypes.Node:
+				fallthrough
+			case xnametypes.ComputeModule:
+				fallthrough
+			case xnametypes.RouterModule:
+				fallthrough
+			case xnametypes.HSNBoard:
+				fallthrough
+			case xnametypes.MgmtSwitch:
+				fallthrough
+			case xnametypes.MgmtHLSwitch:
+				fallthrough
+			case xnametypes.CDUMgmtSwitch:
+				fallthrough
+			case xnametypes.CabinetPDUPowerConnector:
+				pcomp.Error = "Component not found in component map."
 
-				case xnametypes.HMSTypeInvalid:
-					pcomp.Error = "Invalid component name."
+			case xnametypes.HMSTypeInvalid:
+				pcomp.Error = "Invalid component name."
 
-				default:
-					pcomp.Error = "Component can not have power state and managment state data"
+			default:
+				pcomp.Error = "Component can not have power state and managment state data"
 			}
 			rcomps.Status = append(rcomps.Status, pcomp)
 			continue
@@ -264,10 +271,10 @@ func GetPowerStatus(xnames []string,
 		if stateMatch {
 			cmp := pcsmodel.PowerStatusComponent{
 				SupportedPowerTransitions: make([]string, len(mp.SupportedPowerTransitions)),
-				XName: name,
-				PowerState: mp.PowerState,
-				ManagementState: mp.ManagementState,
-				LastUpdated: mp.LastUpdated,
+				XName:                     name,
+				PowerState:                mp.PowerState,
+				ManagementState:           mp.ManagementState,
+				LastUpdated:               mp.LastUpdated,
 			}
 			copy(cmp.SupportedPowerTransitions, mp.SupportedPowerTransitions)
 			rcomps.Status = append(rcomps.Status, cmp)
@@ -315,41 +322,52 @@ func updateComponentMap() error {
 
 	//Filter on all pertinent component types and add to the component map.
 
-	for _, v := range(compMap) {
+	for _, v := range compMap {
 		if v.BaseData.State == string(base.StateEmpty) {
 			continue
 		}
 
-		switch(xnametypes.HMSType(v.BaseData.Type)) {
-			case xnametypes.Chassis:       fallthrough
-			case xnametypes.ChassisBMC:    fallthrough
-			case xnametypes.ComputeModule: fallthrough
-			case xnametypes.RouterModule:  fallthrough
-			case xnametypes.NodeBMC:       fallthrough
-			case xnametypes.RouterBMC:     fallthrough
-			case xnametypes.Node:          fallthrough
-			case xnametypes.HSNBoard:      fallthrough
-			case xnametypes.MgmtSwitch:    fallthrough
-			case xnametypes.MgmtHLSwitch:  fallthrough
-			case xnametypes.CDUMgmtSwitch: fallthrough
-			case xnametypes.CabinetPDUPowerConnector:
-				_, ok := hwStateMap[v.BaseData.ID]
-				if !ok {
-					//New component.
-					newComp := componentPowerInfo{}
-					newComp.PSComp.XName = v.BaseData.ID
-					newComp.PSComp.PowerState = pcsmodel.PowerStateFilter_Undefined.String()
-					newComp.PSComp.ManagementState = pcsmodel.ManagementStateFilter_unavailable.String()
-					newComp.PSComp.SupportedPowerTransitions = toPCSPowerActions(v.AllowableActions)
-					newComp.HSMData.RfFQDN = v.RfFQDN
-					newComp.HSMData.PowerStatusURI = v.PowerStatusURI
-					newComp.HSMData.PowerActionURI = v.PowerActionURI
-					newComp.HSMData.PowerCapURI = v.PowerCapURI
-					newComp.PSComp.LastUpdated = time.Now().Format(time.RFC3339)
-					hwStateMap[v.BaseData.ID] = &newComp
-				}
-			default:
-				glogger.Tracef("%s: Component type not handled: %s", fname, string(v.BaseData.Type))
+		switch xnametypes.HMSType(v.BaseData.Type) {
+		case xnametypes.Chassis:
+			fallthrough
+		case xnametypes.ChassisBMC:
+			fallthrough
+		case xnametypes.ComputeModule:
+			fallthrough
+		case xnametypes.RouterModule:
+			fallthrough
+		case xnametypes.NodeBMC:
+			fallthrough
+		case xnametypes.RouterBMC:
+			fallthrough
+		case xnametypes.Node:
+			fallthrough
+		case xnametypes.HSNBoard:
+			fallthrough
+		case xnametypes.MgmtSwitch:
+			fallthrough
+		case xnametypes.MgmtHLSwitch:
+			fallthrough
+		case xnametypes.CDUMgmtSwitch:
+			fallthrough
+		case xnametypes.CabinetPDUPowerConnector:
+			_, ok := hwStateMap[v.BaseData.ID]
+			if !ok {
+				//New component.
+				newComp := componentPowerInfo{}
+				newComp.PSComp.XName = v.BaseData.ID
+				newComp.PSComp.PowerState = pcsmodel.PowerStateFilter_Undefined.String()
+				newComp.PSComp.ManagementState = pcsmodel.ManagementStateFilter_unavailable.String()
+				newComp.PSComp.SupportedPowerTransitions = toPCSPowerActions(v.AllowableActions)
+				newComp.HSMData.RfFQDN = v.RfFQDN
+				newComp.HSMData.PowerStatusURI = v.PowerStatusURI
+				newComp.HSMData.PowerActionURI = v.PowerActionURI
+				newComp.HSMData.PowerCapURI = v.PowerCapURI
+				newComp.PSComp.LastUpdated = time.Now().Format(time.RFC3339)
+				hwStateMap[v.BaseData.ID] = &newComp
+			}
+		default:
+			glogger.Tracef("%s: Component type not handled: %s", fname, string(v.BaseData.Type))
 		}
 	}
 
@@ -363,7 +381,7 @@ func updateComponentMap() error {
 func updateVaultCreds() error {
 	tmpMap := make(map[string]*componentPowerInfo)
 
-	for k,v := range hwStateMap {
+	for k, v := range hwStateMap {
 		if v.BmcUsername == "" || v.BmcPassword != "" {
 			tmpMap[k] = v
 		}
@@ -374,7 +392,7 @@ func updateVaultCreds() error {
 }
 
 func getVaultCredsAll(compMap map[string]*componentPowerInfo) error {
-	var un,pw string
+	var un, pw string
 	var err error
 	fname := "getVaultCredsAll()"
 
@@ -385,9 +403,9 @@ func getVaultCredsAll(compMap map[string]*componentPowerInfo) error {
 
 	//The credstore layer caches creds, so this should be fast.
 
-	for k,v := range compMap {
-		un,pw,err = (*ccStore).GetControllerCredentials(k)
-		if (err != nil) {
+	for k, v := range compMap {
+		un, pw, err = (*ccStore).GetControllerCredentials(k)
+		if err != nil {
 			return fmt.Errorf("ERROR: Can't get BMC creds for '%s': %v", k, err)
 		}
 		if un == "" || pw == "" {
@@ -433,7 +451,7 @@ func getHWStatesFromHW() error {
 	fname := "getHWStatesFromHW"
 	hashXName := http.CanonicalHeaderKey("XName")
 	hashCType := http.CanonicalHeaderKey("CType")
-	hashFQDN  := http.CanonicalHeaderKey("FQDN")
+	hashFQDN := http.CanonicalHeaderKey("FQDN")
 
 	sourceTL := trsapi.HttpTask{Timeout: time.Duration(httpTimeout) * time.Second}
 
@@ -444,7 +462,7 @@ func getHWStatesFromHW() error {
 		return cerr
 	}
 
-	//TODO: maybe ask HBTD for current HB status of node elements, and if 
+	//TODO: maybe ask HBTD for current HB status of node elements, and if
 	//they're heartbeating, set the status to ON and don't ask the HW.  This
 	//can have a pretty large window of error however.
 
@@ -457,41 +475,52 @@ func getHWStatesFromHW() error {
 
 	for k, v := range hwStateMap { //key is component XName, val is HSM RF EP info
 		ctype := xnametypes.GetHMSType(k)
-		switch(ctype) {
-			case xnametypes.NodeBMC:       fallthrough
-			case xnametypes.RouterBMC:     fallthrough
-			case xnametypes.ChassisBMC:    fallthrough
-			case xnametypes.Node:          fallthrough
-			case xnametypes.Chassis:       fallthrough
-			case xnametypes.ComputeModule: fallthrough
-			case xnametypes.RouterModule:  fallthrough
-			case xnametypes.HSNBoard:      fallthrough
-			case xnametypes.MgmtSwitch:    fallthrough
-			case xnametypes.MgmtHLSwitch:  fallthrough
-			case xnametypes.CDUMgmtSwitch: fallthrough
-			case xnametypes.CabinetPDUPowerConnector:
-				if v.HSMData.RfFQDN == "" || v.HSMData.PowerStatusURI == "" {
-					glogger.Warnf("%s: Missing FQDN or power status URI for %s", fname, k)
-					taskList[taskIX].Ignore = true
-					taskIX ++
-				} else {
-					url = "https://" + v.HSMData.RfFQDN + v.HSMData.PowerStatusURI
-					taskList[taskIX].Request, _ = http.NewRequest(http.MethodGet, url, nil)
-					taskList[taskIX].Request.SetBasicAuth(v.BmcUsername, v.BmcPassword)
-					taskList[taskIX].Request.Header.Set("Accept", "*/*")
-					//Hack alert: set the xname and comp type in the req header 
-					//so we can use it when processing the responses.
-					taskList[taskIX].Request.Header.Add(hashXName, k)
-					taskList[taskIX].Request.Header.Add(hashCType, string(ctype))
-					taskList[taskIX].Request.Header.Add(hashFQDN, v.HSMData.RfFQDN)
-					taskIX ++
-					activeTasks ++
-				}
-
-			default:
-				glogger.Errorf("%s: Component type not handled: %s", fname, string(ctype))
+		switch ctype {
+		case xnametypes.NodeBMC:
+			fallthrough
+		case xnametypes.RouterBMC:
+			fallthrough
+		case xnametypes.ChassisBMC:
+			fallthrough
+		case xnametypes.Node:
+			fallthrough
+		case xnametypes.Chassis:
+			fallthrough
+		case xnametypes.ComputeModule:
+			fallthrough
+		case xnametypes.RouterModule:
+			fallthrough
+		case xnametypes.HSNBoard:
+			fallthrough
+		case xnametypes.MgmtSwitch:
+			fallthrough
+		case xnametypes.MgmtHLSwitch:
+			fallthrough
+		case xnametypes.CDUMgmtSwitch:
+			fallthrough
+		case xnametypes.CabinetPDUPowerConnector:
+			if v.HSMData.RfFQDN == "" || v.HSMData.PowerStatusURI == "" {
+				glogger.Warnf("%s: Missing FQDN or power status URI for %s", fname, k)
 				taskList[taskIX].Ignore = true
-				taskIX ++
+				taskIX++
+			} else {
+				url = "https://" + v.HSMData.RfFQDN + v.HSMData.PowerStatusURI
+				taskList[taskIX].Request, _ = http.NewRequest(http.MethodGet, url, nil)
+				taskList[taskIX].Request.SetBasicAuth(v.BmcUsername, v.BmcPassword)
+				taskList[taskIX].Request.Header.Set("Accept", "*/*")
+				//Hack alert: set the xname and comp type in the req header
+				//so we can use it when processing the responses.
+				taskList[taskIX].Request.Header.Add(hashXName, k)
+				taskList[taskIX].Request.Header.Add(hashCType, string(ctype))
+				taskList[taskIX].Request.Header.Add(hashFQDN, v.HSMData.RfFQDN)
+				taskIX++
+				activeTasks++
+			}
+
+		default:
+			glogger.Errorf("%s: Component type not handled: %s", fname, string(ctype))
+			taskList[taskIX].Ignore = true
+			taskIX++
 		}
 	}
 
@@ -502,7 +531,7 @@ func getHWStatesFromHW() error {
 
 	//Launch
 
-	rchan,err := (*tloc).Launch(&taskList)
+	rchan, err := (*tloc).Launch(&taskList)
 	if err != nil {
 		return fmt.Errorf("%s: TRS Launch() error: %v.", fname, err)
 	}
@@ -516,33 +545,34 @@ func getHWStatesFromHW() error {
 	for {
 		task := <-rchan
 		xnameArr := task.Request.Header[hashXName]
-		fqdnArr  := task.Request.Header[hashFQDN]
+		fqdnArr := task.Request.Header[hashFQDN]
 		xname := ""
-		fqdn  := ""
+		fqdn := ""
 		if len(xnameArr) > 0 && len(fqdnArr) > 0 {
 			xname = xnameArr[0]
-			fqdn  = fqdnArr[0]
+			fqdn = fqdnArr[0]
 		}
 		if xname == "" {
 			glogger.Errorf("%s: INTERNAL ERROR: xname not found in task headers! Can't process response.",
-			               fname)
+				fname)
 		} else {
 			rmp := rspStuff{task: task}
 
 			glogger.Tracef("%s: Task %d complete, xname: %s, FQDN: %s, URL: '%s', status code: %d",
-			               fname, nDone + 1, xname, fqdn, task.Request.URL.Path, getStatusCode(task))
+				fname, nDone+1, xname, fqdn, task.Request.URL.Path, getStatusCode(task))
 
 			if task.Request.Response != nil {
 				glogger.Tracef("%s: Response received from %s,%s,%s, status: %d",
-				               fname, xname, fqdn, task.Request.URL.Path,
+					fname, xname, fqdn, task.Request.URL.Path,
 					task.Request.Response.StatusCode)
 
 				//TODO: an optimization would be to unmarshall stuff here.
 				//But, that makes the code quite a bit messier and scattered.
+				defer task.Request.Response.Body.Close()
 				rmp.body, rspErr = ioutil.ReadAll(task.Request.Response.Body)
 				if rspErr != nil {
 					glogger.Errorf("%s: ERROR reading response body for '%s' '%s' '%s': %v",
-					               fname, xname, fqdn, task.Request.URL.Path, rspErr)
+						fname, xname, fqdn, task.Request.URL.Path, rspErr)
 				}
 			} else {
 				rspErr = nil
@@ -550,7 +580,7 @@ func getHWStatesFromHW() error {
 					rspErr = *task.Err
 				}
 				glogger.Errorf("%s: ERROR no response body for '%s' '%s' '%s', err: %v",
-				               fname, xname, fqdn, task.Request.URL.Path, rspErr)
+					fname, xname, fqdn, task.Request.URL.Path, rspErr)
 			}
 			rspMap[xname] = &rmp
 		}
@@ -575,55 +605,62 @@ func getHWStatesFromHW() error {
 		//place in the requests above).
 		needState := false
 		ctypeArr := v.task.Request.Header[hashCType]
-		fqdnArr  := v.task.Request.Header[hashFQDN]
+		fqdnArr := v.task.Request.Header[hashFQDN]
 		if len(ctypeArr) == 0 || len(fqdnArr) == 0 {
 			return fmt.Errorf("Internal error: response headers for xname/ctype/fqdn are empty: '%v', '%v'",
-			                  ctypeArr, fqdnArr)
+				ctypeArr, fqdnArr)
 		}
 		ctype := ctypeArr[0]
-		fqdn  := fqdnArr[0]
+		fqdn := fqdnArr[0]
 
 		if v.task.Request.Response == nil {
 			//TODO: should this "ride through" transient failures?
 			updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
-			              pcsmodel.ManagementStateFilter_unavailable,
-			              "No response from target")
+				pcsmodel.ManagementStateFilter_unavailable,
+				"No response from target")
 			continue
 		}
 
 		scode := getStatusCode(v.task)
 
-		switch(scode) {
-			case http.StatusBadRequest:          fallthrough
-			case http.StatusNotFound:            fallthrough
-			case http.StatusMethodNotAllowed:    fallthrough
-			case http.StatusForbidden:           fallthrough
-			case http.StatusNotImplemented:      fallthrough
-			case http.StatusInternalServerError: fallthrough
-			case http.StatusBadGateway:          fallthrough
-			case http.StatusServiceUnavailable:
-				glogger.Errorf("%s: Bad response from '%s', power state undefined: %d/%s",
-				               fname, xname, scode, http.StatusText(scode))
-				updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
-				              pcsmodel.ManagementStateFilter_unavailable,
-				              v.task.Request.Response.Status)
+		switch scode {
+		case http.StatusBadRequest:
+			fallthrough
+		case http.StatusNotFound:
+			fallthrough
+		case http.StatusMethodNotAllowed:
+			fallthrough
+		case http.StatusForbidden:
+			fallthrough
+		case http.StatusNotImplemented:
+			fallthrough
+		case http.StatusInternalServerError:
+			fallthrough
+		case http.StatusBadGateway:
+			fallthrough
+		case http.StatusServiceUnavailable:
+			glogger.Errorf("%s: Bad response from '%s', power state undefined: %d/%s",
+				fname, xname, scode, http.StatusText(scode))
+			updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
+				pcsmodel.ManagementStateFilter_unavailable,
+				v.task.Request.Response.Status)
 
-			case http.StatusUnauthorized:
-				updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
-				              pcsmodel.ManagementStateFilter_unavailable,
-				              v.task.Request.Response.Status)
-				//Insure the next sweep gets new creds from Vault.
-				hwStateMap[xname].BmcUsername = ""
-				hwStateMap[xname].BmcPassword = ""
+		case http.StatusUnauthorized:
+			updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
+				pcsmodel.ManagementStateFilter_unavailable,
+				v.task.Request.Response.Status)
+			//Insure the next sweep gets new creds from Vault.
+			hwStateMap[xname].BmcUsername = ""
+			hwStateMap[xname].BmcPassword = ""
 
-			default:
-				if scode >= 206 {
-					updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
-					              pcsmodel.ManagementStateFilter_unavailable,
-					              v.task.Request.Response.Status)
-				} else {
-					needState = true
-				}
+		default:
+			if scode >= 206 {
+				updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
+					pcsmodel.ManagementStateFilter_unavailable,
+					v.task.Request.Response.Status)
+			} else {
+				needState = true
+			}
 		}
 
 		glogger.Tracef("%s: %s needState: %t", fname, xname, needState)
@@ -639,94 +676,101 @@ func getHWStatesFromHW() error {
 			glogger.Errorf("%s: ERROR no response body for '%s' '%s' '%s'", fname, xname, fqdn, rqURL)
 			//Power state unknown, but got a response, so mgmt state OK
 			updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
-			              pcsmodel.ManagementStateFilter_available,
-			              "Unable to read response body")
+				pcsmodel.ManagementStateFilter_available,
+				"Unable to read response body")
 			continue
 		}
 
-		switch(xnametypes.HMSType(ctype)) {
-			case xnametypes.NodeBMC:    fallthrough
-			case xnametypes.RouterBMC:  fallthrough
-			case xnametypes.ChassisBMC:
-				//Any valid response means ON
-				updateHWState(xname, pcsmodel.PowerStateFilter_On, pcsmodel.ManagementStateFilter_available, "")
+		switch xnametypes.HMSType(ctype) {
+		case xnametypes.NodeBMC:
+			fallthrough
+		case xnametypes.RouterBMC:
+			fallthrough
+		case xnametypes.ChassisBMC:
+			//Any valid response means ON
+			updateHWState(xname, pcsmodel.PowerStateFilter_On, pcsmodel.ManagementStateFilter_available, "")
 
-			case xnametypes.Node:
-				//Nodes: look for "PowerState" in response payload.
-				var info rf.ComputerSystem
-				err = json.Unmarshal(v.body, &info)
-				if err != nil {
-					glogger.Errorf("%s: ERROR unmarshalling power payload for '%s': %v", fname, rqURL, err)
-					//Power state unknown, but got a response, so mgmt state OK
-					updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
-					              pcsmodel.ManagementStateFilter_available,
-					              "Unable to unmarshal power payload")
-					break
-				}
-				powerState, err = pcsmodel.ToPowerStateFilter(info.PowerState)
-				if err != nil {
-					glogger.Errorf("%s: Invalid power state from HW: '%s', setting to undefined.", fname, info.PowerState)
-					powerState = pcsmodel.PowerStateFilter_Undefined
-				}
-				updateHWState(xname, powerState, pcsmodel.ManagementStateFilter_available, "")
-
-			case xnametypes.Chassis:       fallthrough
-			case xnametypes.ComputeModule: fallthrough
-			case xnametypes.RouterModule:  fallthrough
-			case xnametypes.HSNBoard:
-				var info rf.Chassis
-				err = json.Unmarshal(v.body, &info)
-				if err != nil {
-					glogger.Errorf("%s: ERROR unmarshalling power payload for '%s': %v", fname, rqURL, err)
-					//Power state unknown, but got a response, so mgmt state OK
-					updateHWState(xname,pcsmodel.PowerStateFilter_Undefined,
-						pcsmodel.ManagementStateFilter_available,
-						"Unable to unmarshal power payload")
-					break
-				}
-				powerState,_ = pcsmodel.ToPowerStateFilter(info.PowerState)
-				updateHWState(xname, powerState, pcsmodel.ManagementStateFilter_available, "")
-
-			case xnametypes.MgmtSwitch:    fallthrough
-			case xnametypes.MgmtHLSwitch:  fallthrough
-			case xnametypes.CDUMgmtSwitch:
-				var info rf.Chassis
-				err = json.Unmarshal(v.body, &info)
-				if err != nil {
-					glogger.Errorf("%s: ERROR unmarshalling power payload for '%s': %v", fname, rqURL, err)
-					//Power state unknown, but got a response, so mgmt state OK
-					updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
-						pcsmodel.ManagementStateFilter_available,
-						"Unable to unmarshal power payload")
-					break
-				}
-				if strings.ToLower(string(info.Status.State)) == "unavailableoffline" {
-					updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
-						pcsmodel.ManagementStateFilter_unavailable,
-						"Management switch is unreachable")
-				} else {
-					powerState, _ = pcsmodel.ToPowerStateFilter(info.PowerState)
-					updateHWState(xname, powerState, pcsmodel.ManagementStateFilter_available, "")
-				}
-
-			case xnametypes.CabinetPDUPowerConnector:
-				var info rf.Outlet
-				err = json.Unmarshal(v.body, &info)
-				if err != nil {
-					glogger.Errorf("%s: ERROR unmarshalling power payload for '%s': %v", fname, rqURL, err)
-					//Power state unknown, but got a response, so mgmt state OK
-					updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
-					              pcsmodel.ManagementStateFilter_available,
-					              "Unable to unmarshal power payload")
-					break
-				}
-				powerState,_ = pcsmodel.ToPowerStateFilter(info.PowerState)
-				updateHWState(xname, powerState, pcsmodel.ManagementStateFilter_available, "")
-			default:
-				glogger.Errorf("%s: Error: %s: unknown component type.", fname, ctype)
+		case xnametypes.Node:
+			//Nodes: look for "PowerState" in response payload.
+			var info rf.ComputerSystem
+			err = json.Unmarshal(v.body, &info)
+			if err != nil {
+				glogger.Errorf("%s: ERROR unmarshalling power payload for '%s': %v", fname, rqURL, err)
+				//Power state unknown, but got a response, so mgmt state OK
 				updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
-				              pcsmodel.ManagementStateFilter_available,
-				              "Unknown component type")
+					pcsmodel.ManagementStateFilter_available,
+					"Unable to unmarshal power payload")
+				break
+			}
+			powerState, err = pcsmodel.ToPowerStateFilter(info.PowerState)
+			if err != nil {
+				glogger.Errorf("%s: Invalid power state from HW: '%s', setting to undefined.", fname, info.PowerState)
+				powerState = pcsmodel.PowerStateFilter_Undefined
+			}
+			updateHWState(xname, powerState, pcsmodel.ManagementStateFilter_available, "")
+
+		case xnametypes.Chassis:
+			fallthrough
+		case xnametypes.ComputeModule:
+			fallthrough
+		case xnametypes.RouterModule:
+			fallthrough
+		case xnametypes.HSNBoard:
+			var info rf.Chassis
+			err = json.Unmarshal(v.body, &info)
+			if err != nil {
+				glogger.Errorf("%s: ERROR unmarshalling power payload for '%s': %v", fname, rqURL, err)
+				//Power state unknown, but got a response, so mgmt state OK
+				updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
+					pcsmodel.ManagementStateFilter_available,
+					"Unable to unmarshal power payload")
+				break
+			}
+			powerState, _ = pcsmodel.ToPowerStateFilter(info.PowerState)
+			updateHWState(xname, powerState, pcsmodel.ManagementStateFilter_available, "")
+
+		case xnametypes.MgmtSwitch:
+			fallthrough
+		case xnametypes.MgmtHLSwitch:
+			fallthrough
+		case xnametypes.CDUMgmtSwitch:
+			var info rf.Chassis
+			err = json.Unmarshal(v.body, &info)
+			if err != nil {
+				glogger.Errorf("%s: ERROR unmarshalling power payload for '%s': %v", fname, rqURL, err)
+				//Power state unknown, but got a response, so mgmt state OK
+				updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
+					pcsmodel.ManagementStateFilter_available,
+					"Unable to unmarshal power payload")
+				break
+			}
+			if strings.ToLower(string(info.Status.State)) == "unavailableoffline" {
+				updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
+					pcsmodel.ManagementStateFilter_unavailable,
+					"Management switch is unreachable")
+			} else {
+				powerState, _ = pcsmodel.ToPowerStateFilter(info.PowerState)
+				updateHWState(xname, powerState, pcsmodel.ManagementStateFilter_available, "")
+			}
+
+		case xnametypes.CabinetPDUPowerConnector:
+			var info rf.Outlet
+			err = json.Unmarshal(v.body, &info)
+			if err != nil {
+				glogger.Errorf("%s: ERROR unmarshalling power payload for '%s': %v", fname, rqURL, err)
+				//Power state unknown, but got a response, so mgmt state OK
+				updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
+					pcsmodel.ManagementStateFilter_available,
+					"Unable to unmarshal power payload")
+				break
+			}
+			powerState, _ = pcsmodel.ToPowerStateFilter(info.PowerState)
+			updateHWState(xname, powerState, pcsmodel.ManagementStateFilter_available, "")
+		default:
+			glogger.Errorf("%s: Error: %s: unknown component type.", fname, ctype)
+			updateHWState(xname, pcsmodel.PowerStateFilter_Undefined,
+				pcsmodel.ManagementStateFilter_available,
+				"Unknown component type")
 		}
 	}
 
@@ -762,7 +806,7 @@ func monitorHW() {
 			continue
 		}
 
-		//Get map of all components in HSM and their BMCs.  This maybe only 
+		//Get map of all components in HSM and their BMCs.  This maybe only
 		//needs to be done once in a while.
 
 		err := updateComponentMap()
@@ -787,24 +831,24 @@ func monitorHW() {
 // Update the HW state of all components, in our backing store.
 
 func updateHWState(xname string, hwState pcsmodel.PowerStateFilter,
-                   mgmtState pcsmodel.ManagementStateFilter, errInfo string) {
+	mgmtState pcsmodel.ManagementStateFilter, errInfo string) {
 	funcname := "updateHWState()"
 
 	comp, ok := hwStateMap[xname]
 	if !ok {
 		//Something's wrong...
 		glogger.Errorf("%s: INTERNAL ERROR: no HW map entry for '%s'",
-		               funcname, xname)
+			funcname, xname)
 		return
 	}
 
 	//See if the HW state has changed, and if so, update the ETCD record.
 
-	hwStateStr   := strings.ToLower(hwState.String())
+	hwStateStr := strings.ToLower(hwState.String())
 	mgmtStateStr := strings.ToLower(mgmtState.String())
 
 	if hwStateStr == strings.ToLower(comp.PSComp.PowerState) &&
-	   mgmtStateStr == strings.ToLower(comp.PSComp.ManagementState) {
+		mgmtStateStr == strings.ToLower(comp.PSComp.ManagementState) {
 		return
 	}
 
@@ -828,7 +872,7 @@ func updateHWState(xname string, hwState pcsmodel.PowerStateFilter,
 	err := (*kvStore).StorePowerStatus(psc)
 	if err != nil {
 		glogger.Errorf("%s: ERROR storing component state for '%s': %v",
-		               funcname, xname, err)
+			funcname, xname, err)
 		return
 	}
 }
@@ -838,19 +882,21 @@ func toPCSPowerActions(rfPowerActions []string) []string {
 	pcsPowerActions := make([]string, 0)
 	actionMap := make(map[pcsmodel.Operation]bool)
 	for _, rfAction := range rfPowerActions {
-		switch(strings.ToLower(rfAction)) {
+		switch strings.ToLower(rfAction) {
 		case "forceoff":
 			if _, ok := actionMap[pcsmodel.Operation_ForceOff]; !ok {
 				actionMap[pcsmodel.Operation_ForceOff] = true
 				pcsPowerActions = append(pcsPowerActions, pcsmodel.Operation_ForceOff.String())
 			}
-		case "forcerestart": fallthrough
+		case "forcerestart":
+			fallthrough
 		case "gracefulrestart":
 			if _, ok := actionMap[pcsmodel.Operation_SoftRestart]; !ok {
 				actionMap[pcsmodel.Operation_SoftRestart] = true
 				pcsPowerActions = append(pcsPowerActions, pcsmodel.Operation_SoftRestart.String())
 			}
-		case "off": fallthrough
+		case "off":
+			fallthrough
 		case "gracefulshutdown":
 			if _, ok := actionMap[pcsmodel.Operation_SoftOff]; !ok {
 				actionMap[pcsmodel.Operation_SoftOff] = true
@@ -866,10 +912,14 @@ func toPCSPowerActions(rfPowerActions []string) []string {
 				pcsPowerActions = append(pcsPowerActions, pcsmodel.Operation_On.String())
 			}
 		// PCS doesn't currently support sending these reset types
-		case "nmi":             fallthrough
-		case "forceon":         fallthrough
-		case "powercycle":      fallthrough
-		case "pushpowerbutton": fallthrough
+		case "nmi":
+			fallthrough
+		case "forceon":
+			fallthrough
+		case "powercycle":
+			fallthrough
+		case "pushpowerbutton":
+			fallthrough
 		default:
 			continue
 		}
@@ -919,7 +969,7 @@ func getPowerStatusMaster() bool {
 		}
 	} else {
 		// Check to see if the previous master died.
-		if lastUpdated.Add(time.Duration(powerStatusMasterInterval * 3) * time.Second).After(now) {
+		if lastUpdated.Add(time.Duration(powerStatusMasterInterval*3) * time.Second).After(now) {
 			// Someone else is master
 			return false
 		}

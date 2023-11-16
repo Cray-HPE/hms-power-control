@@ -25,13 +25,14 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/Cray-HPE/hms-power-control/internal/domain"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
-	"net/http"
 )
 
 // The API layer is responsible for Json Unmarshaling and Marshaling,
@@ -45,6 +46,7 @@ func SnapshotPowerCap(w http.ResponseWriter, req *http.Request) {
 	var pb model.Passback
 	var parameters model.PowerCapSnapshotParameter
 	if req.Body != nil {
+		defer req.Body.Close()
 		body, err := ioutil.ReadAll(req.Body)
 		logger.Log.WithFields(logrus.Fields{"body": string(body)}).Trace("Printing request body")
 
@@ -96,6 +98,7 @@ func PatchPowerCap(w http.ResponseWriter, req *http.Request) {
 	var pb model.Passback
 	var parameters model.PowerCapPatchParameter
 	if req.Body != nil {
+		defer req.Body.Close()
 		body, err := ioutil.ReadAll(req.Body)
 		logger.Log.WithFields(logrus.Fields{"body": string(body)}).Trace("Printing request body")
 
