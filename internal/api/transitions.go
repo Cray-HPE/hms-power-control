@@ -48,6 +48,7 @@ func CreateTransition(w http.ResponseWriter, req *http.Request) {
 	var pb model.Passback
 	var parameters model.TransitionParameter
 	if req.Body != nil {
+		defer req.Body.Close()
 		body, err := ioutil.ReadAll(req.Body)
 		logger.Log.WithFields(logrus.Fields{"body": string(body)}).Trace("Printing request body")
 
