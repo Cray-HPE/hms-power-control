@@ -358,7 +358,6 @@ func doTransition(transitionID uuid.UUID) {
 			   compType != base.ComputeModule &&
 			   compType != base.Node &&
 			   compType != base.RouterModule &&
-			   compType != base.HSNBoard &&		// JOSH_TODO: probably should stay??
 			   compType != base.CabinetPDUPowerConnector &&
 			   compType != base.ChassisBMC &&
 			   compType != base.NodeBMC &&
