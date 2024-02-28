@@ -63,10 +63,10 @@ type PowerSupply struct {
 var PowerSequenceFull = []PowerSeqElem{
 	{
 		Action:    "gracefulshutdown",
-		CompTypes: []base.HMSType{base.Node, base.HSNBoard},
+		CompTypes: []base.HMSType{base.Node},
 	}, {
 		Action:    "forceoff",
-		CompTypes: []base.HMSType{base.Node, base.HSNBoard},
+		CompTypes: []base.HMSType{base.Node},
 	}, {
 		Action:    "gracefulshutdown",
 		CompTypes: []base.HMSType{base.RouterModule, base.ComputeModule},
@@ -90,7 +90,7 @@ var PowerSequenceFull = []PowerSeqElem{
 		// Not all of these components support GracefulRestart but, if they did,
 		// since power isn't being dropped doing them all (except BMCs) at the
 		// same time should be fine.
-		CompTypes: []base.HMSType{base.Node, base.HSNBoard, base.RouterModule, base.ComputeModule, base.Chassis, base.CabinetPDUPowerConnector, base.MgmtSwitch, base.MgmtHLSwitch, base.CDUMgmtSwitch},
+		CompTypes: []base.HMSType{base.Node, base.RouterModule, base.ComputeModule, base.Chassis, base.CabinetPDUPowerConnector, base.MgmtSwitch, base.MgmtHLSwitch, base.CDUMgmtSwitch},
 	}, {
 		Action:    "gracefulrestart",
 		// Restart BMCs after everything else because restarting the BMC will cause
@@ -107,7 +107,7 @@ var PowerSequenceFull = []PowerSeqElem{
 		CompTypes: []base.HMSType{base.RouterModule, base.ComputeModule},
 	}, {
 		Action:    "on",
-		CompTypes: []base.HMSType{base.Node, base.HSNBoard},
+		CompTypes: []base.HMSType{base.Node},
 	},
 }
 
@@ -358,7 +358,6 @@ func doTransition(transitionID uuid.UUID) {
 			   compType != base.ComputeModule &&
 			   compType != base.Node &&
 			   compType != base.RouterModule &&
-			   compType != base.HSNBoard &&
 			   compType != base.CabinetPDUPowerConnector &&
 			   compType != base.ChassisBMC &&
 			   compType != base.NodeBMC &&
@@ -655,8 +654,8 @@ func doTransition(transitionID uuid.UUID) {
 	//
 	// o Power sequencing is controlled by the PowerSequenceFull array that defines
 	//   an order of Actions to perform on a set of component types. The order is:
-	//   1) GracefulShutdown/Off on Nodes+HSNBoards
-	//   2) ForceOff on Nodes+HSNBoards
+	//   1) GracefulShutdown/Off on Nodes
+	//   2) ForceOff on Nodes
 	//   3) GracefulShutdown/Off on Router+Compute Modules
 	//   4) ForceOff on Router+Compute Modules
 	//   5) GracefulShutdown/Off on Chassis
@@ -667,7 +666,7 @@ func doTransition(transitionID uuid.UUID) {
 	//   10) On CabinetPDUPowerConnector
 	//   11) On Chassis
 	//   12) On Router+Compute Modules
-	//   13) On Nodes+HSNBoards
+	//   13) On Nodes
 	//
 	// o TODO: Verify if GracefulRestart/ForceRestart happened?
 	///////////////////////////////////////////////////////////////////////////
@@ -835,17 +834,6 @@ func doTransition(transitionID uuid.UUID) {
 						comp.Task.Status = model.TransitionTaskStatusInProgress
 						comp.Task.StatusDesc = fmt.Sprintf("Transition applied, %s. Waiting for next transition.", powerAction)
 						comp.Task.State = model.TaskState_Confirmed
-						if base.GetHMSType(comp.Task.Xname) == base.HSNBoard {
-							// The next operation will be a power on and
-							// we only need to wait and confirm power status
-							// for HSNBoard components.
-							parentId := base.GetHMSCompParent(comp.Task.Xname)
-							if _, ok := xnameMap[parentId]; ok {
-								comp.Task.Operation = model.Operation_On
-								comp.Task.State = model.TaskState_Waiting
-								comp.Task.StatusDesc = "Confirming successful transition, On"
-							}
-						}
 					}
 				} else {
 					comp.Task.Status = model.TransitionTaskStatusInProgress
@@ -910,17 +898,6 @@ func doTransition(transitionID uuid.UUID) {
 							comp.Task.StatusDesc = "Transition confirmed, " + powerAction
 						} else {
 							comp.Task.StatusDesc = "Transition confirmed, " + powerAction + ". Waiting for next transition"
-							if base.GetHMSType(comp.Task.Xname) == base.HSNBoard {
-								// The next operation will be a power on and
-								// we only need to wait and confirm power status
-								// for HSNBoard components.
-								parentId := base.GetHMSCompParent(comp.Task.Xname)
-								if _, ok := xnameMap[parentId]; ok {
-									comp.Task.Operation = model.Operation_On
-									comp.Task.State = model.TaskState_Waiting
-									comp.Task.StatusDesc = "Confirming successful transition, On"
-								}
-							}
 						}
 						delete(trsTaskMap, trsTaskID)
 						err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
@@ -1143,7 +1120,6 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 			case base.NodeBMC:       fallthrough
 			case base.RouterBMC:     fallthrough
 			case base.Node:          fallthrough
-			case base.HSNBoard:      fallthrough
 			case base.Chassis:       fallthrough
 			case base.ComputeModule: fallthrough
 			case base.MgmtSwitch:    fallthrough
@@ -1175,8 +1151,7 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 				}
 				for _, ps := range pStates.Status {
 					switch(base.GetHMSType(ps.XName)) {
-					case base.RouterModule: fallthrough
-					case base.HSNBoard:
+					case base.RouterModule:
 						xnameMap[ps.XName] = ps
 						// Make sure our original xname is part
 						// of the list of components found.
@@ -1250,7 +1225,6 @@ func setupTransitionTasks(tr *model.Transition) (map[string]*TransitionComponent
 		case base.NodeBMC:       fallthrough
 		case base.RouterBMC:     fallthrough
 		case base.Node:          fallthrough
-		case base.HSNBoard:      fallthrough
 		case base.Chassis:       fallthrough
 		case base.ComputeModule: fallthrough
 		case base.RouterModule:  fallthrough
@@ -1308,18 +1282,7 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 			continue
 		}
 
-		// HSNBoard components automatically power on when power is supplied to
-		// the slot. If we're powering on the slot, sending the HSNBoard a
-		// power on command will cause an error. Tell the task to only wait and
-		// confirm power.
 		compType := base.GetHMSType(xname)
-		waitOnly := false
-		if compType == base.HSNBoard {
-			parentId := base.GetHMSCompParent(xname)
-			if _, ok := xnameMap[parentId]; ok {
-				waitOnly = true
-			}
-		}
 
 		isBMC := base.IsHMSTypeController(compType)
 		supportsOp := false
@@ -1355,13 +1318,6 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 				// Attempt to power on even if the last collected powerstate is "undefined".
 				// It may become available after powering on a parent component.
 				seqMap["on"][compType] = append(seqMap["on"][compType], comp)
-				if waitOnly {
-					// We only need to wait and confirm power status for HSNBoard components.
-					comp.Task.Status = model.TransitionTaskStatusInProgress
-					comp.Task.Operation = model.Operation_On
-					comp.Task.State = model.TaskState_Waiting
-					comp.Task.StatusDesc = "Confirming successful transition, On"
-				}
 			}
 		case model.Operation_SoftOff: fallthrough
 		case model.Operation_Off:
@@ -1477,13 +1433,6 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 					comp.ActionCount++
 					seqMap["on"][compType] = append(seqMap["on"][compType], comp)
 					comp.Task.State = model.TaskState_Confirmed
-					if waitOnly {
-						// We only need to wait and confirm power status for HSNBoard components.
-						comp.Task.Status = model.TransitionTaskStatusInProgress
-						comp.Task.Operation = model.Operation_On
-						comp.Task.State = model.TaskState_Waiting
-						comp.Task.StatusDesc = "Confirming successful transition, On"
-					}
 				}
 			} else {
 				if comp.Task.Operation == model.Operation_On {
@@ -1523,13 +1472,6 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 				}
 				comp.ActionCount++
 				seqMap["on"][compType] = append(seqMap["on"][compType], comp)
-				if waitOnly {
-					// We only need to wait and confirm power status for HSNBoard components.
-					comp.Task.Status = model.TransitionTaskStatusInProgress
-					comp.Task.Operation = model.Operation_On
-					comp.Task.State = model.TaskState_Waiting
-					comp.Task.StatusDesc = "Confirming successful transition, On"
-				}
 			}
 		case model.Operation_ForceOff:
 			if psf == model.PowerStateFilter_Off {
@@ -1624,13 +1566,10 @@ func getOpForPowerAction(powerAction string) model.Operation {
 // Checks if the failed component has components that depend on it having
 // successfully transitioned. Check for:
 //
-// - If the failed component was an HSNBoard trying to be powered off because
-//   that can cause damage. Find and fail parent RouterModule.
-//
 // - If the failed component was a node and the power action was soft-off (no ForceOff).
 //   Find and fail parent ComputeModule.
 //
-// - If either of the above are true, check to see if any components supplying power are
+// - Check to see if any components supplying power are
 //   in the list. If so and it would result in the component becoming unpowered, fail the
 //   operation for one of the components that supply power.
 //
@@ -1641,10 +1580,7 @@ func getOpForPowerAction(powerAction string) model.Operation {
 // The newly failed parent components will get skipped when it is their turn.
 func failDependentComps(xnameMap map[string]*TransitionComponent, powerAction string, xname string, errMsg string) {
 	var parents []string
-	if (powerAction == "gracefulshutdown" || powerAction == "forceoff") && base.GetHMSType(xname) == base.HSNBoard {
-		parent := base.GetHMSCompParent(xname)
-		parents = append(parents, parent)
-	} else if powerAction == "gracefulshutdown" && base.GetHMSType(xname) == base.Node {
+	if powerAction == "gracefulshutdown" && base.GetHMSType(xname) == base.Node {
 		parent := base.GetHMSCompParent(xname) // NodeBMC
 		parent = base.GetHMSCompParent(parent) // ComputeModule
 		parents = append(parents, parent)

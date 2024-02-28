@@ -32,18 +32,17 @@ import (
 	"strings"
 	"time"
 
+	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/credstore"
-	"github.com/Cray-HPE/hms-power-control/internal/storage"
 	pcshsm "github.com/Cray-HPE/hms-power-control/internal/hsm"
 	pcsmodel "github.com/Cray-HPE/hms-power-control/internal/model"
+	"github.com/Cray-HPE/hms-power-control/internal/storage"
 	rf "github.com/Cray-HPE/hms-smd/v2/pkg/redfish"
 	trsapi "github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api"
 	"github.com/Cray-HPE/hms-xname/xnametypes"
-	"github.com/Cray-HPE/hms-base"
 
 	"github.com/sirupsen/logrus"
 )
-
 
 // Power monitoring framework.  The general flow of this framework:
 //
@@ -53,10 +52,9 @@ import (
 // o Query BMCs for HW state, and store the results both in the in-memory
 //   cached component map and also in ETCD storage.
 // o If user asks for power status on a set of components, it is fetched from
-//   the ETCD-stored data.  This makes it possible for any instance of a 
+//   the ETCD-stored data.  This makes it possible for any instance of a
 //   multi-instance PCS service to be able to serve data retrieved by any other
 //   instance.
-
 
 // This is what gets stored in the in-memory component map.
 type componentPowerInfo struct {
@@ -233,7 +231,6 @@ func GetPowerStatus(xnames []string,
 				case xnametypes.Node:          fallthrough
 				case xnametypes.ComputeModule: fallthrough
 				case xnametypes.RouterModule:  fallthrough
-				case xnametypes.HSNBoard:      fallthrough
 				case xnametypes.MgmtSwitch:    fallthrough
 				case xnametypes.MgmtHLSwitch:  fallthrough
 				case xnametypes.CDUMgmtSwitch: fallthrough
@@ -328,7 +325,6 @@ func updateComponentMap() error {
 			case xnametypes.NodeBMC:       fallthrough
 			case xnametypes.RouterBMC:     fallthrough
 			case xnametypes.Node:          fallthrough
-			case xnametypes.HSNBoard:      fallthrough
 			case xnametypes.MgmtSwitch:    fallthrough
 			case xnametypes.MgmtHLSwitch:  fallthrough
 			case xnametypes.CDUMgmtSwitch: fallthrough
@@ -465,7 +461,6 @@ func getHWStatesFromHW() error {
 			case xnametypes.Chassis:       fallthrough
 			case xnametypes.ComputeModule: fallthrough
 			case xnametypes.RouterModule:  fallthrough
-			case xnametypes.HSNBoard:      fallthrough
 			case xnametypes.MgmtSwitch:    fallthrough
 			case xnametypes.MgmtHLSwitch:  fallthrough
 			case xnametypes.CDUMgmtSwitch: fallthrough
@@ -672,8 +667,7 @@ func getHWStatesFromHW() error {
 
 			case xnametypes.Chassis:       fallthrough
 			case xnametypes.ComputeModule: fallthrough
-			case xnametypes.RouterModule:  fallthrough
-			case xnametypes.HSNBoard:
+			case xnametypes.RouterModule:
 				var info rf.Chassis
 				err = json.Unmarshal(v.body, &info)
 				if err != nil {
