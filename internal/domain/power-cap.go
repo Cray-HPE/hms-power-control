@@ -35,7 +35,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Cray-HPE/hms-base"
+	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/hsm"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
@@ -513,10 +513,12 @@ func doPowerCapTask(taskID uuid.UUID) {
 				}
 			}
 		}
+		usingPcapControls := false
 		tempOps := []model.PowerCapOperation{}
 		if comp.PowerCapControlsCount > 0 && !taskIsPatch {
 			// When a component is using the Controls schema, it is because each available power control
 			// is located at a different URL. Make an operation for each URL.
+			usingPcapControls := true
 			for name, pwrCtl := range comp.PowerCaps {
 				if taskIsPatch {
 					if _, ok := patchParametersMap[id][name]; !ok {
@@ -531,6 +533,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 				tempOps = append(tempOps, op)
 			}
 		} else {
+			usingPcapControls := true
 			op := model.NewPowerCapOperation(task.TaskID, task.Type)
 			if comp.PowerCapControlsCount > 0 {
 				// Use Controls.Deep URL for Cray EX hardware.
@@ -556,7 +559,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 				// We only support node power capping
 				op.Status = model.PowerCapOpStatusUnsupported
 				op.Component.Error = "Type, " + comp.BaseData.Type + " unsupported for power capping"
-			} else if comp.PowerCapURI == "" {
+			} else if comp.PowerCapURI == "" && !usingPcapControls {
 				op.Status = model.PowerCapOpStatusFailed
 				op.Component.Error = "Missing Power Cap URI"
 			} else if comp.BaseData.Role == base.RoleManagement.String() {
