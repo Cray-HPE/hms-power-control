@@ -518,7 +518,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 		if comp.PowerCapControlsCount > 0 && !taskIsPatch {
 			// When a component is using the Controls schema, it is because each available power control
 			// is located at a different URL. Make an operation for each URL.
-			usingPcapControls := true
+			usingPcapControls = true
 			for name, pwrCtl := range comp.PowerCaps {
 				if taskIsPatch {
 					if _, ok := patchParametersMap[id][name]; !ok {
@@ -533,7 +533,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 				tempOps = append(tempOps, op)
 			}
 		} else {
-			usingPcapControls := true
+			usingPcapControls = true
 			op := model.NewPowerCapOperation(task.TaskID, task.Type)
 			if comp.PowerCapControlsCount > 0 {
 				// Use Controls.Deep URL for Cray EX hardware.
