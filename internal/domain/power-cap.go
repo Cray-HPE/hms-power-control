@@ -517,7 +517,6 @@ func doPowerCapTask(taskID uuid.UUID) {
 		if comp.PowerCapControlsCount > 0 && !taskIsPatch {
 			// When a component is using the Controls schema, it is because each available power control
 			// is located at a different URL. Make an operation for each URL.
-logger.Log.Infof("JW_DEBUG: 1pre")
 			for name, pwrCtl := range comp.PowerCaps {
 				if taskIsPatch {
 					if _, ok := patchParametersMap[id][name]; !ok {
