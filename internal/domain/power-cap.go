@@ -546,8 +546,8 @@ logger.Log.Infof("JW_DEBUG: 1b")
 			}
 			op.PowerCaps = comp.PowerCaps
 			tempOps = append(tempOps, op)
-		}
 logger.Log.Infof("JW_DEBUG: op.PowerCapURI=%s comp.PowerCapURI=%s", op.PowerCapURI, comp.PowerCapURI)
+		}
 
 		// Validate that we have the required HSM data for each operation.
 		for _, op := range tempOps {
