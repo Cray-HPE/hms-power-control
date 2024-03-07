@@ -517,6 +517,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 		if comp.PowerCapControlsCount > 0 && !taskIsPatch {
 			// When a component is using the Controls schema, it is because each available power control
 			// is located at a different URL. Make an operation for each URL.
+logger.Log.Infof("JW_DEBUG: 1pre")
 			for name, pwrCtl := range comp.PowerCaps {
 				if taskIsPatch {
 					if _, ok := patchParametersMap[id][name]; !ok {
@@ -531,18 +532,22 @@ func doPowerCapTask(taskID uuid.UUID) {
 				tempOps = append(tempOps, op)
 			}
 		} else {
+logger.Log.Infof("JW_DEBUG: 1")
 			op := model.NewPowerCapOperation(task.TaskID, task.Type)
 			if comp.PowerCapControlsCount > 0 {
+logger.Log.Infof("JW_DEBUG: 1a")
 				// Use Controls.Deep URL for Cray EX hardware.
 				pwrURL := comp.PowerCapURI
 				url := path.Dir(pwrURL)
 				op.PowerCapURI = url + "/Controls.Deep"
 			} else {
+logger.Log.Infof("JW_DEBUG: 1b")
 				op.PowerCapURI = comp.PowerCapURI
 			}
 			op.PowerCaps = comp.PowerCaps
 			tempOps = append(tempOps, op)
 		}
+logger.Log.Infof("JW_DEBUG: op.PowerCapURI=%s comp.PowerCapURI=%s", op.PowerCapURI, comp.PowerCapURI)
 
 		// Validate that we have the required HSM data for each operation.
 		for _, op := range tempOps {
