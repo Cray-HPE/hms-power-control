@@ -35,7 +35,6 @@ import (
 	"time"
 
 	base "github.com/Cray-HPE/hms-base"
-	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	reservation "github.com/Cray-HPE/hms-smd/v2/pkg/service-reservations"
 	"github.com/Cray-HPE/hms-smd/v2/pkg/sm"
 	"github.com/sirupsen/logrus"
@@ -436,7 +435,7 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 							hd[comp.ID].PowerActionURI = comp.RedfishSystemInfo.Actions.ComputerSystemReset.Target
 							hd[comp.ID].AllowableActions = comp.RedfishSystemInfo.Actions.ComputerSystemReset.AllowableValues
 						}
-						hd[comp.ID] = extractPowerCapInfo(hd[comp.ID], comp)
+						hd[comp.ID] = extractPowerCapInfo(hd[comp.ID], comp, b)
 					}
 
 				case sm.CompEPTypeManager:	//BMC
@@ -480,7 +479,7 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 // - compData.PowerCapCtlInfoCount
 // - compData.PowerCapTargetURI - if rfSysInfo.PowerCtlInfo.PowerCtl[0].OEM.HPE.Target exists
 // - compData.PowerCaps
-func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmData {
+func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint, b *HSMv2) *HsmData {
 	if compData == nil || compEP == nil || compEP.RedfishSystemInfo == nil {
 		return compData
 	}
@@ -499,7 +498,7 @@ func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmDa
 				PwrCtlIndex: i,
 			}
 		}
-logger.Log.Infof("JW_DEBUG: extractPowerCapInfo: rfSysInfo.PowerCtlInfo.PowerURL=%s", rfSysInfo.PowerCtlInfo.PowerURL)
+b.HSMGlobals.Logger.Warnf("JW_DEBUG: extractPowerCapInfo: rfSysInfo.PowerCtlInfo.PowerURL=%s", rfSysInfo.PowerCtlInfo.PowerURL)
 		//if compData.PowerCapURI == "" {
 			//compData.PowerCapURI = rfSysInfo.PowerCtlInfo.PowerURL
 		//}
