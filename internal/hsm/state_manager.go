@@ -35,7 +35,6 @@ import (
 	"time"
 
 	base "github.com/Cray-HPE/hms-base"
-	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	reservation "github.com/Cray-HPE/hms-smd/v2/pkg/service-reservations"
 	"github.com/Cray-HPE/hms-smd/v2/pkg/sm"
 	"github.com/sirupsen/logrus"
@@ -499,7 +498,7 @@ func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmDa
 				PwrCtlIndex: i,
 			}
 		}
-logger.Log.Infof("JW_DEBUG: extractPowerCapInfo: rfSysInfo.PowerCtlInfo.PowerURL=%s", rfSysInfo.PowerCtlInfo.PowerURL)
+//logger.Log.Infof("JW_DEBUG: extractPowerCapInfo: rfSysInfo.PowerCtlInfo.PowerURL=%s", rfSysInfo.PowerCtlInfo.PowerURL)
 		//if compData.PowerCapURI == "" {
 			//compData.PowerCapURI = rfSysInfo.PowerCtlInfo.PowerURL
 		//}
