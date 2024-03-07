@@ -35,6 +35,7 @@ import (
 	"time"
 
 	base "github.com/Cray-HPE/hms-base"
+	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	reservation "github.com/Cray-HPE/hms-smd/v2/pkg/service-reservations"
 	"github.com/Cray-HPE/hms-smd/v2/pkg/sm"
 	"github.com/sirupsen/logrus"
@@ -502,7 +503,6 @@ logger.Log.Infof("JW_DEBUG: extractPowerCapInfo: rfSysInfo.PowerCtlInfo.PowerURL
 		//if compData.PowerCapURI == "" {
 			//compData.PowerCapURI = rfSysInfo.PowerCtlInfo.PowerURL
 		//}
-		DEBUG STATEMENT HERE
 	} else if compData.PowerCapCtlInfoCount > 0 {
 		pwrCtl := rfSysInfo.PowerCtlInfo.PowerCtl[0]
 		if pwrCtl.OEM != nil && pwrCtl.OEM.HPE != nil && len(pwrCtl.OEM.HPE.Target) > 0 {
