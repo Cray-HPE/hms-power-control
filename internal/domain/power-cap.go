@@ -514,7 +514,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 			}
 		}
 		tempOps := []model.PowerCapOperation{}
-		if comp.PowerCapControlsCount > 0 {
+		if comp.PowerCapControlsCount > 0 && !taskIsPatch {
 			// When a component is using the Controls schema, it is because each available power control
 			// is located at a different URL. Make an operation for each URL.
 			for name, pwrCtl := range comp.PowerCaps {
@@ -526,31 +526,22 @@ func doPowerCapTask(taskID uuid.UUID) {
 				}
 				op := model.NewPowerCapOperation(task.TaskID, task.Type)
 				op.PowerCapURI = pwrCtl.Path
-
-				if taskIsPatch {
-					// Use Controls.Deep URL for patching Cray EX hardware.
-					if op.PowerCapURI != "" {
-						url := path.Dir(op.PowerCapURI)
-						op.PowerCapURI = url + "/Controls.Deep"
-					}
-
-					// For a patch we only care about Controls.Deep so only need one op
-					op.PowerCaps = comp.PowerCaps
-					tempOps = append(tempOps, op)
-logger.Log.Infof("JW_DEBUG -----> CNTRLS PATCH: op.PowerCapURI=%s", op.PowerCapURI)
-					break
-				}
 				op.PowerCaps = make(map[string]hsm.PowerCap)
 				op.PowerCaps[name] = pwrCtl
 				tempOps = append(tempOps, op)
-logger.Log.Infof("JW_DEBUG -----> CNTRLS NOT A PATCH: op.PowerCapURI=%s", op.PowerCapURI)
 			}
 		} else {
 			op := model.NewPowerCapOperation(task.TaskID, task.Type)
-			op.PowerCapURI = comp.PowerCapURI
+			if comp.PowerCapControlsCount > 0 {
+				// Use Controls.Deep URL for Cray EX hardware.
+				pwrURL := comp.PowerCapURI
+				url := path.Dir(pwrURL)
+				op.PowerCapURI = url + "/Controls.Deep"
+			} else {
+				op.PowerCapURI = comp.PowerCapURI
+			}
 			op.PowerCaps = comp.PowerCaps
 			tempOps = append(tempOps, op)
-logger.Log.Infof("JW_DEBUG -----> NOT CNTRLS: op.PowerCapURI=%s", op.PowerCapURI)
 		}
 
 		// Validate that we have the required HSM data for each operation.
@@ -568,12 +559,11 @@ logger.Log.Infof("JW_DEBUG -----> NOT CNTRLS: op.PowerCapURI=%s", op.PowerCapURI
 			} else if op.PowerCapURI == "" {
 				op.Status = model.PowerCapOpStatusFailed
 				op.Component.Error = "Missing Power Cap URI"
-logger.Log.Infof("JW_DEBUG -----> FAILED PowerCapURI test")
 			} else if comp.BaseData.Role == base.RoleManagement.String() {
 				// Power capping Management nodes is dangerous to the system. Lets not.
 				op.Status = model.PowerCapOpStatusUnsupported
 				op.Component.Error = "Power capping Management nodes is not supported"
-			} else if taskIsPatch && isHpeApollo6500(comp.PowerCapURI) && comp.PowerCapTargetURI == "" {
+			} else if taskIsPatch && isHpeApollo6500(op.PowerCapURI) && comp.PowerCapTargetURI == "" {
 				// Apollo 6500's use a separate URL target for setting
 				// power limits. We need PowerCapTargetURI from HSM.
 				op.Status = model.PowerCapOpStatusFailed
