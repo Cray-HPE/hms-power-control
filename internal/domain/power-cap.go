@@ -514,7 +514,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 			}
 		}
 		tempOps := []model.PowerCapOperation{}
-		if comp.PowerCapControlsCount > 0 && !taskIsPatch {
+		if comp.PowerCapControlsCount > 0 {
 			// When a component is using the Controls schema, it is because each available power control
 			// is located at a different URL. Make an operation for each URL.
 			for name, pwrCtl := range comp.PowerCaps {
@@ -526,27 +526,29 @@ func doPowerCapTask(taskID uuid.UUID) {
 				}
 				op := model.NewPowerCapOperation(task.TaskID, task.Type)
 				op.PowerCapURI = pwrCtl.Path
+
+				if taskIsPatch {
+					// Use Controls.Deep URL for Cray EX hardware.
+					url := path.Dir(op.PowerCapURI)
+					op.PowerCapURI = url + "/Controls.Deep"
+
+					// For a patch we only care about Controls.Deep so only need one op
+					op.PowerCaps = comp.PowerCaps
+					tempOps = append(tempOps, op)
+logger.Log.Infof("JW_DEBUG -----> CNTRLS PATCH: op.PowerCapURI=%s", op.PowerCapURI)
+					break
+				}
 				op.PowerCaps = make(map[string]hsm.PowerCap)
 				op.PowerCaps[name] = pwrCtl
 				tempOps = append(tempOps, op)
-logger.Log.Infof("JW_DEBUG: 1-pre: name=%s op.PowerCapURI=%s", name, op.PowerCapURI)
+logger.Log.Infof("JW_DEBUG -----> CNTRLS NOT A PATCH: op.PowerCapURI=%s", op.PowerCapURI)
 			}
 		} else {
-logger.Log.Infof("JW_DEBUG: 1")
 			op := model.NewPowerCapOperation(task.TaskID, task.Type)
-			if comp.PowerCapControlsCount > 0 {
-logger.Log.Infof("JW_DEBUG: 1a")
-				// Use Controls.Deep URL for Cray EX hardware.
-				pwrURL := comp.PowerCapURI
-				url := path.Dir(pwrURL)
-				op.PowerCapURI = url + "/Controls.Deep"
-			} else {
-logger.Log.Infof("JW_DEBUG: 1b")
-				op.PowerCapURI = comp.PowerCapURI
-			}
+			op.PowerCapURI = comp.PowerCapURI
 			op.PowerCaps = comp.PowerCaps
 			tempOps = append(tempOps, op)
-logger.Log.Infof("JW_DEBUG: op.PowerCapURI=%s comp.PowerCapURI=%s", op.PowerCapURI, comp.PowerCapURI)
+logger.Log.Infof("JW_DEBUG -----> NOT CNTRLS: op.PowerCapURI=%s", op.PowerCapURI)
 		}
 
 		// Validate that we have the required HSM data for each operation.
@@ -561,7 +563,7 @@ logger.Log.Infof("JW_DEBUG: op.PowerCapURI=%s comp.PowerCapURI=%s", op.PowerCapU
 				// We only support node power capping
 				op.Status = model.PowerCapOpStatusUnsupported
 				op.Component.Error = "Type, " + comp.BaseData.Type + " unsupported for power capping"
-			} else if comp.PowerCapURI == "" && comp.PowerCapControlsCount <= 0 {
+			} else if comp.PowerCapURI == "" {
 				op.Status = model.PowerCapOpStatusFailed
 				op.Component.Error = "Missing Power Cap URI"
 			} else if comp.BaseData.Role == base.RoleManagement.String() {
@@ -618,7 +620,6 @@ logger.Log.Infof("JW_DEBUG: op.PowerCapURI=%s comp.PowerCapURI=%s", op.PowerCapU
 							if max != -1 {
 								ctl.MaximumValue = &max
 							}
-logger.Log.Infof("JW_DEBUG: pwrCtl.Path=%s path.Dir=%s proposal=%s", pwrCtl.Path, path.Dir(pwrCtl.Path), path.Dir(pwrCtl.Path) + "/Controls.Deep")
 							op.Component.PowerCapLimits = append(op.Component.PowerCapLimits, ctl)
 							isError = false
 						}
