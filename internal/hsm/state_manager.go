@@ -1,17 +1,17 @@
 // MIT License
-//
+// 
 // (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
-//
+// 
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
 // to deal in the Software without restriction, including without limitation
 // the rights to use, copy, modify, merge, publish, distribute, sublicense,
 // and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-//
+// 
 // The above copyright notice and this permission notice shall be included
 // in all copies or substantial portions of the Software.
-//
+// 
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
@@ -19,6 +19,7 @@
 // OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
+
 
 package hsm
 
@@ -34,9 +35,9 @@ import (
 	"strings"
 	"time"
 
-	base "github.com/Cray-HPE/hms-base"
-	reservation "github.com/Cray-HPE/hms-smd/v2/pkg/service-reservations"
+	"github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-smd/v2/pkg/sm"
+	reservation "github.com/Cray-HPE/hms-smd/v2/pkg/service-reservations"
 	"github.com/sirupsen/logrus"
 )
 
@@ -435,7 +436,7 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 							hd[comp.ID].PowerActionURI = comp.RedfishSystemInfo.Actions.ComputerSystemReset.Target
 							hd[comp.ID].AllowableActions = comp.RedfishSystemInfo.Actions.ComputerSystemReset.AllowableValues
 						}
-						hd[comp.ID] = extractPowerCapInfo(hd[comp.ID], comp, b)
+						hd[comp.ID] = extractPowerCapInfo(hd[comp.ID], comp)
 					}
 
 				case sm.CompEPTypeManager:	//BMC
@@ -479,7 +480,7 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 // - compData.PowerCapCtlInfoCount
 // - compData.PowerCapTargetURI - if rfSysInfo.PowerCtlInfo.PowerCtl[0].OEM.HPE.Target exists
 // - compData.PowerCaps
-func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint, b *HSMv2) *HsmData {
+func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmData {
 	if compData == nil || compEP == nil || compEP.RedfishSystemInfo == nil {
 		return compData
 	}
@@ -498,10 +499,6 @@ func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint, b *HSM
 				PwrCtlIndex: i,
 			}
 		}
-b.HSMGlobals.Logger.Warnf("JW_DEBUG: extractPowerCapInfo: rfSysInfo.PowerCtlInfo.PowerURL=%s", rfSysInfo.PowerCtlInfo.PowerURL)
-		//if compData.PowerCapURI == "" {
-			//compData.PowerCapURI = rfSysInfo.PowerCtlInfo.PowerURL
-		//}
 	} else if compData.PowerCapCtlInfoCount > 0 {
 		pwrCtl := rfSysInfo.PowerCtlInfo.PowerCtl[0]
 		if pwrCtl.OEM != nil && pwrCtl.OEM.HPE != nil && len(pwrCtl.OEM.HPE.Target) > 0 {
