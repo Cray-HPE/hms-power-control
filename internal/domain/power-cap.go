@@ -528,7 +528,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 				op.PowerCapURI = pwrCtl.Path
 
 				if taskIsPatch {
-					// Use Controls.Deep URL for Cray EX hardware.
+					// Use Controls.Deep URL for patching Cray EX hardware.
 					url := path.Dir(op.PowerCapURI)
 					op.PowerCapURI = url + "/Controls.Deep"
 
@@ -563,7 +563,7 @@ logger.Log.Infof("JW_DEBUG -----> NOT CNTRLS: op.PowerCapURI=%s", op.PowerCapURI
 				// We only support node power capping
 				op.Status = model.PowerCapOpStatusUnsupported
 				op.Component.Error = "Type, " + comp.BaseData.Type + " unsupported for power capping"
-			} else if comp.PowerCapURI == "" {
+			} else if comp.PowerCapURI == "" && !(comp.PowerCapControlsCount > 0 && taskIsPatch) {
 				op.Status = model.PowerCapOpStatusFailed
 				op.Component.Error = "Missing Power Cap URI"
 			} else if comp.BaseData.Role == base.RoleManagement.String() {
