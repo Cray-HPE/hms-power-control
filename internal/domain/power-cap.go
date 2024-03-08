@@ -618,7 +618,7 @@ logger.Log.Infof("JW_DEBUG: op.PowerCapURI=%s comp.PowerCapURI=%s", op.PowerCapU
 							if max != -1 {
 								ctl.MaximumValue = &max
 							}
-logger.Log.Infof("JW_DEBUG: pwrCtl.Path=%s path.Dir=%s proposal=%s", pwrCtl.Path, path.Dir(pwrCtl.Path, path.Dir(pwrCtl.Path + "/Controls.Deep"))
+logger.Log.Infof("JW_DEBUG: pwrCtl.Path=%s path.Dir=%s proposal=%s", pwrCtl.Path, path.Dir(pwrCtl.Path), path.Dir(pwrCtl.Path) + "/Controls.Deep")
 							op.Component.PowerCapLimits = append(op.Component.PowerCapLimits, ctl)
 							isError = false
 						}
