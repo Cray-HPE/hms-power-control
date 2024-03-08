@@ -529,6 +529,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 				op.PowerCaps = make(map[string]hsm.PowerCap)
 				op.PowerCaps[name] = pwrCtl
 				tempOps = append(tempOps, op)
+logger.Log.Infof("JW_DEBUG: 1-pre: name=%s op.PowerCapURI=%s", name, op.PowerCapURI)
 			}
 		} else {
 logger.Log.Infof("JW_DEBUG: 1")
@@ -617,6 +618,7 @@ logger.Log.Infof("JW_DEBUG: op.PowerCapURI=%s comp.PowerCapURI=%s", op.PowerCapU
 							if max != -1 {
 								ctl.MaximumValue = &max
 							}
+logger.Log.Infof("JW_DEBUG: pwrCtl.Path=%s path.Dir=%s proposal=%s", pwrCtl.Path, path.Dir(pwrCtl.Path, path.Dir(pwrCtl.Path + "/Controls.Deep"))
 							op.Component.PowerCapLimits = append(op.Component.PowerCapLimits, ctl)
 							isError = false
 						}
