@@ -514,7 +514,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 			}
 		}
 		tempOps := []model.PowerCapOperation{}
-		if comp.PowerCapControlsCount > 0 && !taskIsPatch {
+		if comp.PowerCapControlsCount > 0 {
 			// When a component is using the Controls schema, it is because each available power control
 			// is located at a different URL. Make an operation for each URL.
 			for name, pwrCtl := range comp.PowerCaps {
@@ -526,9 +526,25 @@ func doPowerCapTask(taskID uuid.UUID) {
 				}
 				op := model.NewPowerCapOperation(task.TaskID, task.Type)
 				op.PowerCapURI = pwrCtl.Path
+//
+//				if taskIsPatch {
+//					// Use Controls.Deep URL for patching Cray EX hardware.
+//					if op.PowerCapURI != "" {
+//						url := path.Dir(op.PowerCapURI)
+//						op.PowerCapURI = url + "/Controls.Deep"
+//					}
+//					// For a patch we only care about Controls.Deep so only need one op.  We came into this
+//					// loop only to pick up the first pwrCtl.Path to form the /Controls.Deep URI
+//					op.PowerCaps = comp.PowerCaps
+//					tempOps = append(tempOps, op)
+//logger.Log.Infof("JW_DEBUG ----------> CNTRLS PATCH: op.PowerCapURI=%s", op.PowerCapURI)
+//					break
+//				}
+//
 				op.PowerCaps = make(map[string]hsm.PowerCap)
 				op.PowerCaps[name] = pwrCtl
 				tempOps = append(tempOps, op)
+logger.Log.Infof("JW_DEBUG ----------> CNTRLS NOT A PATCH: op.PowerCapURI=%s", op.PowerCapURI)
 			}
 		} else {
 			op := model.NewPowerCapOperation(task.TaskID, task.Type)
@@ -540,8 +556,10 @@ func doPowerCapTask(taskID uuid.UUID) {
 			} else {
 				op.PowerCapURI = comp.PowerCapURI
 			}
+//			op.PowerCapURI = comp.PowerCapURI
 			op.PowerCaps = comp.PowerCaps
 			tempOps = append(tempOps, op)
+logger.Log.Infof("JW_DEBUG ----------> NOT CNTRLS: op.PowerCapURI=%s", op.PowerCapURI)
 		}
 
 		// Validate that we have the required HSM data for each operation.
@@ -667,6 +685,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 				method = "PATCH"
 				path = op.RfFQDN + op.PowerCapURI
 			}
+logger.Log.Infof("JW_DEBUG ----------> doPowerCapTask: method=%s path=%s", method, path)
 			payload, _ := generatePowerCapPayload(op)
 			trsTaskList[trsTaskIdx].Request, _ = http.NewRequest(method, "https://"+path, bytes.NewBuffer(payload))
 			trsTaskList[trsTaskIdx].Request.Header.Set("Content-Type", "application/json")
@@ -757,6 +776,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 // Generates a POST/PATCH payload for the specified operation
 func generatePowerCapPayload(op model.PowerCapOperation) ([]byte, error) {
 	if op.PowerCapControlsCount > 0 {
+logger.Log.Infof("JW_DEBUG ----------> generatePowerCapPayload: CNTRLS: op.PowerCapControlsCount=%d", op.PowerCapControlsCount)
 		// Newer bard peak power capping schema deep patch
 		p := RFControlsDeep{
 			Members: make([]RFControl, 0, 1),
@@ -776,9 +796,11 @@ func generatePowerCapPayload(op model.PowerCapOperation) ([]byte, error) {
 				}
 			}
 			p.Members = append(p.Members, ctl)
+logger.Log.Infof("JW_DEBUG ----------> generatePowerCapPayload: CNTRLS: limit.CurrentValue=%d", limit.CurrentValue)
 		}
 		return json.Marshal(p)
 	} else if isHpeApollo6500(op.PowerCapURI) {
+logger.Log.Infof("JW_DEBUG ----------> generatePowerCapPayload: is Apollo 6500")
 		// Apollo 6500 redfish POST power capping schema
 		zero := 0
 		p := HpeConfigurePowerLimit{
@@ -791,6 +813,7 @@ func generatePowerCapPayload(op model.PowerCapOperation) ([]byte, error) {
 		}
 		return json.Marshal(p)
 	} else {
+logger.Log.Infof("JW_DEBUG ----------> generatePowerCapPayload: is generic: op.PowerCapCtlInfoCount=%d", op.PowerCapCtlInfoCount)
 		// Generic redfish power capping schema
 		p := Power{
 			PowerCtl: make([]PowerControl, op.PowerCapCtlInfoCount),
@@ -802,6 +825,7 @@ func generatePowerCapPayload(op model.PowerCapOperation) ([]byte, error) {
 					LimitInWatts: limit.CurrentValue,
 				},
 			}
+logger.Log.Infof("JW_DEBUG ----------> generatePowerCapPayload: is generic: limit.CurrentValue=%d", limit.CurrentValue)
 			p.PowerCtl[idx] = pCtl
 		}
 		return json.Marshal(p)
