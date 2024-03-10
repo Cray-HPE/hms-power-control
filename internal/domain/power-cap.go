@@ -514,8 +514,8 @@ func doPowerCapTask(taskID uuid.UUID) {
 			}
 		}
 		tempOps := []model.PowerCapOperation{}
-		if comp.PowerCapControlsCount > 0 && !taskIsPatch {
-//		if comp.PowerCapControlsCount > 0 {
+//		if comp.PowerCapControlsCount > 0 && !taskIsPatch {
+		if comp.PowerCapControlsCount > 0 {
 			// When a component is using the Controls schema, it is because each available power control
 			// is located at a different URL. Make an operation for each URL.
 			for name, pwrCtl := range comp.PowerCaps {
@@ -527,21 +527,21 @@ func doPowerCapTask(taskID uuid.UUID) {
 				}
 				op := model.NewPowerCapOperation(task.TaskID, task.Type)
 				op.PowerCapURI = pwrCtl.Path
-//
-//				if taskIsPatch {
-//					// Use Controls.Deep URL for patching Cray EX hardware.
-//					if op.PowerCapURI != "" {
-//						url := path.Dir(op.PowerCapURI)
-//						op.PowerCapURI = url + "/Controls.Deep"
-//					}
-//					// For a patch we only care about Controls.Deep so only need one op.  We came into this
-//					// loop only to pick up the first pwrCtl.Path to form the /Controls.Deep URI
-//					op.PowerCaps = comp.PowerCaps
-//					tempOps = append(tempOps, op)
-//logger.Log.Infof("JW_DEBUG ----------> CNTRLS PATCH: op.PowerCapURI=%s", op.PowerCapURI)
-//					break
-//				}
-//
+
+				if taskIsPatch {
+					// Use Controls.Deep URL for patching Cray EX hardware.
+					if op.PowerCapURI != "" {
+						url := path.Dir(op.PowerCapURI)
+						op.PowerCapURI = url + "/Controls.Deep"
+					}
+					// For a patch we only care about Controls.Deep so only need one op.  We came into this
+					// loop only to pick up the first pwrCtl.Path to form the /Controls.Deep URI
+					op.PowerCaps = comp.PowerCaps
+					tempOps = append(tempOps, op)
+logger.Log.Infof("JW_DEBUG ----------> CNTRLS PATCH: op.PowerCapURI=%s", op.PowerCapURI)
+					break
+				}
+
 				op.PowerCaps = make(map[string]hsm.PowerCap)
 				op.PowerCaps[name] = pwrCtl
 				tempOps = append(tempOps, op)
@@ -549,15 +549,15 @@ logger.Log.Infof("JW_DEBUG ----------> CNTRLS NOT A PATCH: op.PowerCapURI=%s", o
 			}
 		} else {
 			op := model.NewPowerCapOperation(task.TaskID, task.Type)
-			if comp.PowerCapControlsCount > 0 {
-				// Use Controls.Deep URL for Cray EX hardware.
-				pwrURL := comp.PowerCapURI
-				url := path.Dir(pwrURL)
-				op.PowerCapURI = url + "/Controls.Deep"
-			} else {
-				op.PowerCapURI = comp.PowerCapURI
-			}
-//			op.PowerCapURI = comp.PowerCapURI
+//			if comp.PowerCapControlsCount > 0 {
+//				// Use Controls.Deep URL for Cray EX hardware.
+//				pwrURL := comp.PowerCapURI
+//				url := path.Dir(pwrURL)
+//				op.PowerCapURI = url + "/Controls.Deep"
+//			} else {
+//				op.PowerCapURI = comp.PowerCapURI
+//			}
+			op.PowerCapURI = comp.PowerCapURI
 			op.PowerCaps = comp.PowerCaps
 			tempOps = append(tempOps, op)
 logger.Log.Infof("JW_DEBUG ----------> NOT CNTRLS: op.PowerCapURI=%s", op.PowerCapURI)
@@ -686,7 +686,7 @@ logger.Log.Infof("JW_DEBUG ----------> NOT CNTRLS: op.PowerCapURI=%s", op.PowerC
 				method = "PATCH"
 				path = op.RfFQDN + op.PowerCapURI
 			}
-logger.Log.Infof("JW_DEBUG ----------> doPowerCapTask: method=%s path=%s", method, path)
+logger.Log.Infof("JW_DEBUG ----------> doPowerCapTask: method=%s path=https://%s", method, path)
 			payload, _ := generatePowerCapPayload(op)
 			trsTaskList[trsTaskIdx].Request, _ = http.NewRequest(method, "https://"+path, bytes.NewBuffer(payload))
 			trsTaskList[trsTaskIdx].Request.Header.Set("Content-Type", "application/json")
@@ -797,7 +797,7 @@ logger.Log.Infof("JW_DEBUG ----------> generatePowerCapPayload: CNTRLS: op.Power
 				}
 			}
 			p.Members = append(p.Members, ctl)
-logger.Log.Infof("JW_DEBUG ----------> generatePowerCapPayload: CNTRLS: limit.CurrentValue=%d", limit.CurrentValue)
+logger.Log.Infof("JW_DEBUG ----------> generatePowerCapPayload: CNTRLS: limit.CurrentValue=%d", *limit.CurrentValue)
 		}
 		return json.Marshal(p)
 	} else if isHpeApollo6500(op.PowerCapURI) {
@@ -826,7 +826,7 @@ logger.Log.Infof("JW_DEBUG ----------> generatePowerCapPayload: is generic: op.P
 					LimitInWatts: limit.CurrentValue,
 				},
 			}
-logger.Log.Infof("JW_DEBUG ----------> generatePowerCapPayload: is generic: limit.CurrentValue=%d", limit.CurrentValue)
+logger.Log.Infof("JW_DEBUG ----------> generatePowerCapPayload: is generic: limit.CurrentValue=%d", *limit.CurrentValue)
 			p.PowerCtl[idx] = pCtl
 		}
 		return json.Marshal(p)
