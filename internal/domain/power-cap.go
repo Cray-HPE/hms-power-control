@@ -531,7 +531,9 @@ func doPowerCapTask(taskID uuid.UUID) {
 				if taskIsPatch {
 					// Use Controls.Deep URL for patching Cray EX hardware.
 					if op.PowerCapURI != "" {
-						url := path.Dir(op.PowerCapURI)
+						// Need to go up two levels from ../Controls/NodePowerLimit in order to replace
+						// Controls with Controls.Deep
+						url := path.Dir(path.Dir(op.PowerCapURI))
 						op.PowerCapURI = url + "/Controls.Deep"
 					}
 					// For a patch we only care about Controls.Deep so only need one op.  We came into this
