@@ -529,15 +529,14 @@ func doPowerCapTask(taskID uuid.UUID) {
 				op.PowerCapURI = pwrCtl.Path
 
 				if taskIsPatch {
-					// Use Controls.Deep URL for patching Cray EX hardware.
-					if op.PowerCapURI != "" {
-						// Need to go up two levels from ../Controls/NodePowerLimit in order to replace
-						// Controls with Controls.Deep
-						url := path.Dir(path.Dir(op.PowerCapURI))
-						op.PowerCapURI = url + "/Controls.Deep"
-					}
+					// Use Controls.Deep URL for patching Cray EX hardware.  To get there, need to
+					// go up two levels in the path from ../Controls/NodePowerLimit in order to
+					// replace Controls with Controls.Deep
+					url := path.Dir(path.Dir(op.PowerCapURI))
+					op.PowerCapURI = url + "/Controls.Deep"
+
 					// For a patch we only care about Controls.Deep so only need one op.  We came into this
-					// loop only to pick up the first pwrCtl.Path to form the /Controls.Deep URI
+					// loop only to pick up the first pwrCtl.Path to form the /Controls.Deep URL
 					op.PowerCaps = comp.PowerCaps
 					tempOps = append(tempOps, op)
 logger.Log.Infof("JW_DEBUG ----------> CNTRLS PATCH: op.PowerCapURI=%s", op.PowerCapURI)
