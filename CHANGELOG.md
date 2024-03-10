@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- CASMHMS-6146: Get correct PowerCapURI when doing a pcap with Controls
+- CASMHMS-6146: Generate correct PowerCapURI for Olympus hardware
 
 ## [2.1.0] - 2023-02-27
 
