@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,7 +35,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Cray-HPE/hms-base"
+	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/hsm"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
@@ -514,7 +514,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 			}
 		}
 		tempOps := []model.PowerCapOperation{}
-		if comp.PowerCapControlsCount > 0 && !taskIsPatch {
+		if comp.PowerCapControlsCount > 0 {
 			// When a component is using the Controls schema, it is because each available power control
 			// is located at a different URL. Make an operation for each URL.
 			for name, pwrCtl := range comp.PowerCaps {
@@ -526,20 +526,28 @@ func doPowerCapTask(taskID uuid.UUID) {
 				}
 				op := model.NewPowerCapOperation(task.TaskID, task.Type)
 				op.PowerCapURI = pwrCtl.Path
+
+				if taskIsPatch {
+					// Use Controls.Deep URL for patching Cray EX hardware.  To get there, need to
+					// go up two levels in the path from ../Controls/NodePowerLimit in order to
+					// replace Controls with Controls.Deep
+					url := path.Dir(path.Dir(op.PowerCapURI))
+					op.PowerCapURI = url + "/Controls.Deep"
+
+					// For a patch we only care about Controls.Deep so only need one op.  We came into this
+					// loop only to pick up the first pwrCtl.Path to form the /Controls.Deep URL
+					op.PowerCaps = comp.PowerCaps
+					tempOps = append(tempOps, op)
+					break
+				}
+
 				op.PowerCaps = make(map[string]hsm.PowerCap)
 				op.PowerCaps[name] = pwrCtl
 				tempOps = append(tempOps, op)
 			}
 		} else {
 			op := model.NewPowerCapOperation(task.TaskID, task.Type)
-			if comp.PowerCapControlsCount > 0 {
-				// Use Controls.Deep URL for Cray EX hardware.
-				pwrURL := comp.PowerCapURI
-				url := path.Dir(pwrURL)
-				op.PowerCapURI = url + "/Controls.Deep"
-			} else {
-				op.PowerCapURI = comp.PowerCapURI
-			}
+			op.PowerCapURI = comp.PowerCapURI
 			op.PowerCaps = comp.PowerCaps
 			tempOps = append(tempOps, op)
 		}
@@ -556,14 +564,14 @@ func doPowerCapTask(taskID uuid.UUID) {
 				// We only support node power capping
 				op.Status = model.PowerCapOpStatusUnsupported
 				op.Component.Error = "Type, " + comp.BaseData.Type + " unsupported for power capping"
-			} else if comp.PowerCapURI == "" {
+			} else if op.PowerCapURI == "" {
 				op.Status = model.PowerCapOpStatusFailed
 				op.Component.Error = "Missing Power Cap URI"
 			} else if comp.BaseData.Role == base.RoleManagement.String() {
 				// Power capping Management nodes is dangerous to the system. Lets not.
 				op.Status = model.PowerCapOpStatusUnsupported
 				op.Component.Error = "Power capping Management nodes is not supported"
-			} else if taskIsPatch && isHpeApollo6500(comp.PowerCapURI) && comp.PowerCapTargetURI == "" {
+			} else if taskIsPatch && isHpeApollo6500(op.PowerCapURI) && comp.PowerCapTargetURI == "" {
 				// Apollo 6500's use a separate URL target for setting
 				// power limits. We need PowerCapTargetURI from HSM.
 				op.Status = model.PowerCapOpStatusFailed
