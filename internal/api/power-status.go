@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,11 +23,14 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/domain"
+	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/sirupsen/logrus"
+	"io/ioutil"
 	"net/http"
 )
 
@@ -37,24 +40,11 @@ import (
 // e.g. Check to see if an PowerStatus filter (like xname) is valid type, not check if this xname is available in the system.
 // That is the responsibility of the domain layer.
 
-// GetPowerStatus - Returns the power status of the hardware
-func GetPowerStatus(w http.ResponseWriter, req *http.Request) {
+// Helper function that does the real work of GetPowerStatus and PostPowerStatus
+func doGetPowerStatus(w http.ResponseWriter,
+                      xnamesReq []string,
+                      powerStateFilterReq, managementStateFilterReq string) {
 	var pb model.Passback
-
-	/////////
-	// RETRIEVE PARAMS
-	/////////
-
-	queryParams := req.URL.Query()
-
-	//xnames really is an array
-	xnamesReq := queryParams["xname"]
-
-	//The specification only allows 1 instance of this to be passed; the .Get returns only a single instance
-	powerStateFilterReq := queryParams.Get("powerStateFilter")
-
-	//The specification only allows 1 instance of this to be passed; the .Get returns only a single instance
-	managementStateFilterReq := queryParams.Get("managementStateFilter")
 
 	///////////
 	// Validate Params & Cast to Types
@@ -93,5 +83,61 @@ func GetPowerStatus(w http.ResponseWriter, req *http.Request) {
 	pb = domain.GetPowerStatus(xnames, psf, msf)
 
 	WriteHeaders(w, pb)
+	return
+}
+
+// GetPowerStatus - Returns the power status of the hardware
+func GetPowerStatus(w http.ResponseWriter, req *http.Request) {
+	/////////
+	// RETRIEVE PARAMS
+	/////////
+
+	queryParams := req.URL.Query()
+
+	//xnames really is an array
+	xnamesReq := queryParams["xname"]
+
+	//The specification only allows 1 instance of this to be passed; the .Get returns only a single instance
+	powerStateFilterReq := queryParams.Get("powerStateFilter")
+
+	//The specification only allows 1 instance of this to be passed; the .Get returns only a single instance
+	managementStateFilterReq := queryParams.Get("managementStateFilter")
+
+	doGetPowerStatus(w, xnamesReq, powerStateFilterReq, managementStateFilterReq)
+	return
+}
+
+// PostPowerStatus - Returns the power status of the hardware, but
+// with the parameters being in the payload of the request
+func PostPowerStatus(w http.ResponseWriter, req *http.Request) {
+	var pb model.Passback
+	var parameters model.PowerStatusParameter
+	if req.Body != nil {
+		body, err := ioutil.ReadAll(req.Body)
+		logger.Log.WithFields(logrus.Fields{"body": string(body)}).Trace("Printing request body")
+
+		if err != nil {
+			pb := model.BuildErrorPassback(http.StatusInternalServerError, err)
+			logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error detected retrieving body")
+			WriteHeaders(w, pb)
+			return
+		}
+
+		err = json.Unmarshal(body, &parameters)
+		if err != nil {
+			pb = model.BuildErrorPassback(http.StatusBadRequest, err)
+			logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Unparseable json")
+			WriteHeaders(w, pb)
+			return
+		}
+	} else {
+		err := errors.New("empty body not allowed")
+		pb = model.BuildErrorPassback(http.StatusBadRequest, err)
+		logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("empty body")
+		WriteHeaders(w, pb)
+		return
+	}
+
+	doGetPowerStatus(w, parameters.Xnames, parameters.PowerStateFilter, parameters.ManagementStateFilter)
 	return
 }
