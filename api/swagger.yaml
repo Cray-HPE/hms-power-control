@@ -3,7 +3,7 @@ info:
   title: Power Control Service (PCS)
   license:
     name: MIT
-  version: "1.0"
+  version: "1.1"
   description: >-
     The Power Control Service (PCS) performs power-related operations on 
     system components - nodes, blades, and chassis. 
@@ -76,6 +76,8 @@ tags:
     description: Endpoints that retrieve power status of xnames
   - name: power-cap
     description: Endpoints that retrieve or set power cap parameters
+  - name: cli_ignore
+    description: Endpoints that should not be parsed by the Cray CLI generator
 
 servers:
   - url: https://api-gw-service-nmn.local/apis/power-control/v1
@@ -222,16 +224,13 @@ paths:
     get:
       summary: Retrieve the power state
       description: |
-        Retrieve the power state of the component specified by xname.
+        Retrieve the power state of the components specified by xname.
       parameters:
         - in: query
           name: xname
           required: false
           schema:
-            type: array
-            items:
-              type: string
-            minItems: 1
+            $ref: '#/components/schemas/non_empty_string_list'
           style: form
           explode: true
 
@@ -239,16 +238,14 @@ paths:
           name: powerStateFilter
           required: false
           schema:
-            type: string
-            enum: ["on",  "off", "undefined"]
+            $ref: '#/components/schemas/power_state'
           style: form
           explode: true
         - in: query
           name: managementStateFilter
           required: false
           schema:
-            type: string
-            enum: ["available", "unavailable"]
+            $ref: '#/components/schemas/management_state'
           style: form
           explode: true
       responses:
@@ -272,7 +269,39 @@ paths:
                 $ref: '#/components/schemas/Problem7807'
       tags:
         - power-status
-
+    post:
+      summary: Retrieve the power state
+      description: |
+        Retrieve the power state of the components specified by xname.
+      requestBody:
+        description: Node filtering parameters
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/power_status_get'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/power_status_all'
+        400:
+          description: Bad Request
+          content:
+            application/error:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
+        500:
+          description: Database error
+          content:
+            application/error:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
+      tags:
+        - power-status
+        - cli_ignore
 
   /power-cap/snapshot:
     post:
@@ -411,6 +440,7 @@ paths:
             Network API call success
         '503':
           description: The service is not taking HTTP requests
+  
   /readiness:
     get:
       tags:
@@ -426,6 +456,7 @@ paths:
             Network API call success
         '503':
           description: The service is not taking HTTP requests
+
   /health:
     get:
       tags:
@@ -474,19 +505,9 @@ components:
         xname:
           $ref: '#/components/schemas/xname'
         powerState:
-          type: string
-          example: on
-          enum:
-            - on
-            - off
-            - undefined
-          description: What the power state was detected.
+          $ref: '#/components/schemas/power_state'
         managementState:
-          type: string
-          description: Describes if the device is currently available for commands via its management controller
-          enum:
-            - unavailable
-            - available
+          $ref: '#/components/schemas/management_state'
         error:
           type: string
           nullable: true
@@ -517,6 +538,19 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/power_status'
+
+    power_status_get:
+      type: object
+      description: |
+        Filters to limit which nodes have their power status returned.
+      properties:
+        xname:
+          $ref: '#/components/schemas/non_empty_string_list'
+        powerStateFilter:
+          $ref: '#/components/schemas/power_state'
+        managementStateFilter:
+          $ref: '#/components/schemas/management_state'
+      additionalProperties: false
 
     transitions_getID:
       type: object
@@ -644,7 +678,6 @@ components:
           type: string
           example: "failed to achieve transition"
 
-
     reserved_location:
       type: object
       required:
@@ -683,7 +716,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/reserved_location'
-
 
     task_counts:
       type: object
@@ -732,6 +764,28 @@ components:
           type: string
           example: 'Description of HTTP Status code, e.g. 400'
 
+    power_state:
+      type: string
+      example: on
+      enum:
+        - on
+        - off
+        - undefined
+      description: The power state of a component.
+
+    management_state:
+      type: string
+      example: available
+      enum:
+        - unavailable
+        - available
+      description: Whether the device is currently available for commands via its management controller
+
+    non_empty_string_list:
+      type: array
+      items:
+        type: string
+      minItems: 1
 
     xname:
       type: string
@@ -772,7 +826,6 @@ components:
           type: integer
           example: 400
 
-
     op_task_start_response:
       type: object
       properties:
@@ -790,7 +843,6 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/rsp_power_cap_components'
-
 
     power_cap_task_list:
       type: object
@@ -823,7 +875,6 @@ components:
           example: "Completed"
         taskCounts:
           $ref: '#/components/schemas/task_counts'
-
 
     power_cap_snapshot_req:
       type: object
