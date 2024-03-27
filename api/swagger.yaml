@@ -3,7 +3,7 @@ info:
   title: Power Control Service (PCS)
   license:
     name: MIT
-  version: "1.0"
+  version: "1.1"
   description: >-
     The Power Control Service (PCS) performs power-related operations on 
     system components - nodes, blades, and chassis. 
@@ -222,7 +222,7 @@ paths:
     get:
       summary: Retrieve the power state
       description: |
-        Retrieve the power state of the component specified by xname.
+        Retrieve the power state of the components specified by xname.
       parameters:
         - in: query
           name: xname
@@ -272,6 +272,36 @@ paths:
                 $ref: '#/components/schemas/Problem7807'
       tags:
         - power-status
+    post:
+      summary: Retrieve the power state
+      description: |
+        Retrieve the power state of the components specified by xname.
+      requestBody:
+        description: Node filtering parameters
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/power_status_get'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/power_status_all'
+        400:
+          description: Bad Request
+          content:
+            application/error:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
+        500:
+          description: Database error
+          content:
+            application/error:
+              schema:
+                $ref: '#/components/schemas/Problem7807'
 
 
   /power-cap/snapshot:
@@ -517,6 +547,21 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/power_status'
+
+    power_status_get:
+      type: object
+      properties:
+        xname:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        powerStateFilter:
+          type: string
+          enum: ["on",  "off", "undefined"]
+        managementStateFilter:
+          type: string
+          enum: ["available", "unavailable"]
 
     transitions_getID:
       type: object
