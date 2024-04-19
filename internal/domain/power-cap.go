@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/url"
 	"path"
@@ -114,7 +115,7 @@ type PowerControl struct {
 	PowerAllocatedWatts *int             `json:"PowerAllocatedWatts,omitempty"`
 	PowerAvailableWatts *int             `json:"PowerAvailableWatts,omitempty"`
 	PowerCapacityWatts  *int             `json:"PowerCapacityWatts,omitempty"`
-	PowerConsumedWatts  *int             `json:"PowerConsumedWatts,omitempty"`
+	PowerConsumedWatts  *interface{}     `json:"PowerConsumedWatts,omitempty"`
 	PowerLimit          *PowerLimit      `json:"PowerLimit,omitempty"`
 	PowerMetrics        *PowerMetric     `json:"PowerMetrics,omitempty"`
 	PowerRequestedWatts *int             `json:"PowerRequestedWatts,omitempty"`
@@ -730,6 +731,25 @@ func doPowerCapTask(taskID uuid.UUID) {
 					if err != nil {
 						taskErr = err
 						break
+					}
+				}
+
+				// Convert PowerConsumedWatts to an int if not already (it's an interface{}
+				// type that can support ints and floats) - Needed for Foxconn Paradise,
+				// perhaps others in the future
+				for _, pwrCtl := range rfPower.PowerCtl {
+					if pwrCtl.PowerConsumedWatts != nil {
+						switch v := (*pwrCtl.PowerConsumedWatts).(type) {
+						case float64:	// Convert to int
+							logger.Log.Errorf("<========== JW_DEBUG ==========> before %v", v)
+							*pwrCtl.PowerConsumedWatts = math.Round(v)
+							logger.Log.Errorf("<========== JW_DEBUG ==========> after %v", *pwrCtl.PowerConsumedWatts)
+							logger.Log.WithFields(logrus.Fields{"type": *pwrCtl.PowerConsumedWatts, "value": *pwrCtl.PowerConsumedWatts}).Errorf("Unexpected type/value detected for PowerConsumedWatts, setting to 0\n")
+						case int:		// noop - no conversion needed
+						default:		// unexpected type, set to zero
+							*pwrCtl.PowerConsumedWatts = int(0)
+							logger.Log.WithFields(logrus.Fields{"type": *pwrCtl.PowerConsumedWatts, "value": *pwrCtl.PowerConsumedWatts}).Errorf("Unexpected type/value detected for PowerConsumedWatts, setting to 0\n")
+						}
 					}
 				}
 			}
