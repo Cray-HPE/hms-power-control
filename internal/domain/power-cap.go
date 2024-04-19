@@ -742,7 +742,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 						switch v := (*pwrCtl.PowerConsumedWatts).(type) {
 						case float64:	// Convert to int
 							logger.Log.Errorf("<========== JW_DEBUG ==========> before %v", v)
-							*pwrCtl.PowerConsumedWatts = math.Round(v)
+							*pwrCtl.PowerConsumedWatts = int(math.Round(v))
 							logger.Log.Errorf("<========== JW_DEBUG ==========> after %v", *pwrCtl.PowerConsumedWatts)
 							logger.Log.WithFields(logrus.Fields{"type": *pwrCtl.PowerConsumedWatts, "value": *pwrCtl.PowerConsumedWatts}).Errorf("Unexpected type/value detected for PowerConsumedWatts, setting to 0\n")
 						case int:		// noop - no conversion needed
