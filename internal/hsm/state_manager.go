@@ -545,7 +545,7 @@ func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmDa
 				Max:         max,
 				PwrCtlIndex: i,
 			}
-			logger.Log.Errorf("<========== JW_DEBUG ==========> extractPowerCapInfo: compData.PowerCaps[%v]=%v", ctl.Name, compData.PowerCaps[ctl.Name])
+			logger.Log.Errorf("<========== JW_DEBUG ==========> extractPowerCapInfo: min=%v max=%v i=%v", min, max, i)
 		}
 	}
 	return compData
