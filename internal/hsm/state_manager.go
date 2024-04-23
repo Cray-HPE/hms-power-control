@@ -1,17 +1,17 @@
 // MIT License
-// 
+//
 // (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
 // to deal in the Software without restriction, including without limitation
 // the rights to use, copy, modify, merge, publish, distribute, sublicense,
 // and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included
 // in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
@@ -19,7 +19,6 @@
 // OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
-
 
 package hsm
 
@@ -35,9 +34,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Cray-HPE/hms-base"
-	"github.com/Cray-HPE/hms-smd/v2/pkg/sm"
+	base "github.com/Cray-HPE/hms-base"
+	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	reservation "github.com/Cray-HPE/hms-smd/v2/pkg/service-reservations"
+	"github.com/Cray-HPE/hms-smd/v2/pkg/sm"
 	"github.com/sirupsen/logrus"
 )
 
@@ -489,6 +489,7 @@ func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmDa
 	compData.PowerCapControlsCount = len(rfSysInfo.Controls)
 	compData.PowerCapCtlInfoCount = len(rfSysInfo.PowerCtlInfo.PowerCtl)
 	if compData.PowerCapControlsCount > 0 {
+		logger.Log.Errorf("<========== JW_DEBUG ==========> extractPowerCapInfo: compData.PowerCapControlsCount=%v", compData.PowerCapControlsCount)
 		compData.PowerCaps = make(map[string]PowerCap)
 		for i, ctl := range rfSysInfo.Controls {
 			compData.PowerCaps[ctl.Control.Name] = PowerCap{
@@ -500,6 +501,7 @@ func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmDa
 			}
 		}
 	} else if compData.PowerCapCtlInfoCount > 0 {
+		logger.Log.Errorf("<========== JW_DEBUG ==========> extractPowerCapInfo: compData.PowerCapCtlInfoCount=%v", compData.PowerCapCtlInfoCount)
 		pwrCtl := rfSysInfo.PowerCtlInfo.PowerCtl[0]
 		if pwrCtl.OEM != nil && pwrCtl.OEM.HPE != nil && len(pwrCtl.OEM.HPE.Target) > 0 {
 			compData.PowerCapTargetURI = pwrCtl.OEM.HPE.Target
@@ -514,6 +516,7 @@ func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmDa
 				ctl.Name = "Node Power Limit"
 			}
 			if ctl.OEM != nil {
+				logger.Log.Errorf("<========== JW_DEBUG ==========> extractPowerCapInfo: ctl.OEM is not nil")
 				if ctl.OEM.Cray != nil {
 					min = ctl.OEM.Cray.PowerLimit.Min
 					max = ctl.OEM.Cray.PowerLimit.Max
@@ -542,6 +545,7 @@ func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmDa
 				Max:         max,
 				PwrCtlIndex: i,
 			}
+			logger.Log.Errorf("<========== JW_DEBUG ==========> extractPowerCapInfo: compData.PowerCaps[%v]=%v", ctl.Name, compData.PowerCaps[ctl.Name])
 		}
 	}
 	return compData

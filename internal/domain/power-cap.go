@@ -560,6 +560,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 			op.PowerCapURI = comp.PowerCapURI
 			logger.Log.Errorf("<========== JW_DEBUG ==========> op.PowerCapURI: %s", op.PowerCapURI)
 			op.PowerCaps = comp.PowerCaps
+			logger.Log.Errorf("<========== JW_DEBUG ==========> op.PowerCaps: %v", op.PowerCaps)
 			tempOps = append(tempOps, op)
 		}
 
