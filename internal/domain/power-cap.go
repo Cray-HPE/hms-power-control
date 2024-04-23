@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2025] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -469,7 +469,6 @@ func doPowerCapTask(taskID uuid.UUID) {
 			for _, id := range betterXnames {
 				if _, ok := hsmData[id]; !ok {
 					// This xname was not found in the response from HSM. Add a failed "Not found" operation for it.
-					logger.Log.Errorf("<========== JW_DEBUG ==========> xname not found")
 					op := model.NewPowerCapOperation(task.TaskID, task.Type)
 					op.Status = model.PowerCapOpStatusFailed
 					op.Component.Xname = id
@@ -486,12 +485,9 @@ func doPowerCapTask(taskID uuid.UUID) {
 
 	// Generate operations
 	for id, comp := range hsmData {
-		logger.Log.Errorf("<========== JW_DEBUG ==========> comp=%v", comp)
 		if taskIsPatch {
-			logger.Log.Errorf("<========== JW_DEBUG ==========> taskIsPatch")
 			if ctlMap, ok := patchParametersMap[id]; !ok {
 				// Shouldn't happen because all xnames from HSM SHOULD be in the patchParametersMap
-				logger.Log.Errorf("<========== JW_DEBUG ==========> continue")
 				continue
 			} else {
 				// Check that the power control that we want to affect exists in HSM.
@@ -499,7 +495,6 @@ func doPowerCapTask(taskID uuid.UUID) {
 				found := false
 				for name, _ := range ctlMap {
 					if _, ok := comp.PowerCaps[name]; !ok {
-						logger.Log.Errorf("<========== JW_DEBUG ==========> NOT FOUND")
 						op := model.NewPowerCapOperation(task.TaskID, task.Type)
 						op.Component.Xname = id
 						op.Status = model.PowerCapOpStatusFailed
@@ -510,14 +505,12 @@ func doPowerCapTask(taskID uuid.UUID) {
 							logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing power capping operation")
 						}
 					} else {
-						logger.Log.Errorf("<========== JW_DEBUG ==========> FOUND")
 						found = true
 					}
 				}
 				if !found {
 					// None of the requested power controls for this component are defined in HSM.
 					// Move on to the next component.
-					logger.Log.Errorf("<========== JW_DEBUG ==========> continue 2")
 					continue
 				}
 			}
@@ -526,7 +519,6 @@ func doPowerCapTask(taskID uuid.UUID) {
 		if comp.PowerCapControlsCount > 0 {
 			// When a component is using the Controls schema, it is because each available power control
 			// is located at a different URL. Make an operation for each URL.
-			logger.Log.Errorf("<========== JW_DEBUG ==========> FOUND CONTROLS WHEN SHOULDNT!!!")
 			for name, pwrCtl := range comp.PowerCaps {
 				if taskIsPatch {
 					if _, ok := patchParametersMap[id][name]; !ok {
@@ -558,9 +550,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 		} else {
 			op := model.NewPowerCapOperation(task.TaskID, task.Type)
 			op.PowerCapURI = comp.PowerCapURI
-			logger.Log.Errorf("<========== JW_DEBUG ==========> op.PowerCapURI: %s", op.PowerCapURI)
 			op.PowerCaps = comp.PowerCaps
-			logger.Log.Errorf("<========== JW_DEBUG ==========> op.PowerCaps: %v", op.PowerCaps)
 			tempOps = append(tempOps, op)
 		}
 
@@ -598,7 +588,6 @@ func doPowerCapTask(taskID uuid.UUID) {
 							// This power control isn't in our request. Skip it.
 							continue
 						}
-						logger.Log.Errorf("<========== JW_DEBUG ==========> pwrCtl=%v", pwrCtl)
 						// The value of Zero is used by most vendors as a method of turning off
 						// power capping so it is a valid option.
 						if pwrCtl.Min != -1 && val != 0 && val < pwrCtl.Min {
@@ -753,9 +742,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 					if pwrCtl.PowerConsumedWatts != nil {
 						switch v := (*pwrCtl.PowerConsumedWatts).(type) {
 						case float64:	// Convert to int
-							logger.Log.Errorf("<========== JW_DEBUG ==========> type/value before %T/%v", v, v)
 							*pwrCtl.PowerConsumedWatts = int(math.Round(v))
-							logger.Log.Errorf("<========== JW_DEBUG ==========> type/value after %T/%v", *pwrCtl.PowerConsumedWatts, *pwrCtl.PowerConsumedWatts)
 							logger.Log.WithFields(logrus.Fields{"type": reflect.TypeOf(*pwrCtl.PowerConsumedWatts), "value": *pwrCtl.PowerConsumedWatts}).Errorf("Unexpected type/value detected for PowerConsumedWatts, setting to 0\n")
 						case int:		// noop - no conversion needed
 						default:		// unexpected type, set to zero
