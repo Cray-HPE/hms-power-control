@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2022-2023,2025] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -35,7 +35,6 @@ import (
 	"time"
 
 	base "github.com/Cray-HPE/hms-base"
-	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	reservation "github.com/Cray-HPE/hms-smd/v2/pkg/service-reservations"
 	"github.com/Cray-HPE/hms-smd/v2/pkg/sm"
 	"github.com/sirupsen/logrus"
@@ -489,7 +488,6 @@ func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmDa
 	compData.PowerCapControlsCount = len(rfSysInfo.Controls)
 	compData.PowerCapCtlInfoCount = len(rfSysInfo.PowerCtlInfo.PowerCtl)
 	if compData.PowerCapControlsCount > 0 {
-		logger.Log.Errorf("<========== JW_DEBUG ==========> extractPowerCapInfo: compData.PowerCapControlsCount=%v", compData.PowerCapControlsCount)
 		compData.PowerCaps = make(map[string]PowerCap)
 		for i, ctl := range rfSysInfo.Controls {
 			compData.PowerCaps[ctl.Control.Name] = PowerCap{
@@ -501,7 +499,6 @@ func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmDa
 			}
 		}
 	} else if compData.PowerCapCtlInfoCount > 0 {
-		logger.Log.Errorf("<========== JW_DEBUG ==========> extractPowerCapInfo: compData.PowerCapCtlInfoCount=%v", compData.PowerCapCtlInfoCount)
 		pwrCtl := rfSysInfo.PowerCtlInfo.PowerCtl[0]
 		if pwrCtl.OEM != nil && pwrCtl.OEM.HPE != nil && len(pwrCtl.OEM.HPE.Target) > 0 {
 			compData.PowerCapTargetURI = pwrCtl.OEM.HPE.Target
@@ -510,13 +507,12 @@ func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmDa
 		isHpeApollo6500 := strings.Contains(compData.PowerCapURI, "AccPowerService/PowerLimit")
 		isHpeServer := strings.Contains(compData.PowerCapURI, "Chassis/1/Power")
 		for i, ctl := range rfSysInfo.PowerCtlInfo.PowerCtl {
-			var min int
-			var max int
+			var min int = -1
+			var max int = -1
 			if isHpeApollo6500 || isHpeServer {
 				ctl.Name = "Node Power Limit"
 			}
 			if ctl.OEM != nil {
-				logger.Log.Errorf("<========== JW_DEBUG ==========> extractPowerCapInfo: ctl.OEM is not nil")
 				if ctl.OEM.Cray != nil {
 					min = ctl.OEM.Cray.PowerLimit.Min
 					max = ctl.OEM.Cray.PowerLimit.Max
@@ -545,7 +541,6 @@ func extractPowerCapInfo(compData *HsmData, compEP *sm.ComponentEndpoint) *HsmDa
 				Max:         max,
 				PwrCtlIndex: i,
 			}
-			logger.Log.Errorf("<========== JW_DEBUG ==========> extractPowerCapInfo: min=%v max=%v i=%v", min, max, i)
 		}
 	}
 	return compData
