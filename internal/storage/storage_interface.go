@@ -54,7 +54,7 @@ type StorageProvider interface {
 
 	StoreTransition(transition model.Transition) error
 	StoreTransitionTask(task model.TransitionTask) error
-	GetTransition(transitionID uuid.UUID) (model.Transition, error)
+	GetTransition(transitionID uuid.UUID) (transition model.Transition, transtiionFirstPage model.Transition, err error)
 	GetTransitionTask(transitionID uuid.UUID, taskID uuid.UUID) (model.TransitionTask, error)
 	GetAllTasksForTransition(transitionID uuid.UUID) ([]model.TransitionTask, error)
 	GetAllTransitions() ([]model.Transition, error)
