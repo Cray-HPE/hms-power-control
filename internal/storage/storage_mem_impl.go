@@ -39,12 +39,13 @@ import (
 
 type MEMStorage struct {
 	Logger   *logrus.Logger
+	PageSize int
 	mutex    *sync.Mutex
 	kvHandle hmetcd.Kvi
 }
 
 func toETCDStorage(m *MEMStorage) *ETCDStorage {
-	return &ETCDStorage{Logger: m.Logger, mutex: m.mutex, kvHandle: m.kvHandle}
+	return &ETCDStorage{Logger: m.Logger, PageSize: m.PageSize, mutex: m.mutex, kvHandle: m.kvHandle}
 }
 
 func (m *MEMStorage) Init(Logger *logrus.Logger) error {
@@ -54,6 +55,10 @@ func (m *MEMStorage) Init(Logger *logrus.Logger) error {
 		m.Logger = logrus.New()
 	} else {
 		m.Logger = Logger
+	}
+
+	if m.PageSize == 0 {
+		m.PageSize = DefaultEtcdPageSize
 	}
 
 	m.mutex = &sync.Mutex{}
