@@ -45,6 +45,7 @@ import (
 
 // CreateTransition - creates a transition and will trigger a 'transition' flow
 func CreateTransition(w http.ResponseWriter, req *http.Request) {
+	// todo fix large number of xnames
 	var pb model.Passback
 	var parameters model.TransitionParameter
 	if req.Body != nil {

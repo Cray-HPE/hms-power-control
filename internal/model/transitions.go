@@ -104,6 +104,7 @@ type Transition struct {
 	IsCompressed bool                 `json:"isCompressed"`
 	TaskCounts   TransitionTaskCounts `json:"taskCounts"`
 	Tasks        []TransitionTaskResp `json:"tasks,omitempty"`
+	// todo check if saved to etcd
 }
 
 type TransitionTask struct {

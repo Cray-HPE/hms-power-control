@@ -235,6 +235,7 @@ func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
 
 func TriggerTransition(transition model.Transition) (pb model.Passback) {
 
+	// todo large xnames
 	// Store transition
 	err := (*GLOB.DSP).StoreTransition(transition)
 	if err != nil {
