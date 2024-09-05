@@ -107,6 +107,30 @@ func (e *ETCDStorage) kvGet(key string, val interface{}) error {
 	return err
 }
 
+func (e *ETCDStorage) GetTransitionOverflows(transitionId string) ([]model.TransitionOverflow, error) {
+	// todotodo
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	var overflows []model.TransitionOverflow
+	keyPrefix := fmt.Sprintf("%s/%s", keySegTransitionOverflow, transitionId)
+	key := e.fixUpKey(keyPrefix)
+	kvList, err := e.kvHandle.GetRange(key+keyMin, key+keyMax)
+	if err == nil {
+		for _, kv := range kvList {
+			var overflow model.TransitionOverflow
+			err = json.Unmarshal([]byte(kv.Value), &overflow)
+			if err != nil {
+				e.Logger.Error(err)
+			} else {
+				overflows = append(overflows, overflow)
+			}
+		}
+	} else {
+		e.Logger.Error(err)
+	}
+	return overflows, err
+}
+
 // if a key doesnt exist, etcd doesn't return an error
 func (e *ETCDStorage) kvDelete(key string) error {
 	e.mutex.Lock()
@@ -513,6 +537,12 @@ func (e *ETCDStorage) GetTransition(transitionID uuid.UUID) (model.Transition, e
 	if err != nil {
 		e.Logger.Error(err)
 	}
+
+	overflows, err := e.GetTransitionOverflows(transition.TransitionID.String())
+	for _, overflow := range overflows {
+		transition.Tasks = append(transition.Tasks, overflow.Tasks...)
+	}
+
 	return transition, err
 }
 
