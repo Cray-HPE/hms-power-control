@@ -43,19 +43,21 @@ import (
 // implementations.
 
 const (
-	kvUrlMemDefault         = "mem:"
-	kvUrlDefault            = kvUrlMemDefault //Default to in-memory implementation
-	kvRetriesDefault        = 5
-	keyPrefix               = "/pcs/"
-	keySegPowerStatusMaster = "/powerstatusmaster"
-	keySegPowerState        = "/powerstate"
-	keySegPowerCap          = "/powercaptask"
-	keySegPowerCapOp        = "/powercapop"
-	keySegTransition        = "/transition"
-	keySegTransitionTask    = "/transitiontask"
-	keySegTransitionStat    = "/transitionstat"
-	keyMin                  = " "
-	keyMax                  = "~"
+	kvUrlMemDefault                  = "mem:"
+	kvUrlDefault                     = kvUrlMemDefault //Default to in-memory implementation
+	kvRetriesDefault                 = 5
+	keyPrefix                        = "/pcs/"
+	keySegPowerStatusMaster          = "/powerstatusmaster"
+	keySegPowerState                 = "/powerstate"
+	keySegPowerCap                   = "/powercaptask"
+	keySegPowerCapOp                 = "/powercapop"
+	keySegTransition                 = "/transition"
+	keySegTransitionOverflowRegistry = "/transitionoverflowregistry"
+	keySegTransitionOverflow         = "/transitionoverflow"
+	keySegTransitionTask             = "/transitiontask"
+	keySegTransitionStat             = "/transitionstat"
+	keyMin                           = " "
+	keyMax                           = "~"
 )
 
 type ETCDStorage struct {
@@ -412,12 +414,84 @@ type WatchTransitionCBHandle struct {
 }
 
 func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
-	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
-	err := e.kvStore(key, transition)
+	tasks := transition.Tasks
+	for i := 0; i < 15000; i++ {
+		t := model.TransitionTaskResp{
+			Xname:          "x1000c0s0b0n0",
+			TaskStatus:     model.TransitionTaskStatusSucceeded,
+			TaskStatusDesc: fmt.Sprintf("The Description %d", i),
+			Error:          "",
+		}
+		tasks = append(tasks, t)
+	}
+	transition.Tasks = tasks
+	// todo
+
+	t, tOverflowRegistry, tOverflow := e.toExtendedFormat(transition)
+
+	key := fmt.Sprintf("%s/%s", keySegTransition, t.TransitionID.String())
+	err := e.kvStore(key, t)
 	if err != nil {
 		e.Logger.Error(err)
 	}
+
+	if tOverflowRegistry != nil {
+		// overflow retistry
+		key = fmt.Sprintf("%s/%s", keySegTransitionOverflowRegistry, tOverflowRegistry.TransitionID.String())
+		err = e.kvStore(key, tOverflowRegistry)
+		if err != nil {
+			e.Logger.Error(err)
+		}
+
+		for _, overflow := range tOverflow {
+
+			// overflow
+			key = fmt.Sprintf("%s/%s/%d", keySegTransitionOverflow, overflow.TransitionID.String(), overflow.Index)
+			err = e.kvStore(key, overflow)
+			if err != nil {
+				e.Logger.Error(err)
+			}
+		}
+	}
 	return err
+}
+
+func (e *ETCDStorage) toExtendedFormat(transition model.Transition) (model.Transition, *model.TransitionOverflowRegistry, []*model.TransitionOverflow) {
+	// chunkSize := 1500
+	chunkSize := 500
+	if len(transition.Tasks) > chunkSize {
+		var parts [][]model.TransitionTaskResp
+		for i := 0; i < len(transition.Tasks); i += chunkSize {
+			end := i + chunkSize
+			if end > len(transition.Tasks) {
+				end = len(transition.Tasks)
+			}
+			parts = append(parts, transition.Tasks[i:end])
+		}
+
+		registry := model.TransitionOverflowRegistry{
+			TransitionID:  transition.TransitionID,
+			OverflowCount: (len(parts) - 1),
+		}
+
+		transition.Tasks = parts[0]
+		var overflows []*model.TransitionOverflow
+		for i := 1; i < len(parts); i++ {
+			index := i - 1
+			id := fmt.Sprintf("%s_%d", transition.TransitionID.String(), index)
+			overflow := model.TransitionOverflow{
+				ID:           id,
+				TransitionID: transition.TransitionID,
+				Index:        index,
+				Tasks:        parts[i],
+			}
+
+			overflows = append(overflows, &overflow)
+		}
+		return transition, &registry, overflows
+	} else {
+		return transition, nil, nil
+	}
 }
 
 func (e *ETCDStorage) StoreTransitionTask(task model.TransitionTask) error {

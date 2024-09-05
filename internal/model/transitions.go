@@ -104,7 +104,18 @@ type Transition struct {
 	IsCompressed bool                 `json:"isCompressed"`
 	TaskCounts   TransitionTaskCounts `json:"taskCounts"`
 	Tasks        []TransitionTaskResp `json:"tasks,omitempty"`
-	// todo check if saved to etcd
+}
+
+type TransitionOverflowRegistry struct {
+	TransitionID  uuid.UUID `json:"transitionID"`
+	OverflowCount int       `json:"overflowCount,omitempty"`
+}
+
+type TransitionOverflow struct {
+	ID           string               `json:"ID"`
+	TransitionID uuid.UUID            `json:"transitionID"`
+	Index        int                  `json:"index"`
+	Tasks        []TransitionTaskResp `json:"tasks,omitempty"`
 }
 
 type TransitionTask struct {
