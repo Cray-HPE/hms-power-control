@@ -601,11 +601,26 @@ func (e *ETCDStorage) GetAllTransitions() ([]model.Transition, error) {
 
 func (e *ETCDStorage) DeleteTransition(transitionID uuid.UUID) error {
 	key := fmt.Sprintf("%s/%s", keySegTransition, transitionID.String())
+	var combinedErr error
 	err := e.kvDelete(key)
 	if err != nil {
 		e.Logger.Error(err)
+		combinedErr = wrapError(combinedErr, err)
 	}
-	return err
+	overflows, err := e.GetTransitionOverflows(transitionID.String())
+	if err != nil {
+		e.Logger.Error(err)
+		combinedErr = wrapError(combinedErr, err)
+	}
+	for _, overflow := range overflows {
+		key = fmt.Sprintf("%s/%s/%d", keySegTransitionOverflow, transitionID.String(), overflow.Index)
+		err = e.kvDelete(key)
+		if err != nil {
+			e.Logger.Error(err)
+			combinedErr = wrapError(combinedErr, err)
+		}
+	}
+	return combinedErr
 }
 
 func (e *ETCDStorage) DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.UUID) error {
@@ -624,4 +639,17 @@ func (e *ETCDStorage) TASTransition(transition model.Transition, testVal model.T
 		e.Logger.Error(err)
 	}
 	return ok, err
+}
+
+func wrapError(err0 error, err1 error) error {
+	if err0 != nil && err1 != nil {
+		return fmt.Errorf("%w; %w", err0, err1)
+	} else if err0 == nil && err1 != nil {
+		return err1
+	} else if err0 != nil && err1 == nil {
+		return err0
+	} else {
+		// err0 == nil && err1 == nil
+		return nil
+	}
 }
