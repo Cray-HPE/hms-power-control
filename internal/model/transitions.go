@@ -111,7 +111,7 @@ type TransitionOverflowRegistry struct {
 	OverflowCount int       `json:"overflowCount,omitempty"`
 }
 
-type TransitionOverflow struct {
+type TransitionTaskPage struct {
 	ID           string               `json:"ID"`
 	TransitionID uuid.UUID            `json:"transitionID"`
 	Index        int                  `json:"index"`

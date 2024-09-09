@@ -53,7 +53,7 @@ const (
 	keySegPowerCapOp                 = "/powercapop"
 	keySegTransition                 = "/transition"
 	keySegTransitionOverflowRegistry = "/transitionoverflowregistry"
-	keySegTransitionOverflow         = "/transitionoverflow"
+	keySegTransitionOverflow         = "/transitiontaskpage"
 	keySegTransitionTask             = "/transitiontask"
 	keySegTransitionStat             = "/transitionstat"
 	keyMin                           = " "
@@ -107,17 +107,17 @@ func (e *ETCDStorage) kvGet(key string, val interface{}) error {
 	return err
 }
 
-func (e *ETCDStorage) GetTransitionOverflows(transitionId string) ([]model.TransitionOverflow, error) {
+func (e *ETCDStorage) GetTransitionOverflows(transitionId string) ([]model.TransitionTaskPage, error) {
 	// todotodo
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
-	var overflows []model.TransitionOverflow
+	var overflows []model.TransitionTaskPage
 	keyPrefix := fmt.Sprintf("%s/%s", keySegTransitionOverflow, transitionId)
 	key := e.fixUpKey(keyPrefix)
 	kvList, err := e.kvHandle.GetRange(key+keyMin, key+keyMax)
 	if err == nil {
 		for _, kv := range kvList {
-			var overflow model.TransitionOverflow
+			var overflow model.TransitionTaskPage
 			err = json.Unmarshal([]byte(kv.Value), &overflow)
 			if err != nil {
 				e.Logger.Error(err)
@@ -480,7 +480,7 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 	return err
 }
 
-func (e *ETCDStorage) toExtendedFormat(transition model.Transition) (model.Transition, *model.TransitionOverflowRegistry, []*model.TransitionOverflow) {
+func (e *ETCDStorage) toExtendedFormat(transition model.Transition) (model.Transition, *model.TransitionOverflowRegistry, []*model.TransitionTaskPage) {
 	// chunkSize := 1500
 	chunkSize := 500
 	if len(transition.Tasks) > chunkSize {
@@ -499,11 +499,11 @@ func (e *ETCDStorage) toExtendedFormat(transition model.Transition) (model.Trans
 		}
 
 		transition.Tasks = parts[0]
-		var overflows []*model.TransitionOverflow
+		var overflows []*model.TransitionTaskPage
 		for i := 1; i < len(parts); i++ {
 			index := i - 1
 			id := fmt.Sprintf("%s_%d", transition.TransitionID.String(), index)
-			overflow := model.TransitionOverflow{
+			overflow := model.TransitionTaskPage{
 				ID:           id,
 				TransitionID: transition.TransitionID,
 				Index:        index,
