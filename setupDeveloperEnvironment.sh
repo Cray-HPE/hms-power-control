@@ -23,6 +23,6 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 
-docker-compose -f docker-compose.developer.environment.yaml up -d --build
+docker compose -f docker-compose.developer.environment.yaml up -d --build
 
 #docker run -it -p 29495:29495 --name pcs  pcs:0.0.1
