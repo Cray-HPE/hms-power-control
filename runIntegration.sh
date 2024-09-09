@@ -33,7 +33,7 @@ echo "COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}"
 echo "COMPOSE_FILE: $COMPOSE_FILE"
 
 function cleanup() {
-  docker-compose down
+  docker compose down
   if ! [[ $? -eq 0 ]]; then
     echo "Failed to decompose environment!"
     exit 1
@@ -42,9 +42,9 @@ function cleanup() {
 }
 
 echo "Starting containers..."
-docker-compose build
-docker-compose up  -d cray-power-control #this will stand up everythin except for the integration test container
-docker-compose up --exit-code-from integration-tests integration-tests
+docker compose build
+docker compose up  -d cray-power-control #this will stand up everythin except for the integration test container
+docker compose up --exit-code-from integration-tests integration-tests
 
 test_result=$?
 

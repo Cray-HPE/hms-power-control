@@ -23,4 +23,4 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 
-docker-compose -f docker-compose.developer.environment.yaml down
+docker compose -f docker-compose.developer.environment.yaml down

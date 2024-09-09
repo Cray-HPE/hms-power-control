@@ -23,4 +23,4 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 
-docker-compose -f docker-compose.developer.full.yaml up -d --build
+docker compose -f docker-compose.developer.full.yaml up -d --build
