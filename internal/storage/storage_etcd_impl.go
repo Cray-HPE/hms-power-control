@@ -43,21 +43,20 @@ import (
 // implementations.
 
 const (
-	kvUrlMemDefault                  = "mem:"
-	kvUrlDefault                     = kvUrlMemDefault //Default to in-memory implementation
-	kvRetriesDefault                 = 5
-	keyPrefix                        = "/pcs/"
-	keySegPowerStatusMaster          = "/powerstatusmaster"
-	keySegPowerState                 = "/powerstate"
-	keySegPowerCap                   = "/powercaptask"
-	keySegPowerCapOp                 = "/powercapop"
-	keySegTransition                 = "/transition"
-	keySegTransitionOverflowRegistry = "/transitionoverflowregistry"
-	keySegTransitionOverflow         = "/transitiontaskpage"
-	keySegTransitionTask             = "/transitiontask"
-	keySegTransitionStat             = "/transitionstat"
-	keyMin                           = " "
-	keyMax                           = "~"
+	kvUrlMemDefault          = "mem:"
+	kvUrlDefault             = kvUrlMemDefault //Default to in-memory implementation
+	kvRetriesDefault         = 5
+	keyPrefix                = "/pcs/"
+	keySegPowerStatusMaster  = "/powerstatusmaster"
+	keySegPowerState         = "/powerstate"
+	keySegPowerCap           = "/powercaptask"
+	keySegPowerCapOp         = "/powercapop"
+	keySegTransition         = "/transition"
+	keySegTransitionTaskPage = "/transitiontaskpage"
+	keySegTransitionTask     = "/transitiontask"
+	keySegTransitionStat     = "/transitionstat"
+	keyMin                   = " "
+	keyMax                   = "~"
 )
 
 type ETCDStorage struct {
@@ -107,28 +106,28 @@ func (e *ETCDStorage) kvGet(key string, val interface{}) error {
 	return err
 }
 
-func (e *ETCDStorage) GetTransitionOverflows(transitionId string) ([]model.TransitionTaskPage, error) {
+func (e *ETCDStorage) GetTransitionTaskPages(transitionId string) ([]model.TransitionTaskPage, error) {
 	// todotodo
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
-	var overflows []model.TransitionTaskPage
-	keyPrefix := fmt.Sprintf("%s/%s", keySegTransitionOverflow, transitionId)
+	var pages []model.TransitionTaskPage
+	keyPrefix := fmt.Sprintf("%s/%s", keySegTransitionTaskPage, transitionId)
 	key := e.fixUpKey(keyPrefix)
 	kvList, err := e.kvHandle.GetRange(key+keyMin, key+keyMax)
 	if err == nil {
 		for _, kv := range kvList {
-			var overflow model.TransitionTaskPage
-			err = json.Unmarshal([]byte(kv.Value), &overflow)
+			var page model.TransitionTaskPage
+			err = json.Unmarshal([]byte(kv.Value), &page)
 			if err != nil {
 				e.Logger.Error(err)
 			} else {
-				overflows = append(overflows, overflow)
+				pages = append(pages, page)
 			}
 		}
 	} else {
 		e.Logger.Error(err)
 	}
-	return overflows, err
+	return pages, err
 }
 
 // if a key doesnt exist, etcd doesn't return an error
@@ -451,7 +450,7 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 	transition.Tasks = tasks
 	// todo
 
-	t, tOverflow := e.breakIntoPagesIfNeeded(transition)
+	t, tPages := e.breakIntoPagesIfNeeded(transition)
 
 	key := fmt.Sprintf("%s/%s", keySegTransition, t.TransitionID.String())
 	err := e.kvStore(key, t)
@@ -459,11 +458,11 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 		e.Logger.Error(err)
 	}
 
-	for _, overflow := range tOverflow {
+	for _, page := range tPages {
 
-		// overflow
-		key = fmt.Sprintf("%s/%s/%d", keySegTransitionOverflow, overflow.TransitionID.String(), overflow.Index)
-		err = e.kvStore(key, overflow)
+		// Task pages
+		key = fmt.Sprintf("%s/%s/%d", keySegTransitionTaskPage, page.TransitionID.String(), page.Index)
+		err = e.kvStore(key, page)
 		if err != nil {
 			e.Logger.Error(err)
 		}
@@ -485,20 +484,20 @@ func (e *ETCDStorage) breakIntoPagesIfNeeded(transition model.Transition) (model
 		}
 
 		transition.Tasks = parts[0]
-		var overflows []*model.TransitionTaskPage
+		var pages []*model.TransitionTaskPage
 		for i := 1; i < len(parts); i++ {
 			index := i - 1
 			id := fmt.Sprintf("%s_%d", transition.TransitionID.String(), index)
-			overflow := model.TransitionTaskPage{
+			page := model.TransitionTaskPage{
 				ID:           id,
 				TransitionID: transition.TransitionID,
 				Index:        index,
 				Tasks:        parts[i],
 			}
 
-			overflows = append(overflows, &overflow)
+			pages = append(pages, &page)
 		}
-		return transition, overflows
+		return transition, pages
 	} else {
 		return transition, nil
 	}
@@ -524,9 +523,9 @@ func (e *ETCDStorage) GetTransition(transitionID uuid.UUID) (model.Transition, e
 		e.Logger.Error(err)
 	}
 
-	overflows, err := e.GetTransitionOverflows(transition.TransitionID.String())
-	for _, overflow := range overflows {
-		transition.Tasks = append(transition.Tasks, overflow.Tasks...)
+	pages, err := e.GetTransitionTaskPages(transition.TransitionID.String())
+	for _, page := range pages {
+		transition.Tasks = append(transition.Tasks, page.Tasks...)
 	}
 
 	return transition, err
@@ -593,13 +592,13 @@ func (e *ETCDStorage) DeleteTransition(transitionID uuid.UUID) error {
 		e.Logger.Error(err)
 		combinedErr = wrapError(combinedErr, err)
 	}
-	overflows, err := e.GetTransitionOverflows(transitionID.String())
+	pages, err := e.GetTransitionTaskPages(transitionID.String())
 	if err != nil {
 		e.Logger.Error(err)
 		combinedErr = wrapError(combinedErr, err)
 	}
-	for _, overflow := range overflows {
-		key = fmt.Sprintf("%s/%s/%d", keySegTransitionOverflow, transitionID.String(), overflow.Index)
+	for _, page := range pages {
+		key = fmt.Sprintf("%s/%s/%d", keySegTransitionTaskPage, transitionID.String(), page.Index)
 		err = e.kvDelete(key)
 		if err != nil {
 			e.Logger.Error(err)
