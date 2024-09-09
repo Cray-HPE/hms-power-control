@@ -106,7 +106,7 @@ type Transition struct {
 	Tasks        []TransitionTaskResp `json:"tasks,omitempty"`
 }
 
-type TransitionTaskPage struct {
+type TransitionPage struct {
 	ID           string               `json:"ID"`
 	TransitionID uuid.UUID            `json:"transitionID"`
 	Index        int                  `json:"index"`
