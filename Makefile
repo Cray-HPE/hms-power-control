@@ -43,3 +43,4 @@ ct:
 
 ct_image:
 	docker build --no-cache -f test/ct/Dockerfile test/ct/ --tag cray-power-control-hmth-test:${VERSION}
+
