@@ -26,6 +26,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -115,6 +117,7 @@ func (e *ETCDStorage) GetTransitionPages(transitionId string) ([]model.Transitio
 	key := e.fixUpKey(keyPrefix)
 	kvList, err := e.kvHandle.GetRange(key+keyMin, key+keyMax)
 	if err == nil {
+		e.sortTransitionPages(kvList)
 		for _, kv := range kvList {
 			var page model.TransitionPage
 			err = json.Unmarshal([]byte(kv.Value), &page)
@@ -128,6 +131,24 @@ func (e *ETCDStorage) GetTransitionPages(transitionId string) ([]model.Transitio
 		e.Logger.Error(err)
 	}
 	return pages, err
+}
+
+func (e *ETCDStorage) sortTransitionPages(list []hmetcd.Kvi_KV) {
+	sort.Slice(list, func(i, j int) bool {
+		key0 := list[i].Key
+		key0Sufix := key0[strings.LastIndex(key0, "/")+1:]
+		key1 := list[j].Key
+		key1Sufix := key1[strings.LastIndex(key1, "/")+1:]
+		key0Int, err := strconv.Atoi(key0Sufix)
+		if err != nil {
+			e.Logger.Errorf("Expected last part to be an int in %s. %s", key0, err)
+		}
+		key1Int, err := strconv.Atoi(key1Sufix)
+		if err != nil {
+			e.Logger.Errorf("Expected last part to be an int in %s, %s", key0, err)
+		}
+		return key0Int < key1Int
+	})
 }
 
 // if a key doesnt exist, etcd doesn't return an error
