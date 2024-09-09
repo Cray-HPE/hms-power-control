@@ -106,11 +106,6 @@ type Transition struct {
 	Tasks        []TransitionTaskResp `json:"tasks,omitempty"`
 }
 
-type TransitionOverflowRegistry struct {
-	TransitionID  uuid.UUID `json:"transitionID"`
-	OverflowCount int       `json:"overflowCount,omitempty"`
-}
-
 type TransitionTaskPage struct {
 	ID           string               `json:"ID"`
 	TransitionID uuid.UUID            `json:"transitionID"`

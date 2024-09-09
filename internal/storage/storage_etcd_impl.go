@@ -451,7 +451,7 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 	transition.Tasks = tasks
 	// todo
 
-	t, tOverflowRegistry, tOverflow := e.toExtendedFormat(transition)
+	t, tOverflow := e.breakIntoPagesIfNeeded(transition)
 
 	key := fmt.Sprintf("%s/%s", keySegTransition, t.TransitionID.String())
 	err := e.kvStore(key, t)
@@ -459,28 +459,19 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 		e.Logger.Error(err)
 	}
 
-	if tOverflowRegistry != nil {
-		// overflow retistry
-		key = fmt.Sprintf("%s/%s", keySegTransitionOverflowRegistry, tOverflowRegistry.TransitionID.String())
-		err = e.kvStore(key, tOverflowRegistry)
+	for _, overflow := range tOverflow {
+
+		// overflow
+		key = fmt.Sprintf("%s/%s/%d", keySegTransitionOverflow, overflow.TransitionID.String(), overflow.Index)
+		err = e.kvStore(key, overflow)
 		if err != nil {
 			e.Logger.Error(err)
-		}
-
-		for _, overflow := range tOverflow {
-
-			// overflow
-			key = fmt.Sprintf("%s/%s/%d", keySegTransitionOverflow, overflow.TransitionID.String(), overflow.Index)
-			err = e.kvStore(key, overflow)
-			if err != nil {
-				e.Logger.Error(err)
-			}
 		}
 	}
 	return err
 }
 
-func (e *ETCDStorage) toExtendedFormat(transition model.Transition) (model.Transition, *model.TransitionOverflowRegistry, []*model.TransitionTaskPage) {
+func (e *ETCDStorage) breakIntoPagesIfNeeded(transition model.Transition) (model.Transition, []*model.TransitionTaskPage) {
 	// chunkSize := 1500
 	chunkSize := 500
 	if len(transition.Tasks) > chunkSize {
@@ -491,11 +482,6 @@ func (e *ETCDStorage) toExtendedFormat(transition model.Transition) (model.Trans
 				end = len(transition.Tasks)
 			}
 			parts = append(parts, transition.Tasks[i:end])
-		}
-
-		registry := model.TransitionOverflowRegistry{
-			TransitionID:  transition.TransitionID,
-			OverflowCount: (len(parts) - 1),
 		}
 
 		transition.Tasks = parts[0]
@@ -512,9 +498,9 @@ func (e *ETCDStorage) toExtendedFormat(transition model.Transition) (model.Trans
 
 			overflows = append(overflows, &overflow)
 		}
-		return transition, &registry, overflows
+		return transition, overflows
 	} else {
-		return transition, nil, nil
+		return transition, nil
 	}
 }
 
