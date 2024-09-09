@@ -1,5 +1,6 @@
 .idea
 pcsbinary
+*.swp
 
 # Prevent certificates from getting checked in
 *.ca
