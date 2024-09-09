@@ -542,6 +542,7 @@ func (e *ETCDStorage) GetTransition(transitionID uuid.UUID) (model.Transition, e
 	err := e.kvGet(key, &transition)
 	if err != nil {
 		e.Logger.Error(err)
+		return transition, err
 	}
 
 	pages, err := e.GetTransitionPages(transition.TransitionID.String())
@@ -649,7 +650,7 @@ func (e *ETCDStorage) TASTransition(transition model.Transition, testVal model.T
 
 func wrapError(err0 error, err1 error) error {
 	if err0 != nil && err1 != nil {
-		return fmt.Errorf("%w; %w", err0, err1)
+		return fmt.Errorf("%s; %w", err0, err1)
 	} else if err0 == nil && err1 != nil {
 		return err1
 	} else if err0 != nil && err1 == nil {
