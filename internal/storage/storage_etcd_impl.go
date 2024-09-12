@@ -487,22 +487,22 @@ func (e *ETCDStorage) breakIntoPagesIfNeeded(transition model.Transition) (model
 	chunkSize := 500
 	e.Logger.Infof("TRACE: chunkSize: %d", chunkSize)
 	if len(transition.Tasks) > chunkSize || len(transition.Location) > chunkSize {
-		parts := e.pageTasks(transition, chunkSize)
+		taskPages := e.pageTasks(transition, chunkSize)
 		locationPages := e.pageLocations(transition, chunkSize)
-		e.Logger.Infof("TRACE: tasks page count: %d", len(parts))
+		e.Logger.Infof("TRACE: tasks page count: %d", len(taskPages))
 		e.Logger.Infof("TRACE: location page count: %d", len(locationPages))
 
 		var pages []*model.TransitionPage
-		if len(parts) > 0 {
-			transition.Tasks = parts[0]
-			for i := 1; i < len(parts); i++ {
+		if len(taskPages) > 0 {
+			transition.Tasks = taskPages[0]
+			for i := 1; i < len(taskPages); i++ {
 				index := i - 1
 				id := fmt.Sprintf("%s_%d", transition.TransitionID.String(), index)
 				page := model.TransitionPage{
 					ID:           id,
 					TransitionID: transition.TransitionID,
 					Index:        index,
-					Tasks:        parts[i],
+					Tasks:        taskPages[i],
 				}
 
 				pages = append(pages, &page)
