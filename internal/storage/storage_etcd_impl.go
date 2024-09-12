@@ -458,19 +458,6 @@ type WatchTransitionCBHandle struct {
 }
 
 func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
-	// tasks := transition.Tasks
-	// for i := 0; i < 15000; i++ {
-	// 	t := model.TransitionTaskResp{
-	// 		Xname:          "x1000c0s0b0n0",
-	// 		TaskStatus:     model.TransitionTaskStatusSucceeded,
-	// 		TaskStatusDesc: fmt.Sprintf("The Description %d", i),
-	// 		Error:          "",
-	// 	}
-	// 	tasks = append(tasks, t)
-	// }
-	// transition.Tasks = tasks
-	// todo
-
 	t, tPages := e.breakIntoPagesIfNeeded(transition)
 	e.Logger.Infof("TRACE: task count: %d", len(t.Tasks))
 	e.Logger.Infof("TRACE: location count: %d", len(t.Location))
