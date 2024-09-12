@@ -492,40 +492,37 @@ func (e *ETCDStorage) breakIntoPagesIfNeeded(transition model.Transition) (model
 		e.Logger.Infof("TRACE: tasks page count: %d", len(taskPages))
 		e.Logger.Infof("TRACE: location page count: %d", len(locationPages))
 
-		var pages []*model.TransitionPage
-		if len(taskPages) > 0 {
-			transition.Tasks = taskPages[0]
-			for i := 1; i < len(taskPages); i++ {
-				index := i - 1
-				id := fmt.Sprintf("%s_%d", transition.TransitionID.String(), index)
-				page := model.TransitionPage{
-					ID:           id,
-					TransitionID: transition.TransitionID,
-					Index:        index,
-					Tasks:        taskPages[i],
-				}
-
-				pages = append(pages, &page)
-			}
+		// pick the largest page count
+		pageCount := 0
+		if len(taskPages) > pageCount {
+			pageCount = len(taskPages)
+		}
+		if len(locationPages) > pageCount {
+			pageCount = len(locationPages)
 		}
 
-		if len(locationPages) > 0 {
-			transition.Location = locationPages[0]
-			for i := 1; i < len(locationPages); i++ {
-				if i > len(pages) {
-					index := i - 1
-					id := fmt.Sprintf("%s_%d", transition.TransitionID.String(), index)
-					page := model.TransitionPage{
-						ID:           id,
-						TransitionID: transition.TransitionID,
-						Index:        index,
-						Location:     locationPages[i],
-					}
-					pages = append(pages, &page)
-				} else {
-					pages[i-1].Location = locationPages[i]
-				}
+		// build pages
+		var pages []*model.TransitionPage
+		for i := 0; i < pageCount; i++ {
+			index := i - 1
+			id := fmt.Sprintf("%s_%d", transition.TransitionID.String(), index)
+			page := model.TransitionPage{
+				ID:           id,
+				TransitionID: transition.TransitionID,
+				Index:        index,
 			}
+
+			pages = append(pages, &page)
+		}
+
+		// fill in tasks on each page
+		for i := 1; i < len(taskPages); i++ {
+			pages[i-1].Tasks = taskPages[i]
+		}
+
+		// fill in locations on each page
+		for i := 1; i < len(locationPages); i++ {
+			pages[i-1].Location = locationPages[i]
 		}
 		return transition, pages
 	} else {
