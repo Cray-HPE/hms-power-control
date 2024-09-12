@@ -472,6 +472,9 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 	// todo
 
 	t, tPages := e.breakIntoPagesIfNeeded(transition)
+	e.Logger.Infof("TRACE: task count: %d", len(t.Tasks))
+	e.Logger.Infof("TRACE: location count: %d", len(t.Location))
+	e.Logger.Infof("TRACE: page count: %d", len(tPages))
 
 	key := fmt.Sprintf("%s/%s", keySegTransition, t.TransitionID.String())
 	err := e.kvStore(key, t)
@@ -481,6 +484,7 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 
 	for _, page := range tPages {
 
+		e.Logger.Infof("TRACE: page %d count: %d", page.Index, len(page.Tasks))
 		// Task pages
 		key = fmt.Sprintf("%s/%s/%d", keySegTransitionPage, page.TransitionID.String(), page.Index)
 		err = e.kvStore(key, page)
@@ -494,34 +498,84 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 func (e *ETCDStorage) breakIntoPagesIfNeeded(transition model.Transition) (model.Transition, []*model.TransitionPage) {
 	// chunkSize := 1500
 	chunkSize := 500
-	if len(transition.Tasks) > chunkSize {
-		var parts [][]model.TransitionTaskResp
-		for i := 0; i < len(transition.Tasks); i += chunkSize {
-			end := i + chunkSize
-			if end > len(transition.Tasks) {
-				end = len(transition.Tasks)
+	e.Logger.Infof("TRACE: chunkSize: %d", chunkSize)
+	if len(transition.Tasks) > chunkSize || len(transition.Location) > chunkSize {
+		parts := e.pageTasks(transition, chunkSize)
+		locationPages := e.pageLocations(transition, chunkSize)
+		e.Logger.Infof("TRACE: tasks page count: %d", len(parts))
+		e.Logger.Infof("TRACE: location page count: %d", len(locationPages))
+
+		var pages []*model.TransitionPage
+		if len(parts) > 0 {
+			transition.Tasks = parts[0]
+			for i := 1; i < len(parts); i++ {
+				index := i - 1
+				id := fmt.Sprintf("%s_%d", transition.TransitionID.String(), index)
+				page := model.TransitionPage{
+					ID:           id,
+					TransitionID: transition.TransitionID,
+					Index:        index,
+					Tasks:        parts[i],
+				}
+
+				pages = append(pages, &page)
 			}
-			parts = append(parts, transition.Tasks[i:end])
 		}
 
-		transition.Tasks = parts[0]
-		var pages []*model.TransitionPage
-		for i := 1; i < len(parts); i++ {
-			index := i - 1
-			id := fmt.Sprintf("%s_%d", transition.TransitionID.String(), index)
-			page := model.TransitionPage{
-				ID:           id,
-				TransitionID: transition.TransitionID,
-				Index:        index,
-				Tasks:        parts[i],
+		if len(locationPages) > 0 {
+			transition.Location = locationPages[0]
+			for i := 1; i < len(locationPages); i++ {
+				if i > len(pages) {
+					index := i - 1
+					id := fmt.Sprintf("%s_%d", transition.TransitionID.String(), index)
+					page := model.TransitionPage{
+						ID:           id,
+						TransitionID: transition.TransitionID,
+						Index:        index,
+						Location:     locationPages[i],
+					}
+					pages = append(pages, &page)
+				} else {
+					pages[i-1].Location = locationPages[i]
+				}
 			}
-
-			pages = append(pages, &page)
 		}
 		return transition, pages
 	} else {
 		return transition, nil
 	}
+}
+
+func (e *ETCDStorage) pageTasks(transition model.Transition, chunkSize int) [][]model.TransitionTaskResp {
+	var pages [][]model.TransitionTaskResp
+	if len(transition.Tasks) > chunkSize {
+		for i := 0; i < len(transition.Tasks); i += chunkSize {
+			end := i + chunkSize
+			if end > len(transition.Tasks) {
+				end = len(transition.Tasks)
+			}
+			pages = append(pages, transition.Tasks[i:end])
+		}
+	} else {
+		pages = append(pages, transition.Tasks)
+	}
+	return pages
+}
+
+func (e *ETCDStorage) pageLocations(transition model.Transition, chunkSize int) [][]model.LocationParameter {
+	var pages [][]model.LocationParameter
+	if len(transition.Location) > chunkSize {
+		for i := 0; i < len(transition.Location); i += chunkSize {
+			end := i + chunkSize
+			if end > len(transition.Location) {
+				end = len(transition.Location)
+			}
+			pages = append(pages, transition.Location[i:end])
+		}
+	} else {
+		pages = append(pages, transition.Location)
+	}
+	return pages
 }
 
 func (e *ETCDStorage) StoreTransitionTask(task model.TransitionTask) error {

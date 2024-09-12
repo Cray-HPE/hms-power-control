@@ -110,6 +110,7 @@ type TransitionPage struct {
 	ID           string               `json:"ID"`
 	TransitionID uuid.UUID            `json:"transitionID"`
 	Index        int                  `json:"index"`
+	Location     []LocationParameter  `json:"location"`
 	Tasks        []TransitionTaskResp `json:"tasks,omitempty"`
 }
 
