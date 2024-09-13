@@ -459,19 +459,17 @@ type WatchTransitionCBHandle struct {
 
 func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 	t, tPages := e.breakIntoPagesIfNeeded(transition)
-	e.Logger.Infof("TRACE: task count: %d", len(t.Tasks))
-	e.Logger.Infof("TRACE: location count: %d", len(t.Location))
-	e.Logger.Infof("TRACE: page count: %d", len(tPages))
+	e.Logger.Infof("TRACE: task count: %d, location count %d, page count: %d", len(t.Tasks), len(t.Location), len(tPages))
 
 	key := fmt.Sprintf("%s/%s", keySegTransition, t.TransitionID.String())
+	e.Logger.Infof("TRACE: task key: %s", key)
 	err := e.kvStore(key, t)
 	if err != nil {
 		e.Logger.Error(err)
 	}
 
 	for _, page := range tPages {
-
-		e.Logger.Infof("TRACE: page %d count: %d", page.Index, len(page.Tasks))
+		// e.Logger.Infof("TRACE: page %d count: %d", page.Index, len(page.Tasks))
 		// Task pages
 		key = fmt.Sprintf("%s/%s/%d", keySegTransitionPage, page.TransitionID.String(), page.Index)
 		err = e.kvStore(key, page)
@@ -500,10 +498,20 @@ func (e *ETCDStorage) breakIntoPagesIfNeeded(transition model.Transition) (model
 		if len(locationPages) > pageCount {
 			pageCount = len(locationPages)
 		}
+		if len(taskPages) > 0 {
+			transition.Tasks = taskPages[0]
+		} else {
+			e.Logger.Errorf("Task pages empty. There should be at least one. TaskID: %s", transition.TransitionID)
+		}
+		if len(locationPages) > 0 {
+			transition.Location = locationPages[0]
+		} else {
+			e.Logger.Errorf("Location pages empty. There should be at least one. TaskID: %s", transition.TransitionID)
+		}
 
 		// build pages
 		var pages []*model.TransitionPage
-		for i := 0; i < pageCount; i++ {
+		for i := 1; i < pageCount; i++ {
 			index := i - 1
 			id := fmt.Sprintf("%s_%d", transition.TransitionID.String(), index)
 			page := model.TransitionPage{
