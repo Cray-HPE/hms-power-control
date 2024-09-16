@@ -24,6 +24,7 @@ package storage
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
@@ -31,8 +32,8 @@ import (
 )
 
 func TestPageTasks(t *testing.T) {
-	e := newETCDStorageForTesting()
-	//
+	e := newETCDStorageForTesting(t)
+
 	transition := createTransition(50, 50)
 	pageTasks := e.pageTasks(transition, 10)
 	assertTrue(t, "Expected five pages", len(pageTasks) == 5, 5, len(pageTasks))
@@ -85,12 +86,27 @@ func assertTrue(t *testing.T, message string, condition bool, expected interface
 	}
 }
 
-func newETCDStorageForTesting() *ETCDStorage {
+func newETCDStorageForTesting(t *testing.T) *ETCDStorage {
+	t.Logf("Using empty etcdStorage.")
 	etcdStorage := &ETCDStorage{
 		Logger: logger.Log,
 	}
-
 	return etcdStorage
+}
+
+func newStorageProvider(t *testing.T) *StorageProvider {
+	var ms StorageProvider
+	if (os.Getenv("ETCD_HOST") != "") && (os.Getenv("ETCD_PORT") != "") {
+		t.Logf("Using ETCD backing store.")
+		ms = &ETCDStorage{}
+		// ds = &ETCDLockProvider{}
+	} else {
+		t.Logf("Using In-Memory backing store.")
+		ms = &MEMStorage{}
+		// ds = &MEMLockProvider{}
+	}
+
+	return &ms
 }
 
 func createTransition(locationCount, taskCount int) model.Transition {
@@ -100,7 +116,9 @@ func createTransition(locationCount, taskCount int) model.Transition {
 		transition.Location = append(transition.Location, location)
 	}
 	for i := 0; i < taskCount; i++ {
-		task := model.TransitionTaskResp{}
+		task := model.TransitionTaskResp{
+			Xname: fmt.Sprintf("x8000c0s0b0n%d", i),
+		}
 		transition.Tasks = append(transition.Tasks, task)
 	}
 	return transition
