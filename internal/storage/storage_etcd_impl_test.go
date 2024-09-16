@@ -35,17 +35,48 @@ func TestPageTasks(t *testing.T) {
 	//
 	transition := createTransition(50, 50)
 	pageTasks := e.pageTasks(transition, 10)
+	assertTrue(t, "Expected five pages", len(pageTasks) == 5, 5, len(pageTasks))
 	expectedLength := 10
 	for i, page := range pageTasks {
 		assertTrue(t,
-			"Wrong page length for tasks,",
+			fmt.Sprintf("Page %d has the wrong length for tasks,", i),
 			len(page) == expectedLength,
 			expectedLength,
 			len(page))
-		if len(page) != 10 {
-			t.Errorf("Wrong page length, %d ,for page %d,", len(page), i)
+	}
+
+	pageTasks = e.pageTasks(transition, 100)
+	assertTrue(t, "Expected only one page", len(pageTasks) == 1, 1, len(pageTasks))
+	for i, page := range pageTasks {
+		assertTrue(t,
+			fmt.Sprintf("Page %d has the wrong length for tasks,", i),
+			len(page) == 50,
+			50,
+			len(page))
+	}
+
+	transition = createTransition(51, 51)
+	pageTasks = e.pageTasks(transition, 10)
+	assertTrue(t, "Expected six pages", len(pageTasks) == 6, 6, len(pageTasks))
+	for i, page := range pageTasks {
+		if i == 5 {
+			assertTrue(t,
+				fmt.Sprintf("Page %d has the wrong length for tasks,", i),
+				len(page) == 1,
+				1,
+				len(page))
+		} else {
+			assertTrue(t,
+				fmt.Sprintf("Page %d has the wrong length for tasks,", i),
+				len(page) == 10,
+				10,
+				len(page))
 		}
 	}
+
+	var emptyTransition model.Transition
+	pageTasks = e.pageTasks(emptyTransition, 10)
+	assertTrue(t, "Expected zero pages for empty transition", len(pageTasks) == 0, 0, len(pageTasks))
 }
 
 func assertTrue(t *testing.T, message string, condition bool, expected interface{}, actual interface{}) {

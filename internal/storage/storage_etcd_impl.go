@@ -539,6 +539,9 @@ func (e *ETCDStorage) breakIntoPagesIfNeeded(transition model.Transition) (model
 }
 
 func (e *ETCDStorage) pageTasks(transition model.Transition, chunkSize int) [][]model.TransitionTaskResp {
+	if transition.Tasks == nil {
+		return nil
+	}
 	var pages [][]model.TransitionTaskResp
 	if len(transition.Tasks) > chunkSize {
 		for i := 0; i < len(transition.Tasks); i += chunkSize {
@@ -555,6 +558,9 @@ func (e *ETCDStorage) pageTasks(transition model.Transition, chunkSize int) [][]
 }
 
 func (e *ETCDStorage) pageLocations(transition model.Transition, chunkSize int) [][]model.LocationParameter {
+	if transition.Location == nil {
+		return nil
+	}
 	var pages [][]model.LocationParameter
 	if len(transition.Location) > chunkSize {
 		for i := 0; i < len(transition.Location); i += chunkSize {
