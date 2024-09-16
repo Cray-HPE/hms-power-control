@@ -31,6 +31,55 @@ import (
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 )
 
+func TestPageLocations(t *testing.T) {
+	e := newETCDStorageForTesting(t)
+
+	transition := createTransition(50, 50)
+	pageLocations := e.pageLocations(transition, 10)
+	assertTrue(t, "Expected five pages", len(pageLocations) == 5, 5, len(pageLocations))
+	expectedLength := 10
+	for i, page := range pageLocations {
+		assertTrue(t,
+			fmt.Sprintf("Page %d has the wrong length for locations,", i),
+			len(page) == expectedLength,
+			expectedLength,
+			len(page))
+	}
+
+	pageLocations = e.pageLocations(transition, 100)
+	assertTrue(t, "Expected only one page", len(pageLocations) == 1, 1, len(pageLocations))
+	for i, page := range pageLocations {
+		assertTrue(t,
+			fmt.Sprintf("Page %d has the wrong length for locations,", i),
+			len(page) == 50,
+			50,
+			len(page))
+	}
+
+	transition = createTransition(51, 51)
+	pageLocations = e.pageLocations(transition, 10)
+	assertTrue(t, "Expected six pages", len(pageLocations) == 6, 6, len(pageLocations))
+	for i, page := range pageLocations {
+		if i == 5 {
+			assertTrue(t,
+				fmt.Sprintf("Page %d has the wrong length for locations,", i),
+				len(page) == 1,
+				1,
+				len(page))
+		} else {
+			assertTrue(t,
+				fmt.Sprintf("Page %d has the wrong length for locations,", i),
+				len(page) == 10,
+				10,
+				len(page))
+		}
+	}
+
+	var emptyTransition model.Transition
+	pageLocations = e.pageLocations(emptyTransition, 10)
+	assertTrue(t, "Expected zero pages for empty transition", len(pageLocations) == 0, 0, len(pageLocations))
+}
+
 func TestPageTasks(t *testing.T) {
 	e := newETCDStorageForTesting(t)
 
