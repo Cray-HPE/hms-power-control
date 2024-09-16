@@ -594,6 +594,7 @@ func (e *ETCDStorage) GetTransition(transitionID uuid.UUID) (model.Transition, e
 	pages, err := e.GetTransitionPages(transition.TransitionID.String())
 	for _, page := range pages {
 		transition.Tasks = append(transition.Tasks, page.Tasks...)
+		transition.Location = append(transition.Location, page.Location...)
 	}
 
 	return transition, err
