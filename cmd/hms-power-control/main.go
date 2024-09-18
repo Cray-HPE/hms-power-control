@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -34,7 +34,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Cray-HPE/hms-base"
+	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
 	"github.com/Cray-HPE/hms-power-control/internal/api"
 	"github.com/Cray-HPE/hms-power-control/internal/credstore"
@@ -58,10 +58,11 @@ const defaultSMSServer = "https://api-gw-service-nmn/apis/smd"
 // operations until there are MAX_NUM_COMPLETED or they expire after
 // EXPIRE_TIME_MINS at which point PCS will start deleting the oldest entries.
 // NOTE: Transactions and power-cap operations are counted separately for
-//       MAX_NUM_COMPLETED.
+//
+//	MAX_NUM_COMPLETED.
 const (
 	defaultMaxNumCompleted = 20000 // Maximum number of completed records to keep (default 20k).
-	defaultExpireTimeMins = 1440   // Time, in mins, to keep completed records (default 24 hours).
+	defaultExpireTimeMins  = 1440  // Time, in mins, to keep completed records (default 24 hours).
 )
 
 const (
@@ -103,10 +104,11 @@ func main() {
 	var VaultKeypath string
 	var StateManagerServer string
 	var hsmlockEnabled bool = true
-	var runControl bool = false //noting to run yet!
+	var runControl bool = false     //noting to run yet!
 	var credCacheDuration int = 600 //In seconds. 10 mins?
 	var maxNumCompleted int
 	var expireTimeMins int
+	var etcdPageSize int
 
 	srv := &http.Server{Addr: defaultPORT}
 
@@ -126,6 +128,8 @@ func main() {
 
 	flag.IntVar(&maxNumCompleted, "max_num_completed", defaultMaxNumCompleted, "Maximum number of completed records to keep.")
 	flag.IntVar(&expireTimeMins, "expire_time_mins", defaultExpireTimeMins, "The time, in mins, to keep completed records.")
+
+	flag.IntVar(&etcdPageSize, "etcd_page_size", storage.DefaultEtcdPageSize, "The maximum number of records to put in each etcd entry.")
 
 	flag.Parse()
 
@@ -215,7 +219,8 @@ func main() {
 	envstr = os.Getenv("STORAGE")
 	if envstr == "" || envstr == "MEMORY" {
 		tmpStorageImplementation := &storage.MEMStorage{
-			Logger: logger.Log,
+			Logger:   logger.Log,
+			PageSize: etcdPageSize,
 		}
 		DSP = tmpStorageImplementation
 		logger.Log.Info("Storage Provider: In Memory")
@@ -224,7 +229,8 @@ func main() {
 		logger.Log.Info("Distributed Lock Provider: In Memory")
 	} else if envstr == "ETCD" {
 		tmpStorageImplementation := &storage.ETCDStorage{
-			Logger: logger.Log,
+			Logger:   logger.Log,
+			PageSize: etcdPageSize,
 		}
 		DSP = tmpStorageImplementation
 		logger.Log.Info("Storage Provider: ETCD")
@@ -239,11 +245,11 @@ func main() {
 	//Hardware State Manager CONFIGURATION
 	HSM = &hsm.HSMv2{}
 	hsmGlob := hsm.HSM_GLOBALS{
-		SvcName: serviceName,
-		Logger: logger.Log,
-		Running: &Running,
-		LockEnabled: hsmlockEnabled,
-		SMUrl: StateManagerServer,
+		SvcName:       serviceName,
+		Logger:        logger.Log,
+		Running:       &Running,
+		LockEnabled:   hsmlockEnabled,
+		SMUrl:         StateManagerServer,
 		SVCHttpClient: svcClient,
 	}
 	HSM.Init(&hsmGlob)
@@ -262,8 +268,8 @@ func main() {
 	//DOMAIN CONFIGURATION
 	var domainGlobals domain.DOMAIN_GLOBALS
 	domainGlobals.NewGlobals(&BaseTRSTask, &TLOC_rf, &TLOC_svc, rfClient, svcClient,
-	                         rfClientLock, &Running, &DSP, &HSM, VaultEnabled,
-	                         &CS, &DLOCK, maxNumCompleted, expireTimeMins)
+		rfClientLock, &Running, &DSP, &HSM, VaultEnabled,
+		&CS, &DLOCK, maxNumCompleted, expireTimeMins)
 
 	//Wait for vault PKI to respond for CA bundle.  Once this happens, re-do
 	//the globals.  This goroutine will run forever checking if the CA trust
@@ -345,9 +351,9 @@ func main() {
 	dlockTimeout := 60
 	pwrSampleInterval := 30
 	envstr = os.Getenv("PCS_POWER_SAMPLE_INTERVAL")
-	if (envstr != "") {
-		tps,err := strconv.Atoi(envstr)
-		if (err != nil) {
+	if envstr != "" {
+		tps, err := strconv.Atoi(envstr)
+		if err != nil {
 			logger.Log.Errorf("Invalid value of PCS_POWER_SAMPLE_INTERVAL, defaulting to %d",
 				pwrSampleInterval)
 		} else {
@@ -355,9 +361,9 @@ func main() {
 		}
 	}
 	envstr = os.Getenv("PCS_DISTLOCK_TIMEOUT")
-	if (envstr != "") {
-		tps,err := strconv.Atoi(envstr)
-		if (err != nil) {
+	if envstr != "" {
+		tps, err := strconv.Atoi(envstr)
+		if err != nil {
 			logger.Log.Errorf("Invalid value of PCS_DISTLOCK_TIMEOUT, defaulting to %d",
 				dlockTimeout)
 		} else {
@@ -365,8 +371,8 @@ func main() {
 		}
 	}
 	domain.PowerStatusMonitorInit(&domainGlobals,
-		(time.Duration(dlockTimeout)*time.Second),
-		logger.Log,(time.Duration(pwrSampleInterval)*time.Second))
+		(time.Duration(dlockTimeout) * time.Second),
+		logger.Log, (time.Duration(pwrSampleInterval) * time.Second))
 
 	domain.StartRecordsReaper()
 
@@ -399,7 +405,6 @@ func main() {
 
 		close(idleConnsClosed)
 	}()
-
 
 	///////////////////////
 	// START

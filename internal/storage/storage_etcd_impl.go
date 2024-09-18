@@ -59,10 +59,12 @@ const (
 	keySegTransitionStat    = "/transitionstat"
 	keyMin                  = " "
 	keyMax                  = "~"
+	DefaultEtcdPageSize     = 2000 // Maximum locactions (xnames) and task results to store in each etcd entry
 )
 
 type ETCDStorage struct {
 	Logger   *logrus.Logger
+	PageSize int
 	mutex    *sync.Mutex
 	kvHandle hmetcd.Kvi
 }
@@ -185,6 +187,11 @@ func (e *ETCDStorage) Init(Logger *logrus.Logger) error {
 	} else {
 		e.Logger = Logger
 	}
+
+	if e.PageSize == 0 {
+		e.PageSize = DefaultEtcdPageSize
+	}
+	e.Logger.Infof("ETCD Storage page size %d", e.PageSize)
 
 	e.mutex = &sync.Mutex{}
 	retries := kvRetriesDefault
@@ -481,12 +488,10 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 }
 
 func (e *ETCDStorage) breakIntoPagesIfNeeded(transition model.Transition) (model.Transition, []*model.TransitionPage) {
-	// chunkSize := 1500
-	chunkSize := 500
-	e.Logger.Infof("TRACE: chunkSize: %d", chunkSize)
-	if len(transition.Tasks) > chunkSize || len(transition.Location) > chunkSize {
-		taskPages := e.pageTasks(transition, chunkSize)
-		locationPages := e.pageLocations(transition, chunkSize)
+	e.Logger.Infof("TRACE: pagesize: %d", e.PageSize)
+	if len(transition.Tasks) > e.PageSize || len(transition.Location) > e.PageSize {
+		taskPages := e.pageTasks(transition)
+		locationPages := e.pageLocations(transition)
 		e.Logger.Infof("TRACE: tasks page count: %d", len(taskPages))
 		e.Logger.Infof("TRACE: location page count: %d", len(locationPages))
 
@@ -538,14 +543,14 @@ func (e *ETCDStorage) breakIntoPagesIfNeeded(transition model.Transition) (model
 	}
 }
 
-func (e *ETCDStorage) pageTasks(transition model.Transition, chunkSize int) [][]model.TransitionTaskResp {
+func (e *ETCDStorage) pageTasks(transition model.Transition) [][]model.TransitionTaskResp {
 	if transition.Tasks == nil {
 		return nil
 	}
 	var pages [][]model.TransitionTaskResp
-	if len(transition.Tasks) > chunkSize {
-		for i := 0; i < len(transition.Tasks); i += chunkSize {
-			end := i + chunkSize
+	if len(transition.Tasks) > e.PageSize {
+		for i := 0; i < len(transition.Tasks); i += e.PageSize {
+			end := i + e.PageSize
 			if end > len(transition.Tasks) {
 				end = len(transition.Tasks)
 			}
@@ -557,14 +562,14 @@ func (e *ETCDStorage) pageTasks(transition model.Transition, chunkSize int) [][]
 	return pages
 }
 
-func (e *ETCDStorage) pageLocations(transition model.Transition, chunkSize int) [][]model.LocationParameter {
+func (e *ETCDStorage) pageLocations(transition model.Transition) [][]model.LocationParameter {
 	if transition.Location == nil {
 		return nil
 	}
 	var pages [][]model.LocationParameter
-	if len(transition.Location) > chunkSize {
-		for i := 0; i < len(transition.Location); i += chunkSize {
-			end := i + chunkSize
+	if len(transition.Location) > e.PageSize {
+		for i := 0; i < len(transition.Location); i += e.PageSize {
+			end := i + e.PageSize
 			if end > len(transition.Location) {
 				end = len(transition.Location)
 			}

@@ -35,7 +35,8 @@ func TestPageLocations(t *testing.T) {
 	e := newETCDStorageForTesting(t)
 
 	transition := createTransition(50, 50)
-	pageLocations := e.pageLocations(transition, 10)
+	e.PageSize = 10
+	pageLocations := e.pageLocations(transition)
 	assertTrue(t, "Expected five pages", len(pageLocations) == 5, 5, len(pageLocations))
 	expectedLength := 10
 	for i, page := range pageLocations {
@@ -46,7 +47,8 @@ func TestPageLocations(t *testing.T) {
 			len(page))
 	}
 
-	pageLocations = e.pageLocations(transition, 100)
+	e.PageSize = 100
+	pageLocations = e.pageLocations(transition)
 	assertTrue(t, "Expected only one page", len(pageLocations) == 1, 1, len(pageLocations))
 	for i, page := range pageLocations {
 		assertTrue(t,
@@ -57,7 +59,8 @@ func TestPageLocations(t *testing.T) {
 	}
 
 	transition = createTransition(51, 51)
-	pageLocations = e.pageLocations(transition, 10)
+	e.PageSize = 10
+	pageLocations = e.pageLocations(transition)
 	assertTrue(t, "Expected six pages", len(pageLocations) == 6, 6, len(pageLocations))
 	for i, page := range pageLocations {
 		if i == 5 {
@@ -76,7 +79,8 @@ func TestPageLocations(t *testing.T) {
 	}
 
 	var emptyTransition model.Transition
-	pageLocations = e.pageLocations(emptyTransition, 10)
+	e.PageSize = 10
+	pageLocations = e.pageLocations(emptyTransition)
 	assertTrue(t, "Expected zero pages for empty transition", len(pageLocations) == 0, 0, len(pageLocations))
 }
 
@@ -84,7 +88,8 @@ func TestPageTasks(t *testing.T) {
 	e := newETCDStorageForTesting(t)
 
 	transition := createTransition(50, 50)
-	pageTasks := e.pageTasks(transition, 10)
+	e.PageSize = 10
+	pageTasks := e.pageTasks(transition)
 	assertTrue(t, "Expected five pages", len(pageTasks) == 5, 5, len(pageTasks))
 	expectedLength := 10
 	for i, page := range pageTasks {
@@ -95,7 +100,8 @@ func TestPageTasks(t *testing.T) {
 			len(page))
 	}
 
-	pageTasks = e.pageTasks(transition, 100)
+	e.PageSize = 100
+	pageTasks = e.pageTasks(transition)
 	assertTrue(t, "Expected only one page", len(pageTasks) == 1, 1, len(pageTasks))
 	for i, page := range pageTasks {
 		assertTrue(t,
@@ -106,7 +112,8 @@ func TestPageTasks(t *testing.T) {
 	}
 
 	transition = createTransition(51, 51)
-	pageTasks = e.pageTasks(transition, 10)
+	e.PageSize = 10
+	pageTasks = e.pageTasks(transition)
 	assertTrue(t, "Expected six pages", len(pageTasks) == 6, 6, len(pageTasks))
 	for i, page := range pageTasks {
 		if i == 5 {
@@ -125,7 +132,8 @@ func TestPageTasks(t *testing.T) {
 	}
 
 	var emptyTransition model.Transition
-	pageTasks = e.pageTasks(emptyTransition, 10)
+	e.PageSize = 10
+	pageTasks = e.pageTasks(emptyTransition)
 	assertTrue(t, "Expected zero pages for empty transition", len(pageTasks) == 0, 0, len(pageTasks))
 }
 
