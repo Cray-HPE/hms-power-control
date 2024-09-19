@@ -484,7 +484,7 @@ func (e *ETCDStorage) breakIntoPagesIfNeeded(transition model.Transition) (model
 		} else {
 			if transition.Tasks != nil {
 				e.Logger.Errorf(
-					"Task pages empty. There should be at least one. TaskID: %s, TaskCount",
+					"Task pages empty. There should be at least one. TaskID: %s, TaskCount: %d",
 					transition.TransitionID, len(transition.Tasks))
 			}
 		}
