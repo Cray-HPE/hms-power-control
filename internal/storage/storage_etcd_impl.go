@@ -33,6 +33,7 @@ import (
 	"time"
 
 	hmetcd "github.com/Cray-HPE/hms-hmetcd"
+	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/Cray-HPE/hms-xname/xnametypes"
 	"github.com/google/uuid"
@@ -110,31 +111,6 @@ func (e *ETCDStorage) kvGet(key string, val interface{}) error {
 	return err
 }
 
-func (e *ETCDStorage) GetTransitionPages(transitionId string) ([]model.TransitionPage, error) {
-	// todotodo
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-	var pages []model.TransitionPage
-	keyPrefix := fmt.Sprintf("%s/%s", keySegTransitionPage, transitionId)
-	key := e.fixUpKey(keyPrefix)
-	kvList, err := e.kvHandle.GetRange(key+keyMin, key+keyMax)
-	if err == nil {
-		e.sortTransitionPages(kvList)
-		for _, kv := range kvList {
-			var page model.TransitionPage
-			err = json.Unmarshal([]byte(kv.Value), &page)
-			if err != nil {
-				e.Logger.Error(err)
-			} else {
-				pages = append(pages, page)
-			}
-		}
-	} else {
-		e.Logger.Error(err)
-	}
-	return pages, err
-}
-
 func (e *ETCDStorage) sortTransitionPages(list []hmetcd.Kvi_KV) {
 	sort.Slice(list, func(i, j int) bool {
 		key0 := list[i].Key
@@ -164,18 +140,24 @@ func (e *ETCDStorage) kvDelete(key string) error {
 
 // Do an atomic Test-And-Set operation
 func (e *ETCDStorage) kvTAS(key string, testVal interface{}, setVal interface{}) (bool, error) {
+	logger.Log.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.1")
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	tdata, err := json.Marshal(testVal)
 	if err != nil {
+		logger.Log.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.1.1")
 		return false, err
 	}
+	logger.Log.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.2")
 	sdata, err := json.Marshal(setVal)
 	if err != nil {
+		logger.Log.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.3.1")
 		return false, err
 	}
+	logger.Log.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.4")
 	realKey := e.fixUpKey(key)
 	ok, err := e.kvHandle.TAS(realKey, string(tdata), string(sdata))
+	logger.Log.WithFields(logrus.Fields{"key": key, "ok": ok}).Error("TRACE: 5.1.5")
 	return ok, err
 }
 
@@ -594,6 +576,33 @@ func (e *ETCDStorage) StoreTransitionTask(task model.TransitionTask) error {
 	return err
 }
 
+func (e *ETCDStorage) GetTransitionAndPages(transitionID uuid.UUID) (model.TransitionPages, error) {
+	var transition model.Transition
+	var transitionPages model.TransitionPages
+	transitionPages.Transition = &transition
+
+	key := fmt.Sprintf("%s/%s", keySegTransition, transitionID.String())
+
+	err := e.kvGet(key, &transition)
+	if err != nil {
+		e.Logger.Error(err)
+		return transitionPages, err
+	}
+	// Copy the transition into a new struct before it gets the other pages added to it.
+	transitionPages.Page0 = transition
+
+	pages, err := e.GetTransitionPages(transition.TransitionID.String())
+	transitionPages.Pages = pages
+
+	// merge the pages into the full transition
+	for _, page := range pages {
+		transition.Tasks = append(transition.Tasks, page.Tasks...)
+		transition.Location = append(transition.Location, page.Location...)
+	}
+
+	return transitionPages, err
+}
+
 func (e *ETCDStorage) GetTransition(transitionID uuid.UUID) (model.Transition, error) {
 	var transition model.Transition
 	key := fmt.Sprintf("%s/%s", keySegTransition, transitionID.String())
@@ -611,6 +620,31 @@ func (e *ETCDStorage) GetTransition(transitionID uuid.UUID) (model.Transition, e
 	}
 
 	return transition, err
+}
+
+func (e *ETCDStorage) GetTransitionPages(transitionId string) ([]model.TransitionPage, error) {
+	// todotodo
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	var pages []model.TransitionPage
+	keyPrefix := fmt.Sprintf("%s/%s", keySegTransitionPage, transitionId)
+	key := e.fixUpKey(keyPrefix)
+	kvList, err := e.kvHandle.GetRange(key+keyMin, key+keyMax)
+	if err == nil {
+		e.sortTransitionPages(kvList)
+		for _, kv := range kvList {
+			var page model.TransitionPage
+			err = json.Unmarshal([]byte(kv.Value), &page)
+			if err != nil {
+				e.Logger.Error(err)
+			} else {
+				pages = append(pages, page)
+			}
+		}
+	} else {
+		e.Logger.Error(err)
+	}
+	return pages, err
 }
 
 func (e *ETCDStorage) GetTransitionTask(transitionID, taskID uuid.UUID) (model.TransitionTask, error) {
@@ -700,11 +734,13 @@ func (e *ETCDStorage) DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.U
 }
 
 func (e *ETCDStorage) TASTransition(transition model.Transition, testVal model.Transition) (bool, error) {
+	logger.Log.WithFields(logrus.Fields{"transitionID": transition.TransitionID}).Error("TRACE: abort: 5.1")
 	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
 	ok, err := e.kvTAS(key, testVal, transition)
 	if err != nil {
 		e.Logger.Error(err)
 	}
+	logger.Log.WithFields(logrus.Fields{"transitionID": transition.TransitionID, "ok": ok}).Error("TRACE: abort: 5.2")
 	return ok, err
 }
 

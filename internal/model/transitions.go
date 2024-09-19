@@ -114,6 +114,12 @@ type TransitionPage struct {
 	Tasks        []TransitionTaskResp `json:"tasks,omitempty"`
 }
 
+type TransitionPages struct {
+	Transition *Transition      // This is the full transition that includes the data from all the pages
+	Page0      Transition       // This is the first page. The entry stored in etcd under /pcs/transition/
+	Pages      []TransitionPage // These are the entries stored under /pcs/transitionpage/
+}
+
 type TransitionTask struct {
 	TaskID         uuid.UUID `json:"taskID"`
 	TransitionID   uuid.UUID `json:"transitionID"`

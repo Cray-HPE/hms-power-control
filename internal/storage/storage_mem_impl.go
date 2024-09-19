@@ -181,6 +181,11 @@ func (m *MEMStorage) GetTransition(transitionID uuid.UUID) (model.Transition, er
 	return e.GetTransition(transitionID)
 }
 
+func (m *MEMStorage) GetTransitionAndPages(transitionID uuid.UUID) (model.TransitionPages, error) {
+	e := toETCDStorage(m)
+	return e.GetTransitionAndPages(transitionID)
+}
+
 func (m *MEMStorage) GetTransitionTask(transitionID uuid.UUID, taskID uuid.UUID) (model.TransitionTask, error) {
 	e := toETCDStorage(m)
 	return e.GetTransitionTask(transitionID, taskID)

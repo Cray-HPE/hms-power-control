@@ -185,8 +185,9 @@ func GetTransitionStatuses() (pb model.Passback) {
 // another instance's store operation. Try a couple times before giving up.
 func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
 	for retry := 0; retry < 3; retry++ {
+		logger.Log.WithFields(logrus.Fields{"transitionID": transitionID}).Error("TRACE: abort: 1")
 		// Get the transition
-		transition, err := (*GLOB.DSP).GetTransition(transitionID)
+		transitionPages, err := (*GLOB.DSP).GetTransitionAndPages(transitionID)
 		if err != nil {
 			if strings.Contains(err.Error(), "does not exist") {
 				pb = model.BuildErrorPassback(http.StatusNotFound, err)
@@ -196,21 +197,37 @@ func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
 			logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition")
 			return
 		}
+		transition := transitionPages.Page0
+
+		logger.Log.WithFields(
+			logrus.Fields{
+				"transitionID":    transitionID,
+				"LocationCount":   len(transitionPages.Transition.Location),
+				"TaskCount":       len(transitionPages.Transition.Tasks),
+				"P0LocationCount": len(transitionPages.Page0.Location),
+				"P0TaskCount":     len(transitionPages.Page0.Tasks),
+				"PageCount":       len(transitionPages.Pages),
+			}).Error("TRACE: abort: 1_")
+
+		logger.Log.WithFields(logrus.Fields{"transitionID": transitionID}).Error("TRACE: abort: 2")
 		if transition.TransitionID.String() != transitionID.String() {
 			err := errors.New("TransitionID does not exist")
 			pb = model.BuildErrorPassback(http.StatusNotFound, err)
 			logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition")
 		}
+		logger.Log.WithFields(logrus.Fields{"transitionID": transitionID}).Error("TRACE: abort: 3")
 		if transition.Status == model.TransitionStatusCompleted {
 			err := errors.New("Transition is already finished and cannot be aborted.")
 			pb = model.BuildErrorPassback(http.StatusBadRequest, err)
 			return
 		}
+		logger.Log.WithFields(logrus.Fields{"transitionID": transitionID}).Error("TRACE: abort: 4")
 		if transition.Status == model.TransitionStatusAborted {
 			abortResp := model.TransitionAbortResp{AbortStatus: "Accepted - abort initiated"}
 			pb = model.BuildSuccessPassback(http.StatusAccepted, abortResp)
 			return
 		}
+		logger.Log.WithFields(logrus.Fields{"transitionID": transitionID}).Error("TRACE: abort: 5")
 		transitionOld := transition
 		transition.Status = model.TransitionStatusAbortSignaled
 		// Use test and set to prevent overwriting another thread's store operation.
@@ -220,13 +237,16 @@ func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
 			logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error storing new transition")
 			return
 		}
+		logger.Log.WithFields(logrus.Fields{"transitionID": transitionID}).Error("TRACE: abort: 6")
 		if ok {
 			abortResp := model.TransitionAbortResp{AbortStatus: "Accepted - abort initiated"}
 			pb = model.BuildSuccessPassback(http.StatusAccepted, abortResp)
 			return
 		}
+		logger.Log.WithFields(logrus.Fields{"transitionID": transitionID}).Error("TRACE: abort: 7")
 	}
 
+	logger.Log.WithFields(logrus.Fields{"transitionID": transitionID}).Error("TRACE: abort: 8")
 	err := errors.New("Failed to signal abort")
 	pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
 	logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error storing abort-signaled status")
