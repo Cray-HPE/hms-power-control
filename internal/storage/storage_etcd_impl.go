@@ -734,13 +734,32 @@ func (e *ETCDStorage) DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.U
 }
 
 func (e *ETCDStorage) TASTransition(transition model.Transition, testVal model.Transition) (bool, error) {
-	logger.Log.WithFields(logrus.Fields{"transitionID": transition.TransitionID}).Error("TRACE: abort: 5.1")
+	newTransition, newTransitionPages := e.breakIntoPagesIfNeeded(transition)
+	currentTransition, _ := e.breakIntoPagesIfNeeded(testVal)
 	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
-	ok, err := e.kvTAS(key, testVal, transition)
+	ok, err := e.kvTAS(key, currentTransition, newTransition)
 	if err != nil {
 		e.Logger.Error(err)
+		return ok, err
 	}
-	logger.Log.WithFields(logrus.Fields{"transitionID": transition.TransitionID, "ok": ok}).Error("TRACE: abort: 5.2")
+	for _, page := range newTransitionPages {
+		// Task pages
+		key = fmt.Sprintf("%s/%s/%d", keySegTransitionPage, page.TransitionID.String(), page.Index)
+		err = e.kvStore(key, page)
+		if err != nil {
+			e.Logger.Error(err)
+		}
+	}
+	e.Logger.Infof("TRACE: pages: p0Location: %d, p0Tasks: %d",
+		len(newTransition.Location),
+		len(newTransition.Tasks),
+	)
+	if len(newTransitionPages) > 0 {
+		e.Logger.Infof("TRACE: pages:    p1Location: %d, p1Tasks: %d",
+			len(newTransitionPages[0].Location),
+			len(newTransitionPages[0].Tasks),
+		)
+	}
 	return ok, err
 }
 

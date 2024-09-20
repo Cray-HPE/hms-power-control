@@ -187,7 +187,7 @@ func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
 	for retry := 0; retry < 3; retry++ {
 		logger.Log.WithFields(logrus.Fields{"transitionID": transitionID}).Error("TRACE: abort: 1")
 		// Get the transition
-		transitionPages, err := (*GLOB.DSP).GetTransitionAndPages(transitionID)
+		transition, err := (*GLOB.DSP).GetTransition(transitionID)
 		if err != nil {
 			if strings.Contains(err.Error(), "does not exist") {
 				pb = model.BuildErrorPassback(http.StatusNotFound, err)
@@ -197,8 +197,8 @@ func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
 			logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error retrieving transition")
 			return
 		}
-		transition := transitionPages.Page0
 
+		transitionPages, err := (*GLOB.DSP).GetTransitionAndPages(transitionID)
 		logger.Log.WithFields(
 			logrus.Fields{
 				"transitionID":    transitionID,
