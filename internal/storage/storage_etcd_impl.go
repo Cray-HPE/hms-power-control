@@ -447,7 +447,9 @@ type WatchTransitionCBHandle struct {
 }
 
 func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
+	// e.extendDescriptions(&transition)
 	t, tPages := e.breakIntoPagesIfNeeded(transition)
+	// e.truncateTaskMessagesIfNeeded(&t)
 
 	key := fmt.Sprintf("%s/%s", keySegTransition, t.TransitionID.String())
 	err := e.kvStore(key, t)
@@ -464,6 +466,44 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 		}
 	}
 	return err
+}
+
+// todo remove
+func (e *ETCDStorage) extendDescriptions(transition *model.Transition) {
+
+	for i, _ := range transition.Tasks {
+		transition.Tasks[i].TaskStatusDesc = strings.Repeat(" 123456789", 60)
+	}
+}
+
+func (e *ETCDStorage) truncateTaskMessagesIfNeeded(transition *model.Transition) {
+	maxDescLen := 500
+	maxDataSize := 1500000
+	sdata, err := json.Marshal(transition)
+	if err != nil {
+		logger.Log.WithFields(logrus.Fields{"TransitionID": transition.TransitionID, "Error": err}).Error("Error marshalling transition to json")
+	}
+	if len(sdata) > maxDataSize {
+		logger.Log.WithFields(logrus.Fields{
+			"TransitionID": transition.TransitionID,
+			"len":          len(sdata),
+		}).Info("TRACE: truncate: too large")
+
+		for i, task := range transition.Tasks {
+			if len(task.TaskStatusDesc) > maxDescLen {
+				logger.Log.WithFields(logrus.Fields{
+					"TransitionID": transition.TransitionID,
+					"Xname":        task.Xname,
+				}).Warnf("Truncating task description: %s", task.TaskStatusDesc)
+				task.TaskStatusDesc = task.TaskStatusDesc[:maxDescLen] + "..."
+				transition.Tasks[i] = task
+			}
+		}
+	}
+	logger.Log.WithFields(logrus.Fields{
+		"TransitionID": transition.TransitionID,
+		"len":          len(sdata),
+	}).Info("TRACE: truncate: size")
 }
 
 func (e *ETCDStorage) breakIntoPagesIfNeeded(transition model.Transition) (model.Transition, []*model.TransitionPage) {
@@ -734,7 +774,9 @@ func (e *ETCDStorage) DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.U
 }
 
 func (e *ETCDStorage) TASTransition(transition model.Transition, testVal model.Transition) (bool, error) {
+	// e.extendDescriptions(&transition)
 	newTransition, newTransitionPages := e.breakIntoPagesIfNeeded(transition)
+	// e.truncateTaskMessagesIfNeeded(&newTransition)
 	currentTransition, _ := e.breakIntoPagesIfNeeded(testVal)
 	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
 	ok, err := e.kvTAS(key, currentTransition, newTransition)
