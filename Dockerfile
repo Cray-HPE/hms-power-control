@@ -92,3 +92,4 @@ ENV API_BASE_PATH "/v1"
 USER 65534:65534
 
 CMD ["sh", "-c", "hms-power-control"]
+
