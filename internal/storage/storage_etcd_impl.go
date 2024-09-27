@@ -447,9 +447,8 @@ type WatchTransitionCBHandle struct {
 }
 
 func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
-	// e.extendDescriptions(&transition)
 	t, tPages := e.breakIntoPagesIfNeeded(transition)
-	// e.truncateTaskMessagesIfNeeded(&t)
+	e.truncateTaskMessagesIfNeeded(&t)
 
 	key := fmt.Sprintf("%s/%s", keySegTransition, t.TransitionID.String())
 	err := e.kvStore(key, t)
@@ -466,14 +465,6 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 		}
 	}
 	return err
-}
-
-// todo remove
-func (e *ETCDStorage) extendDescriptions(transition *model.Transition) {
-
-	for i, _ := range transition.Tasks {
-		transition.Tasks[i].TaskStatusDesc = strings.Repeat(" 123456789", 60)
-	}
 }
 
 func (e *ETCDStorage) truncateTaskMessagesIfNeeded(transition *model.Transition) {
@@ -774,9 +765,8 @@ func (e *ETCDStorage) DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.U
 }
 
 func (e *ETCDStorage) TASTransition(transition model.Transition, testVal model.Transition) (bool, error) {
-	// e.extendDescriptions(&transition)
 	newTransition, newTransitionPages := e.breakIntoPagesIfNeeded(transition)
-	// e.truncateTaskMessagesIfNeeded(&newTransition)
+	e.truncateTaskMessagesIfNeeded(&newTransition)
 	currentTransition, _ := e.breakIntoPagesIfNeeded(testVal)
 	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
 	ok, err := e.kvTAS(key, currentTransition, newTransition)
