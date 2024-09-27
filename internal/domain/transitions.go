@@ -390,7 +390,8 @@ func doTransition(transitionID uuid.UUID) {
 			} else {
 				comp.Task.Error = "Missing xname"
 			}
-			comp.Task.StatusDesc = "Failed to achieve transition"
+			// comp.Task.StatusDesc = "Failed to achieve transition"
+			comp.Task.StatusDesc = model.ToMaxString("Failed to achieve transition")
 			err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
 			if err != nil {
 				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
@@ -430,7 +431,9 @@ func doTransition(transitionID uuid.UUID) {
 			}
 			comp.Task.Status = model.TransitionTaskStatusFailed
 			comp.Task.Error = "Error retrieving HSM data"
-			comp.Task.StatusDesc = "Failed to achieve transition"
+			// todo remove comp.Task.StatusDesc = model.ToMaxString(
+			// comp.Task.StatusDesc = "Failed to achieve transition"
+			comp.Task.StatusDesc = model.ToMaxString("Failed to achieve transition")
 			err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
 			if err != nil {
 				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
@@ -456,7 +459,9 @@ func doTransition(transitionID uuid.UUID) {
 
 					comp.Task.Status = model.TransitionTaskStatusFailed
 					comp.Task.Error = "Xname not found in HSM"
-					comp.Task.StatusDesc = "Failed to achieve transition"
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Failed to achieve transition"
+					comp.Task.StatusDesc = model.ToMaxString("Failed to achieve transition")
 					err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
 					if err != nil {
 						logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
@@ -486,7 +491,9 @@ func doTransition(transitionID uuid.UUID) {
 			}
 			comp.Task.Status = model.TransitionTaskStatusFailed
 			comp.Task.Error = "Error retrieving HSM data"
-			comp.Task.StatusDesc = "Failed to achieve transition"
+			// todo remove comp.Task.StatusDesc = model.ToMaxString(
+			// comp.Task.StatusDesc = "Failed to achieve transition"
+			comp.Task.StatusDesc = model.ToMaxString("Failed to achieve transition")
 			err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
 			if err != nil {
 				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
@@ -537,7 +544,9 @@ func doTransition(transitionID uuid.UUID) {
 			if psOk && hsmOk && !compOk {
 				task := model.NewTransitionTask(tr.TransitionID, tr.Operation)
 				task.Xname = switchXname
-				task.StatusDesc = "Gathering data"
+				// todo remove comp.Task.StatusDesc = model.ToMaxString(
+				// task.StatusDesc = "Gathering data"
+				comp.Task.StatusDesc = model.ToMaxString("Gathering data")
 				tr.TaskIDs = append(tr.TaskIDs, task.TaskID)
 				err = (*GLOB.DSP).StoreTransitionTask(task)
 				if err != nil {
@@ -591,8 +600,8 @@ func doTransition(transitionID uuid.UUID) {
 				continue
 			}
 			comp.Task.Status = model.TransitionTaskStatusFailed
-			comp.Task.Error = err.Error()
-			comp.Task.StatusDesc = "Error acquiring reservations"
+			comp.Task.Error = model.ToMaxString(err.Error())
+			comp.Task.StatusDesc = model.ToMaxString("Error acquiring reservations")
 			err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
 			if err != nil {
 				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
@@ -632,7 +641,9 @@ func doTransition(transitionID uuid.UUID) {
 					comp.Task.Error = "Invalid deputy key and unable to reserve component"
 					depErrMsg = fmt.Sprintf("Invalid deputy key and unable to reserve dependent component, %s.", comp.Task.Xname)
 				}
-				comp.Task.StatusDesc = "Failed to achieve transition"
+				// todo remove comp.Task.StatusDesc = model.ToMaxString(
+				// comp.Task.StatusDesc = "Failed to achieve transition"
+				comp.Task.StatusDesc = model.ToMaxString("Failed to achieve transition")
 				switch comp.Task.Operation {
 				case model.Operation_SoftRestart:
 					fallthrough
@@ -743,7 +754,9 @@ func doTransition(transitionID uuid.UUID) {
 					comp.Task.Status == model.TransitionTaskStatusInProgress {
 					comp.Task.Status = model.TransitionTaskStatusFailed
 					comp.Task.Error = "Reservation expired"
-					comp.Task.StatusDesc = "Failed to achieve transition"
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Failed to achieve transition"
+					comp.Task.StatusDesc = model.ToMaxString("Failed to achieve transition")
 					depErrMsg := fmt.Sprintf("Reservation expired for dependency, %s.", comp.Task.Xname)
 					failDependentComps(xnameMap, powerAction, comp.Task.Xname, depErrMsg)
 					err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
@@ -773,7 +786,9 @@ func doTransition(transitionID uuid.UUID) {
 			payload, err := generateTransitionPayload(comp, powerAction)
 			if err != nil {
 				comp.Task.Status = model.TransitionTaskStatusFailed
-				comp.Task.StatusDesc = "Failed to construct payload"
+				// todo remove comp.Task.StatusDesc = model.ToMaxString(
+				// comp.Task.StatusDesc = "Failed to construct payload"
+				comp.Task.StatusDesc = model.ToMaxString("Failed to construct payload")
 				comp.Task.Error = err.Error()
 				depErrMsg := fmt.Sprintf("Failed to apply transition, %s, to dependency, %s.", powerAction, comp.Task.Xname)
 				failDependentComps(xnameMap, powerAction, comp.Task.Xname, depErrMsg)
@@ -784,7 +799,9 @@ func doTransition(transitionID uuid.UUID) {
 				continue
 			}
 
-			comp.Task.StatusDesc = "Applying transition, " + powerAction
+			// todo remove comp.Task.StatusDesc = model.ToMaxString(
+			// comp.Task.StatusDesc = "Applying transition, " + powerAction
+			comp.Task.StatusDesc = model.ToMaxString("Applying transition, " + powerAction)
 			comp.Task.State = model.TaskState_Sending
 			comp.Task.Operation = powerActionOp
 			trsTaskMap[trsTaskList[trsTaskIdx].GetID()] = comp
@@ -845,7 +862,9 @@ func doTransition(transitionID uuid.UUID) {
 				if taskErr != nil {
 					comp.Task.Status = model.TransitionTaskStatusFailed
 					comp.Task.Error = taskErr.Error()
-					comp.Task.StatusDesc = "Failed to apply transition, " + powerAction
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Failed to apply transition, " + powerAction
+					comp.Task.StatusDesc = model.ToMaxString("Failed to apply transition, " + powerAction)
 					logger.Log.WithFields(logrus.Fields{"ERROR": taskErr, "URI": tdone.Request.URL.String()}).Error("Redfish request failed")
 					delete(trsTaskMap, tdone.GetID())
 					depErrMsg := fmt.Sprintf("Failed to apply transition, %s, to dependency, %s.", powerAction, comp.Task.Xname)
@@ -854,16 +873,22 @@ func doTransition(transitionID uuid.UUID) {
 					comp.ActionCount--
 					if comp.ActionCount == 0 {
 						comp.Task.Status = model.TransitionTaskStatusSucceeded
-						comp.Task.StatusDesc = fmt.Sprintf("Transition applied, %s. Not confirming.", powerAction)
+						// todo remove comp.Task.StatusDesc = model.ToMaxString(
+						// comp.Task.StatusDesc = fmt.Sprintf("Transition applied, %s. Not confirming.", powerAction)
+						comp.Task.StatusDesc = model.ToMaxString(fmt.Sprintf("Transition applied, %s. Not confirming.", powerAction))
 						comp.Task.State = model.TaskState_Confirmed
 					} else {
 						comp.Task.Status = model.TransitionTaskStatusInProgress
-						comp.Task.StatusDesc = fmt.Sprintf("Transition applied, %s. Waiting for next transition.", powerAction)
+						// todo remove comp.Task.StatusDesc = model.ToMaxString(
+						// comp.Task.StatusDesc = fmt.Sprintf("Transition applied, %s. Waiting for next transition.", powerAction)
+						comp.Task.StatusDesc = model.ToMaxString(fmt.Sprintf("Transition applied, %s. Waiting for next transition.", powerAction))
 						comp.Task.State = model.TaskState_Confirmed
 					}
 				} else {
 					comp.Task.Status = model.TransitionTaskStatusInProgress
-					comp.Task.StatusDesc = "Confirming successful transition, " + powerAction
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Confirming successful transition, " + powerAction
+					comp.Task.StatusDesc = model.ToMaxString("Confirming successful transition, " + powerAction)
 					comp.Task.State = model.TaskState_Waiting
 				}
 				err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
@@ -906,7 +931,9 @@ func doTransition(transitionID uuid.UUID) {
 					if err != nil {
 						comp.Task.Status = model.TransitionTaskStatusFailed
 						comp.Task.Error = err.Error()
-						comp.Task.StatusDesc = "Failed to confirm transition"
+						// todo remove comp.Task.StatusDesc = model.ToMaxString(
+						// comp.Task.StatusDesc = "Failed to confirm transition"
+						comp.Task.StatusDesc = model.ToMaxString("Failed to confirm transition")
 						if !strings.Contains(err.Error(), "does not exist") {
 							// Database error
 							logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error getting power status from database")
@@ -923,9 +950,13 @@ func doTransition(transitionID uuid.UUID) {
 						comp.Task.State = model.TaskState_Confirmed
 						if comp.ActionCount == 0 {
 							comp.Task.Status = model.TransitionTaskStatusSucceeded
-							comp.Task.StatusDesc = "Transition confirmed, " + powerAction
+							// todo remove comp.Task.StatusDesc = model.ToMaxString(
+							// comp.Task.StatusDesc = "Transition confirmed, " + powerAction
+							comp.Task.StatusDesc = model.ToMaxString("Transition confirmed, " + powerAction)
 						} else {
-							comp.Task.StatusDesc = "Transition confirmed, " + powerAction + ". Waiting for next transition"
+							// todo remove comp.Task.StatusDesc = model.ToMaxString(
+							// comp.Task.StatusDesc = "Transition confirmed, " + powerAction + ". Waiting for next transition"
+							comp.Task.StatusDesc = model.ToMaxString("Transition confirmed, " + powerAction + ". Waiting for next transition")
 						}
 						delete(trsTaskMap, trsTaskID)
 						err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
@@ -951,7 +982,9 @@ func doTransition(transitionID uuid.UUID) {
 							// Fail the leftover components.
 							comp.Task.Status = model.TransitionTaskStatusFailed
 							comp.Task.Error = fmt.Sprintf("Timeout waiting for transition, %s.", powerAction)
-							comp.Task.StatusDesc = "Failed to achieve transition"
+							// todo remove comp.Task.StatusDesc = model.ToMaxString(
+							// comp.Task.StatusDesc = "Failed to achieve transition"
+							comp.Task.StatusDesc = model.ToMaxString("Failed to achieve transition")
 							depErrMsg := fmt.Sprintf("Timeout waiting for transition, %s, on dependency, %s.", powerAction, comp.Task.Xname)
 							failDependentComps(xnameMap, powerAction, comp.Task.Xname, depErrMsg)
 							err = (*GLOB.DSP).StoreTransitionTask(*comp.Task)
@@ -1073,7 +1106,9 @@ func doAbort(tr model.Transition, xnameMap map[string]*TransitionComponent) {
 			comp.Task.Status == model.TransitionTaskStatusInProgress {
 			comp.Task.Status = model.TransitionTaskStatusFailed
 			comp.Task.Error = "Transition aborted"
-			comp.Task.StatusDesc = "Aborted. Last status - " + comp.Task.StatusDesc
+			// todo remove comp.Task.StatusDesc = model.ToMaxString(
+			// comp.Task.StatusDesc = "Aborted. Last status - " + comp.Task.StatusDesc
+			comp.Task.StatusDesc = model.ToMaxString("Aborted. Last status - " + comp.Task.StatusDesc)
 			err := (*GLOB.DSP).StoreTransitionTask(*comp.Task)
 			if err != nil {
 				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
@@ -1279,15 +1314,21 @@ func setupTransitionTasks(tr *model.Transition) (map[string]*TransitionComponent
 		case base.CDUMgmtSwitch:
 			fallthrough
 		case base.CabinetPDUPowerConnector:
-			task.StatusDesc = "Gathering data"
+			// todo remove comp.Task.StatusDesc = model.ToMaxString(
+			// task.StatusDesc = "Gathering data"
+			task.StatusDesc = model.ToMaxString("Gathering data")
 		case base.HMSTypeInvalid:
 			task.Status = model.TransitionTaskStatusFailed
 			task.Error = "Invalid xname"
-			task.StatusDesc = "Failed to achieve transition"
+			// todo remove comp.Task.StatusDesc = model.ToMaxString(
+			// task.StatusDesc = "Failed to achieve transition"
+			task.StatusDesc = model.ToMaxString("Failed to achieve transition")
 		default:
 			task.Status = model.TransitionTaskStatusUnsupported
 			task.Error = "No power control for component type " + compType.String()
-			task.StatusDesc = "Failed to achieve transition"
+			// todo remove comp.Task.StatusDesc = model.ToMaxString(
+			// task.StatusDesc = "Failed to achieve transition"
+			task.StatusDesc = model.ToMaxString("Failed to achieve transition")
 		}
 		tr.TaskIDs = append(tr.TaskIDs, task.TaskID)
 		err = (*GLOB.DSP).StoreTransitionTask(task)
@@ -1340,7 +1381,9 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 		}
 		if !supportsOp {
 			comp.Task.Status = model.TransitionTaskStatusUnsupported
-			comp.Task.StatusDesc = fmt.Sprintf("Component does not support the specified transition operation, %s", operation.String())
+			// todo remove comp.Task.StatusDesc = model.ToMaxString(
+			// comp.Task.StatusDesc = fmt.Sprintf("Component does not support the specified transition operation, %s", operation.String())
+			comp.Task.StatusDesc = model.ToMaxString(fmt.Sprintf("Component does not support the specified transition operation, %s", operation.String()))
 			comp.Task.Error = "Unsupported for transition operation"
 			err := (*GLOB.DSP).StoreTransitionTask(*comp.Task)
 			if err != nil {
@@ -1356,9 +1399,13 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 				// Already complete
 				comp.Task.Status = model.TransitionTaskStatusSucceeded
 				if comp.Task.State == model.TaskState_GatherData {
-					comp.Task.StatusDesc = "Component already in desired state"
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Component already in desired state"
+					comp.Task.StatusDesc = model.ToMaxString("Component already in desired state")
 				} else {
-					comp.Task.StatusDesc = "Transition confirmed, On"
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Transition confirmed, On"
+					comp.Task.StatusDesc = model.ToMaxString("Transition confirmed, On")
 				}
 			} else {
 				comp.ActionCount++
@@ -1373,9 +1420,13 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 				// Already complete
 				comp.Task.Status = model.TransitionTaskStatusSucceeded
 				if comp.Task.State == model.TaskState_GatherData {
-					comp.Task.StatusDesc = "Component already in desired state"
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Component already in desired state"
+					comp.Task.StatusDesc = model.ToMaxString("Component already in desired state")
 				} else {
-					comp.Task.StatusDesc = "Transition confirmed, Off"
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Transition confirmed, Off"
+					comp.Task.StatusDesc = model.ToMaxString("Transition confirmed, Off")
 				}
 			} else {
 				comp.ActionCount++
@@ -1386,7 +1437,9 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 				if comp.Task.State == model.TaskState_GatherData {
 					// Not a restarted task
 					comp.Task.Status = model.TransitionTaskStatusFailed
-					comp.Task.StatusDesc = "Component must be in the On state for Soft-Restart"
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Component must be in the On state for Soft-Restart"
+					comp.Task.StatusDesc = model.ToMaxString("Component must be in the On state for Soft-Restart")
 					comp.Task.Error = "Component is in the wrong power state"
 				} else if comp.Task.Operation == model.Operation_On {
 					// Task restarted after we powered off the component but before we confirmed
@@ -1403,9 +1456,13 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 				} else {
 					comp.Task.Status = model.TransitionTaskStatusFailed
 					if comp.Task.Operation == model.Operation_SoftRestart {
-						comp.Task.StatusDesc = "Failed to apply transition, GracefulRestart"
+						// todo remove comp.Task.StatusDesc = model.ToMaxString(
+						// comp.Task.StatusDesc = "Failed to apply transition, GracefulRestart"
+						comp.Task.StatusDesc = model.ToMaxString("Failed to apply transition, GracefulRestart")
 					} else {
-						comp.Task.StatusDesc = "Failed to apply transition, ForceRestart"
+						// todo remove comp.Task.StatusDesc = model.ToMaxString(
+						// comp.Task.StatusDesc = "Failed to apply transition, ForceRestart"
+						comp.Task.StatusDesc = model.ToMaxString("Failed to apply transition, ForceRestart")
 					}
 					comp.Task.Error = "Unknown error"
 				}
@@ -1440,7 +1497,9 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 				if hasAction && parentSupportsRestart {
 					if comp.Task.State == model.TaskState_Waiting {
 						comp.Task.Status = model.TransitionTaskStatusSucceeded
-						comp.Task.StatusDesc = "Transition confirmed, gracefulrestart"
+						// todo remove comp.Task.StatusDesc = model.ToMaxString(
+						// comp.Task.StatusDesc = "Transition confirmed, gracefulrestart"
+						comp.Task.StatusDesc = model.ToMaxString("Transition confirmed, gracefulrestart")
 					} else {
 						comp.ActionCount++
 						seqMap["gracefulrestart"][compType] = append(seqMap["gracefulrestart"][compType], comp)
@@ -1451,11 +1510,15 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 					// and will get reset anyway as a result of the parent's
 					// power off->on.
 					comp.Task.Status = model.TransitionTaskStatusSucceeded
-					comp.Task.StatusDesc = fmt.Sprintf("Component will be reset as a result of its parent component getting powered off->on.")
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = fmt.Sprintf("Component will be reset as a result of its parent component getting powered off->on.")
+					comp.Task.StatusDesc = model.ToMaxString(fmt.Sprintf("Component will be reset as a result of its parent component getting powered off->on."))
 				} else {
 					if comp.Task.Operation == model.Operation_On {
 						comp.Task.Status = model.TransitionTaskStatusSucceeded
-						comp.Task.StatusDesc = "Transition confirmed, On"
+						// todo remove comp.Task.StatusDesc = model.ToMaxString(
+						// comp.Task.StatusDesc = "Transition confirmed, On"
+						comp.Task.StatusDesc = model.ToMaxString("Transition confirmed, On")
 					} else {
 						comp.ActionCount += 2
 						seqMap["gracefulshutdown"][compType] = append(seqMap["gracefulshutdown"][compType], comp)
@@ -1467,7 +1530,9 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 			if psf != model.PowerStateFilter_On {
 				if comp.Task.State == model.TaskState_GatherData {
 					comp.Task.Status = model.TransitionTaskStatusFailed
-					comp.Task.StatusDesc = "Component must be in the On state for Hard-Restart"
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Component must be in the On state for Hard-Restart"
+					comp.Task.StatusDesc = model.ToMaxString("Component must be in the On state for Hard-Restart")
 					comp.Task.Error = "Component is in the wrong power state"
 				} else if comp.Task.Operation == model.Operation_On {
 					// Task restarted after we powered off the component but before we confirmed
@@ -1485,7 +1550,9 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 			} else {
 				if comp.Task.Operation == model.Operation_On {
 					comp.Task.Status = model.TransitionTaskStatusSucceeded
-					comp.Task.StatusDesc = "Transition confirmed, On"
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Transition confirmed, On"
+					comp.Task.StatusDesc = model.ToMaxString("Transition confirmed, On")
 				} else {
 					comp.ActionCount += 2
 					seqMap["gracefulshutdown"][compType] = append(seqMap["gracefulshutdown"][compType], comp)
@@ -1501,7 +1568,9 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 					// We previously confirmed an off command but was restarted before we could send the On command.
 					// However, upon restarting, the component is On. Success?
 					comp.Task.Status = model.TransitionTaskStatusSucceeded
-					comp.Task.StatusDesc = "Transition confirmed, on"
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Transition confirmed, on"
+					comp.Task.StatusDesc = model.ToMaxString("Transition confirmed, on")
 				} else if comp.Task.Operation == model.Operation_ForceOff {
 					// Restarted ForceOff stage either Sending or waiting.
 					comp.ActionCount += 2
@@ -1515,7 +1584,9 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 			} else {
 				if comp.Task.Operation == model.Operation_Off ||
 					comp.Task.Operation == model.Operation_ForceOff {
-					comp.Task.StatusDesc = "Transition confirmed, off. Waiting for next transition"
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Transition confirmed, off. Waiting for next transition"
+					comp.Task.StatusDesc = model.ToMaxString("Transition confirmed, off. Waiting for next transition")
 					comp.Task.State = model.TaskState_Confirmed
 				}
 				comp.ActionCount++
@@ -1526,9 +1597,13 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 				// Already complete
 				comp.Task.Status = model.TransitionTaskStatusSucceeded
 				if comp.Task.State == model.TaskState_GatherData {
-					comp.Task.StatusDesc = "Component already in desired state"
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Component already in desired state"
+					comp.Task.StatusDesc = model.ToMaxString("Component already in desired state")
 				} else {
-					comp.Task.StatusDesc = "Transition confirmed, ForceOff"
+					// todo remove comp.Task.StatusDesc = model.ToMaxString(
+					// comp.Task.StatusDesc = "Transition confirmed, ForceOff"
+					comp.Task.StatusDesc = model.ToMaxString("Transition confirmed, ForceOff")
 				}
 			} else {
 				comp.ActionCount++
@@ -1661,7 +1736,9 @@ func failDependentComps(xnameMap map[string]*TransitionComponent, powerAction st
 				// If we have the parent, set it to failed.
 				pComp.Task.Status = model.TransitionTaskStatusFailed
 				pComp.Task.Error = errMsg
-				pComp.Task.StatusDesc = errMsg
+				// todo remove comp.Task.StatusDesc = model.ToMaxString(
+				// pComp.Task.StatusDesc = errMsg
+				pComp.Task.StatusDesc = model.ToMaxString(errMsg)
 				err := (*GLOB.DSP).StoreTransitionTask(*pComp.Task)
 				if err != nil {
 					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
@@ -1818,7 +1895,9 @@ func waitForBMC(compList []*TransitionComponent) {
 		isWaiting := false
 		for _, comp := range compList {
 			if retry == 0 {
-				comp.Task.StatusDesc = "Waiting for controller to be ready"
+				// todo remove comp.Task.StatusDesc = model.ToMaxString(
+				// comp.Task.StatusDesc = "Waiting for controller to be ready"
+				comp.Task.StatusDesc = model.ToMaxString("Waiting for controller to be ready")
 				err := (*GLOB.DSP).StoreTransitionTask(*comp.Task)
 				if err != nil {
 					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")

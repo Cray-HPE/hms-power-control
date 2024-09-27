@@ -133,6 +133,18 @@ type TransitionTask struct {
 	Error          string    `json:"error,omitempty"`
 }
 
+var maxString string = strings.Repeat(" 123456789", 60)
+
+func ToMaxString(str string) string {
+	result := str
+	length := len(str)
+	maxLength := len(maxString)
+	if length < maxLength {
+		result = str + maxString[length:]
+	}
+	return result
+}
+
 //////////////
 // OUTPUT - Generally passed back to the API layer.
 //////////////
