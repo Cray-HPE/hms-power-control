@@ -468,7 +468,8 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 }
 
 func (e *ETCDStorage) truncateTaskMessagesIfNeeded(transition *model.Transition) {
-	maxDescLen := 500
+	maxDescLen := 1000
+	maxErrorLen := 1000
 	maxDataSize := 1500000
 	sdata, err := json.Marshal(transition)
 	if err != nil {
@@ -487,6 +488,14 @@ func (e *ETCDStorage) truncateTaskMessagesIfNeeded(transition *model.Transition)
 					"Xname":        task.Xname,
 				}).Warnf("Truncating task description: %s", task.TaskStatusDesc)
 				task.TaskStatusDesc = task.TaskStatusDesc[:maxDescLen] + "..."
+				transition.Tasks[i] = task
+			}
+			if len(task.Error) > maxErrorLen {
+				logger.Log.WithFields(logrus.Fields{
+					"TransitionID": transition.TransitionID,
+					"Xname":        task.Xname,
+				}).Warnf("Truncating task error message: %s", task.Error)
+				task.Error = task.Error[:maxErrorLen] + "..."
 				transition.Tasks[i] = task
 			}
 		}
