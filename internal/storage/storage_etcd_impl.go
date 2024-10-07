@@ -33,7 +33,6 @@ import (
 	"time"
 
 	hmetcd "github.com/Cray-HPE/hms-hmetcd"
-	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/Cray-HPE/hms-xname/xnametypes"
 	"github.com/google/uuid"
@@ -46,28 +45,32 @@ import (
 // implementations.
 
 const (
-	kvUrlMemDefault         = "mem:"
-	kvUrlDefault            = kvUrlMemDefault //Default to in-memory implementation
-	kvRetriesDefault        = 5
-	keyPrefix               = "/pcs/"
-	keySegPowerStatusMaster = "/powerstatusmaster"
-	keySegPowerState        = "/powerstate"
-	keySegPowerCap          = "/powercaptask"
-	keySegPowerCapOp        = "/powercapop"
-	keySegTransition        = "/transition"
-	keySegTransitionPage    = "/transitionpage"
-	keySegTransitionTask    = "/transitiontask"
-	keySegTransitionStat    = "/transitionstat"
-	keyMin                  = " "
-	keyMax                  = "~"
-	DefaultEtcdPageSize     = 2000 // Maximum locactions (xnames) and task results to store in each etcd entry
+	kvUrlMemDefault          = "mem:"
+	kvUrlDefault             = kvUrlMemDefault //Default to in-memory implementation
+	kvRetriesDefault         = 5
+	keyPrefix                = "/pcs/"
+	keySegPowerStatusMaster  = "/powerstatusmaster"
+	keySegPowerState         = "/powerstate"
+	keySegPowerCap           = "/powercaptask"
+	keySegPowerCapOp         = "/powercapop"
+	keySegTransition         = "/transition"
+	keySegTransitionPage     = "/transitionpage"
+	keySegTransitionTask     = "/transitiontask"
+	keySegTransitionStat     = "/transitionstat"
+	keyMin                   = " "
+	keyMax                   = "~"
+	DefaultEtcdPageSize      = 6100 // Maximum locations (xnames) and task results to store in each etcd entry
+	DefaultMaxMessageLen     = 150  // Maximum length of Task messages and errors when over all object is too large
+	DefaultMaxEtcdObjectSize = 1500000
 )
 
 type ETCDStorage struct {
-	Logger   *logrus.Logger
-	PageSize int
-	mutex    *sync.Mutex
-	kvHandle hmetcd.Kvi
+	Logger            *logrus.Logger
+	PageSize          int
+	MaxMessageLen     int
+	MaxEtcdObjectSize int
+	mutex             *sync.Mutex
+	kvHandle          hmetcd.Kvi
 }
 
 func (e *ETCDStorage) fixUpKey(k string) string {
@@ -140,24 +143,24 @@ func (e *ETCDStorage) kvDelete(key string) error {
 
 // Do an atomic Test-And-Set operation
 func (e *ETCDStorage) kvTAS(key string, testVal interface{}, setVal interface{}) (bool, error) {
-	logger.Log.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.1")
+	e.Logger.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.1")
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	tdata, err := json.Marshal(testVal)
 	if err != nil {
-		logger.Log.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.1.1")
+		e.Logger.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.1.1")
 		return false, err
 	}
-	logger.Log.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.2")
+	e.Logger.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.2")
 	sdata, err := json.Marshal(setVal)
 	if err != nil {
-		logger.Log.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.3.1")
+		e.Logger.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.3.1")
 		return false, err
 	}
-	logger.Log.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.4")
+	e.Logger.WithFields(logrus.Fields{"key": key}).Error("TRACE: 5.1.4")
 	realKey := e.fixUpKey(key)
 	ok, err := e.kvHandle.TAS(realKey, string(tdata), string(sdata))
-	logger.Log.WithFields(logrus.Fields{"key": key, "ok": ok}).Error("TRACE: 5.1.5")
+	e.Logger.WithFields(logrus.Fields{"key": key, "ok": ok}).Error("TRACE: 5.1.5")
 	return ok, err
 }
 
@@ -173,7 +176,14 @@ func (e *ETCDStorage) Init(Logger *logrus.Logger) error {
 	if e.PageSize == 0 {
 		e.PageSize = DefaultEtcdPageSize
 	}
-	e.Logger.Infof("ETCD Storage page size %d", e.PageSize)
+	if e.MaxMessageLen == 0 {
+		e.MaxMessageLen = DefaultMaxMessageLen
+	}
+	if e.MaxEtcdObjectSize == 0 {
+		e.MaxEtcdObjectSize = DefaultMaxEtcdObjectSize
+	}
+	e.Logger.Infof("ETCD storage maximum settings, page_size: %d, message_len: %d, object_size: %d",
+		e.PageSize, e.MaxMessageLen, e.MaxEtcdObjectSize)
 
 	e.mutex = &sync.Mutex{}
 	retries := kvRetriesDefault
@@ -468,39 +478,39 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 }
 
 func (e *ETCDStorage) truncateTaskMessagesIfNeeded(transition *model.Transition) {
-	maxDescLen := 1000
-	maxErrorLen := 1000
-	maxDataSize := 1500000
+	e.Logger.Info("TRACE: truncateTaskMessagesIfNeeded")
+	e.Logger.Infof("TRACE: truncateTaskMessagesIfNeeded: too large: settings: page_size: %d, message_size: %d, object_size: %d",
+		e.PageSize, e.MaxMessageLen, e.MaxEtcdObjectSize)
 	sdata, err := json.Marshal(transition)
 	if err != nil {
-		logger.Log.WithFields(logrus.Fields{"TransitionID": transition.TransitionID, "Error": err}).Error("Error marshalling transition to json")
+		e.Logger.WithFields(logrus.Fields{"TransitionID": transition.TransitionID, "Error": err}).Error("Error marshalling transition to json")
 	}
-	if len(sdata) > maxDataSize {
-		logger.Log.WithFields(logrus.Fields{
+	if len(sdata) > e.MaxEtcdObjectSize {
+		e.Logger.WithFields(logrus.Fields{
 			"TransitionID": transition.TransitionID,
 			"len":          len(sdata),
 		}).Info("TRACE: truncate: too large")
 
 		for i, task := range transition.Tasks {
-			if len(task.TaskStatusDesc) > maxDescLen {
-				logger.Log.WithFields(logrus.Fields{
+			if len(task.TaskStatusDesc) > e.MaxMessageLen {
+				e.Logger.WithFields(logrus.Fields{
 					"TransitionID": transition.TransitionID,
 					"Xname":        task.Xname,
 				}).Warnf("Truncating task description: %s", task.TaskStatusDesc)
-				task.TaskStatusDesc = task.TaskStatusDesc[:maxDescLen] + "..."
+				task.TaskStatusDesc = task.TaskStatusDesc[:e.MaxMessageLen] + "..."
 				transition.Tasks[i] = task
 			}
-			if len(task.Error) > maxErrorLen {
-				logger.Log.WithFields(logrus.Fields{
+			if len(task.Error) > e.MaxMessageLen {
+				e.Logger.WithFields(logrus.Fields{
 					"TransitionID": transition.TransitionID,
 					"Xname":        task.Xname,
 				}).Warnf("Truncating task error message: %s", task.Error)
-				task.Error = task.Error[:maxErrorLen] + "..."
+				task.Error = task.Error[:e.MaxMessageLen] + "..."
 				transition.Tasks[i] = task
 			}
 		}
 	}
-	logger.Log.WithFields(logrus.Fields{
+	e.Logger.WithFields(logrus.Fields{
 		"TransitionID": transition.TransitionID,
 		"len":          len(sdata),
 	}).Info("TRACE: truncate: size")
