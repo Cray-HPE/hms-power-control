@@ -95,7 +95,7 @@ func TestMaxTransitionFailure(t *testing.T) {
 	}
 	ms, _ := createProviders(t, settings)
 
-	params := createParameters("x6000c0s0b0", 10000, "on")
+	params := createParameters("x6000c0s10b0", 10000, "on")
 	transition := newTransition(params)
 	transition = addTasks(transition, 150, 150)
 
@@ -115,9 +115,9 @@ func TestMaxTransition(t *testing.T) {
 	// max object size is 2097152 (2 x 1024 x 1024 bytes)
 	ms, _ := createProviders(t, DEFAULT_TEST_SETTINGS)
 
-	params := createParameters("x6000c0s0b0", 6000, "on")
+	params := createParameters("x6000c0s10b0", 6000, "on")
 	transition := newTransition(params)
-	transition = addTasks(transition, 150, 0)
+	transition = addTasks(transition, 150, 150)
 
 	size, err := getSize(transition)
 	if err != nil {
@@ -135,13 +135,19 @@ func TestMaxTransition(t *testing.T) {
 		t.Errorf("Failed to read large transtion. TransitionID: %s, size: %d, Error: %s", transition.TransitionID, size, err)
 	}
 	storedSize, _ := getSize(storedTransition)
-	t.Logf("TRACE: size: too large: stored: TransitionID: %s, len: %d", storedTransition.TransitionID, storedSize)
+	t.Logf("TRACE:2 size: too large: stored: TransitionID: %s, size: %d", storedTransition.TransitionID, storedSize)
+
+	// sdata, err := json.MarshalIndent(transition, "", "    ")
+	// if err != nil {
+	// 	t.Errorf("Failed to marshal transtion. TransitionID: %s, size: %d, Error: %s", transition.TransitionID, size, err)
+	// }
+	// t.Logf("TRACE:2 size: too large: stored: TransitionID: %s, object:\n%s", storedTransition.TransitionID, string(sdata))
 }
 
 func TestMaxTransition2(t *testing.T) {
 	ms, _ := createProviders(t, DEFAULT_TEST_SETTINGS)
 
-	params := createParameters("x6000c0s0b0", 6000, "on")
+	params := createParameters("x6000c0s10b0", 6000, "on")
 	transition := newTransition(params)
 	transition = addTasks(transition, 150, 0)
 

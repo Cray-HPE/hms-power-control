@@ -59,9 +59,9 @@ const (
 	keySegTransitionStat     = "/transitionstat"
 	keyMin                   = " "
 	keyMax                   = "~"
-	DefaultEtcdPageSize      = 6100 // Maximum locations (xnames) and task results to store in each etcd entry
-	DefaultMaxMessageLen     = 150  // Maximum length of Task messages and errors when over all object is too large
-	DefaultMaxEtcdObjectSize = 1500000
+	DefaultEtcdPageSize      = 6000 // Maximum locations (xnames) and task results to store in each etcd entry
+	DefaultMaxMessageLen     = 130  // Maximum length of Task messages and errors when over all object is too large
+	DefaultMaxEtcdObjectSize = 1570000
 )
 
 type ETCDStorage struct {
@@ -457,8 +457,7 @@ type WatchTransitionCBHandle struct {
 }
 
 func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
-	t, tPages := e.breakIntoPagesIfNeeded(transition)
-	e.truncateTaskMessagesIfNeeded(&t)
+	t, tPages := e.processTransition(transition)
 
 	key := fmt.Sprintf("%s/%s", keySegTransition, t.TransitionID.String())
 	err := e.kvStore(key, t)
@@ -477,6 +476,48 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 	return err
 }
 
+func (e *ETCDStorage) processTransition(transition model.Transition) (model.Transition, []*model.TransitionPage) {
+	originalSize, _ := getObjectSize(transition)
+	if originalSize < e.MaxEtcdObjectSize {
+		e.Logger.WithFields(logrus.Fields{
+			"TransitionID": transition.TransitionID,
+			"size":         originalSize,
+		}).Debug("The transition fits in a single etcd entry")
+		return transition, nil
+	}
+
+	e.truncateTaskMessagesIfNeeded(&transition)
+	truncatedSize, _ := getObjectSize(transition)
+	if truncatedSize < e.MaxEtcdObjectSize {
+		e.Logger.WithFields(logrus.Fields{
+			"TransitionID":  transition.TransitionID,
+			"size":          originalSize,
+			"truncatedSize": truncatedSize,
+		}).Info("The transition's messages were truncated")
+		return transition, nil
+	}
+
+	newTranstion, pages := e.breakIntoPagesIfNeeded(transition)
+	pagedSize, _ := getObjectSize(transition)
+	e.Logger.WithFields(logrus.Fields{
+		"TransitionID": transition.TransitionID,
+		"size":         originalSize,
+		"truncateSize": truncatedSize,
+		"pagedSize":    pagedSize,
+		"pageCount":    len(pages),
+	}).Info("The transition's messages were truncated and it was split into pages.")
+	return newTranstion, pages
+}
+
+func getObjectSize(transition model.Transition) (int, error) {
+	sdata, err := json.Marshal(transition)
+	if err != nil {
+		return -1, err
+	}
+	size := len(sdata)
+	return size, nil
+}
+
 func (e *ETCDStorage) truncateTaskMessagesIfNeeded(transition *model.Transition) {
 	e.Logger.Info("TRACE: truncateTaskMessagesIfNeeded")
 	e.Logger.Infof("TRACE: truncateTaskMessagesIfNeeded: too large: settings: page_size: %d, message_size: %d, object_size: %d",
@@ -492,14 +533,6 @@ func (e *ETCDStorage) truncateTaskMessagesIfNeeded(transition *model.Transition)
 		}).Info("TRACE: truncate: too large")
 
 		for i, task := range transition.Tasks {
-			if len(task.TaskStatusDesc) > e.MaxMessageLen {
-				e.Logger.WithFields(logrus.Fields{
-					"TransitionID": transition.TransitionID,
-					"Xname":        task.Xname,
-				}).Warnf("Truncating task description: %s", task.TaskStatusDesc)
-				task.TaskStatusDesc = task.TaskStatusDesc[:e.MaxMessageLen] + "..."
-				transition.Tasks[i] = task
-			}
 			if len(task.Error) > e.MaxMessageLen {
 				e.Logger.WithFields(logrus.Fields{
 					"TransitionID": transition.TransitionID,
@@ -507,6 +540,25 @@ func (e *ETCDStorage) truncateTaskMessagesIfNeeded(transition *model.Transition)
 				}).Warnf("Truncating task error message: %s", task.Error)
 				task.Error = task.Error[:e.MaxMessageLen] + "..."
 				transition.Tasks[i] = task
+
+				if len(task.TaskStatusDesc) > 3 {
+					e.Logger.WithFields(logrus.Fields{
+						"TransitionID": transition.TransitionID,
+						"Xname":        task.Xname,
+					}).Warnf("Truncating task description: %s", task.TaskStatusDesc)
+					task.TaskStatusDesc = "..."
+					transition.Tasks[i] = task
+				}
+			} else {
+				remainingMessageLen := e.MaxMessageLen - len(task.Error)
+				if len(task.TaskStatusDesc) > remainingMessageLen {
+					e.Logger.WithFields(logrus.Fields{
+						"TransitionID": transition.TransitionID,
+						"Xname":        task.Xname,
+					}).Warnf("Truncating task description: %s", task.TaskStatusDesc)
+					task.TaskStatusDesc = task.TaskStatusDesc[:remainingMessageLen] + "..."
+					transition.Tasks[i] = task
+				}
 			}
 		}
 	}
@@ -784,9 +836,8 @@ func (e *ETCDStorage) DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.U
 }
 
 func (e *ETCDStorage) TASTransition(transition model.Transition, testVal model.Transition) (bool, error) {
-	newTransition, newTransitionPages := e.breakIntoPagesIfNeeded(transition)
-	e.truncateTaskMessagesIfNeeded(&newTransition)
-	currentTransition, _ := e.breakIntoPagesIfNeeded(testVal)
+	newTransition, newTransitionPages := e.processTransition(transition)
+	currentTransition, _ := e.processTransition(testVal)
 	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
 	ok, err := e.kvTAS(key, currentTransition, newTransition)
 	if err != nil {
