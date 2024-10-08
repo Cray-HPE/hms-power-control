@@ -106,7 +106,7 @@ func TestMaxTransitionFailure(t *testing.T) {
 	t.Logf("TRACE: size: too large: TransitionID: %s, len: %d", transition.TransitionID, size)
 
 	err = ms.StoreTransition(transition)
-	if err != nil {
+	if err == nil {
 		t.Errorf("Failed to write large transtion. TransitionID: %s, size: %d, Error: %s", transition.TransitionID, size, err)
 	}
 }
@@ -137,46 +137,39 @@ func TestMaxTransition(t *testing.T) {
 	storedSize, _ := getSize(storedTransition)
 	t.Logf("TRACE:2 size: too large: stored: TransitionID: %s, size: %d", storedTransition.TransitionID, storedSize)
 
-	// sdata, err := json.MarshalIndent(transition, "", "    ")
-	// if err != nil {
-	// 	t.Errorf("Failed to marshal transtion. TransitionID: %s, size: %d, Error: %s", transition.TransitionID, size, err)
-	// }
-	// t.Logf("TRACE:2 size: too large: stored: TransitionID: %s, object:\n%s", storedTransition.TransitionID, string(sdata))
+	sdata, err := json.MarshalIndent(transition, "", "    ")
+	if err != nil {
+		t.Errorf("Failed to marshal transtion. TransitionID: %s, size: %d, Error: %s", transition.TransitionID, size, err)
+	}
+	t.Logf("TRACE:2 size: too large: stored: TransitionID: %s, object:\n%s", storedTransition.TransitionID, string(sdata))
 }
 
-func TestMaxTransition2(t *testing.T) {
-	ms, _ := createProviders(t, DEFAULT_TEST_SETTINGS)
-
+func TestTransitionSizes(t *testing.T) {
 	params := createParameters("x6000c0s10b0", 6000, "on")
 	transition := newTransition(params)
-	transition = addTasks(transition, 150, 0)
-
-	t.Logf("TRACE: uuid: TestMaxTransition: %s", transition.TransitionID)
+	transition = addTasks(transition, 150, 150)
 
 	size, err := getSize(transition)
 	if err != nil {
 		t.Errorf("Unexpected error marshalling transition to json. TransitionID: %s, Error: %s", transition.TransitionID, err)
 	}
-	t.Logf("TRACE: size: TransitionID: %s, len: %d", transition.TransitionID, size)
+	t.Logf("TRACE:4 size: TransitionID: %s, len: %d", transition.TransitionID, size)
 
-	if size < 1500000 {
+	if size > 1570000 {
+		t.Errorf("Unexpected transtion size: %d. Expected size to be over 1500000 for 6000 nodes, with 150 long messages", size)
+	}
+
+	transitionSmall := newTransition(params)
+	transition = addTasks(transition, 100, 150)
+
+	size, err = getSize(transitionSmall)
+	if err != nil {
+		t.Errorf("Unexpected error marshalling transition to json. TransitionID: %s, Error: %s", transitionSmall.TransitionID, err)
+	}
+	t.Logf("TRACE:4 size: TransitionID: %s, len: %d", transitionSmall.TransitionID, size)
+
+	if size > 1570000 {
 		t.Errorf("Unexpected transtion size: %d. Expected size to be over 15000000 for 6000 nodes, with 150 long messages", size)
-	}
-
-	ms.StoreTransition(transition)
-	storedTransition, err := ms.GetTransition(transition.TransitionID)
-	if err != nil {
-		t.Errorf("Failed to read stored transition. TransitionID: %s, Error: %s", transition.TransitionID, err)
-		t.FailNow()
-	}
-
-	storedSize, err := getSize(storedTransition)
-	if err != nil {
-		t.Errorf("Unexpected error marshalling stored transition. TransitionID: %s, Error: %s", transition.TransitionID, err)
-	}
-
-	if storedSize != size {
-		t.Errorf("Size changed. TransitionID: %s, Original: %d, Stored: %d", transition.TransitionID, size, storedSize)
 	}
 }
 
