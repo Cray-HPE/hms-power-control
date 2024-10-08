@@ -155,8 +155,8 @@ func TestTransitionSizes(t *testing.T) {
 	}
 	t.Logf("TRACE:4 size: TransitionID: %s, len: %d", transition.TransitionID, size)
 
-	if size > 1570000 {
-		t.Errorf("Unexpected transtion size: %d. Expected size to be over 1500000 for 6000 nodes, with 150 long messages", size)
+	if size < 1570000 {
+		t.Errorf("Unexpected transtion size: %d. Expected size to be over 1570000 for 6000 nodes, with 150 long messages", size)
 	}
 
 	transitionSmall := newTransition(params)
