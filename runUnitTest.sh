@@ -72,10 +72,8 @@ test_result=$?
 echo "Cleaning up containers..."
 if [[ $test_result -ne 0 ]]; then
   echo "Unit tests FAILED!"
-  # echo "SKIPPING cleanup()"
   cleanup 1
 fi
 
 echo "Unit tests PASSED!"
-# echo "SKIPPING cleanup()"
 cleanup 0
