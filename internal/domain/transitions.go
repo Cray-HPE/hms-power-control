@@ -114,7 +114,7 @@ var PowerSequenceFull = []PowerSeqElem{
 func GetTransition(transitionID uuid.UUID) (pb model.Passback) {
 	var tasks []model.TransitionTask
 	// Get the transition
-	transition, err := (*GLOB.DSP).GetTransition(transitionID)
+	transition, _, err := (*GLOB.DSP).GetTransition(transitionID)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
 			pb = model.BuildErrorPassback(http.StatusNotFound, err)
@@ -186,7 +186,7 @@ func GetTransitionStatuses() (pb model.Passback) {
 func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
 	for retry := 0; retry < 3; retry++ {
 		// Get the transition
-		transition, err := (*GLOB.DSP).GetTransition(transitionID)
+		transition, transitionFirstPage, err := (*GLOB.DSP).GetTransition(transitionID)
 		if err != nil {
 			if strings.Contains(err.Error(), "does not exist") {
 				pb = model.BuildErrorPassback(http.StatusNotFound, err)
@@ -211,10 +211,9 @@ func AbortTransitionID(transitionID uuid.UUID) (pb model.Passback) {
 			pb = model.BuildSuccessPassback(http.StatusAccepted, abortResp)
 			return
 		}
-		transitionOld := transition
 		transition.Status = model.TransitionStatusAbortSignaled
 		// Use test and set to prevent overwriting another thread's store operation.
-		ok, err := (*GLOB.DSP).TASTransition(transition, transitionOld)
+		ok, err := (*GLOB.DSP).TASTransition(transition, transitionFirstPage)
 		if err != nil {
 			pb = model.BuildErrorPassback(http.StatusInternalServerError, err)
 			logger.Log.WithFields(logrus.Fields{"ERROR": err, "HttpStatusCode": pb.StatusCode}).Error("Error storing new transition")
@@ -267,7 +266,7 @@ func doTransition(transitionID uuid.UUID) {
 		waitForever    bool
 	)
 
-	tr, err := (*GLOB.DSP).GetTransition(transitionID)
+	tr, _, err := (*GLOB.DSP).GetTransition(transitionID)
 	if err != nil {
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Cannot retrieve transition, cannot generate tasks")
 		return
@@ -988,7 +987,7 @@ func storeTransition(tr model.Transition) (bool, error) {
 	abort := false
 	for retry := 0; retry < 3; retry++ {
 		// Get the transition
-		trOld, err := (*GLOB.DSP).GetTransition(tr.TransitionID)
+		_, trOld, err := (*GLOB.DSP).GetTransition(tr.TransitionID)
 		if err != nil {
 			if !strings.Contains(err.Error(), "does not exist") {
 				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error getting transition")
@@ -1025,7 +1024,7 @@ func storeTransition(tr model.Transition) (bool, error) {
 // Checks the channel for abort signals and returns true if atleast 1 was found.
 // Empties the channel if more than one was found.
 func checkAbort(tr model.Transition) (bool, error) {
-	transition, err := (*GLOB.DSP).GetTransition(tr.TransitionID)
+	transition, _, err := (*GLOB.DSP).GetTransition(tr.TransitionID)
 	if err != nil {
 		if !strings.Contains(err.Error(), "does not exist") {
 			logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error getting transition")
@@ -1076,7 +1075,7 @@ func transitionKeepAlive(transitionID uuid.UUID, cancelChan chan bool) {
 		case <-keepAlive.C:
 			for {
 				// Get the transition
-				transition, err := (*GLOB.DSP).GetTransition(transitionID)
+				transition, transitionOld, err := (*GLOB.DSP).GetTransition(transitionID)
 				if err != nil {
 					if strings.Contains(err.Error(), "does not exist") {
 						logger.Log.WithFields(logrus.Fields{"ERROR": err}).Errorf("Transition, %s, does not exist, stopping keep alive thread", transitionID.String())
@@ -1098,7 +1097,6 @@ func transitionKeepAlive(transitionID uuid.UUID, cancelChan chan bool) {
 					logger.Log.Infof("Transition %s is finished. Stopping keep alive thread", transitionID.String())
 					return
 				}
-				transitionOld := transition
 				// Only change the LastActiveTime
 				transition.LastActiveTime = time.Now()
 				// Use test and set to prevent overwriting another thread's store operation.
