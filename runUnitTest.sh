@@ -2,7 +2,7 @@
 #
 # MIT License
 #
-# (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -35,9 +35,9 @@ echo "COMPOSE_FILE: $COMPOSE_FILE"
 
 
 function cleanup() {
-  #docker-compose logs > /tmp/dockerLog_${COMPOSE_PROJECT_NAME}.txt
+  #docker compose logs > /tmp/dockerLog_${COMPOSE_PROJECT_NAME}.txt
   rm -rf $ephCertDir
-  docker-compose down
+  docker compose down
   if ! [[ $? -eq 0 ]]; then
     echo "Failed to decompose environment!"
     exit 1
@@ -61,10 +61,10 @@ openssl req -newkey rsa:4096 \
 chmod o+r $ephCertDir/rts.crt $ephCertDir/rts.key
 
 echo "Starting containers..."
-docker-compose build
-docker-compose up  -d dummy #we use dummy to make sure all our dependencies are up
-docker-compose ps # To improve debuggability display the current state of the conainers.
-docker-compose up --exit-code-from unit-tests unit-tests
+docker compose build
+docker compose up  -d dummy #we use dummy to make sure all our dependencies are up
+docker compose ps # To improve debuggability display the current state of the conainers.
+docker compose up --exit-code-from unit-tests unit-tests
 
 test_result=$?
 
