@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CASMHMS-6287: Updated API spec to correctly reflect the possible return values for
   power transition operations, and to note that input values for power transition
   operations are not case sensitive.
+- Fix broken docker-compose tests because of Github runner changes
 
 ### Changed
 
