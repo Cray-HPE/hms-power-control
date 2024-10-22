@@ -3,7 +3,7 @@ info:
   title: Power Control Service (PCS)
   license:
     name: MIT
-  version: "1.0"
+  version: "1.0.1"
   description: >-
     The Power Control Service (PCS) performs power-related operations on 
     system components - nodes, blades, and chassis. 
@@ -494,16 +494,7 @@ components:
         supportedPowerTransitions:
           type: array
           items:
-            type: string
-            enum:
-              - on
-              - off
-              - soft-restart
-              - hard-restart
-              - init
-              - force-off
-              - soft-off
-          example: [ soft-restart]
+            $ref: '#/components/schemas/power_operation'
         lastUpdated:
           type: string
           format: date-time
@@ -532,26 +523,9 @@ components:
           format: date-time
           description: When the record will be deleted
         transitionStatus:
-          type: string
-          example: in-progress
-          enum:
-            - new
-            - in-progress
-            - completed
-            - aborted
-            - abort-signaled
+          $ref: '#/components/schemas/transition_status'
         operation:
-          type: string
-          enum:
-            - on
-            - off
-            - soft-restart
-            - hard-restart
-            - init
-            - force-off
-            - soft-off
-          example: force-off
-
+          $ref: '#/components/schemas/power_operation'
         taskCounts:
           $ref: '#/components/schemas/task_counts'
         tasks:
@@ -579,25 +553,9 @@ components:
           format: date-time
           description: When the record will be deleted
         transitionStatus:
-          type: string
-          example: in-progress
-          enum:
-            - in-progress
-            - new
-            - completed
-            - aborted
-            - abort-signaled
+          $ref: '#/components/schemas/transition_status'
         operation:
-          type: string
-          enum:
-            - on
-            - off
-            - soft-restart
-            - hard-restart
-            - init
-            - force-off
-            - soft-off
-          example: force-off
+          $ref: '#/components/schemas/power_operation'
         taskCounts:
           $ref: '#/components/schemas/task_counts'
     transition_start_output:
@@ -607,15 +565,7 @@ components:
           type: string
           format: uuid
         operation:
-          type: string
-          enum:
-            - on
-            - off
-            - soft-restart
-            - hard-restart
-            - init
-            - force-off
-            - soft-off
+          $ref: '#/components/schemas/power_operation'
     transitions_abort:
       type: object
       properties:
@@ -670,7 +620,7 @@ components:
             - init
             - force-off
 
-          description: The operation that should be applied to the hardware.
+          description: The operation that should be applied to the hardware. The operation parameter is not case sensitive.
           example: force-off
         taskDeadlineMinutes:
           type: integer
@@ -732,6 +682,32 @@ components:
           type: string
           example: 'Description of HTTP Status code, e.g. 400'
 
+    power_operation:
+      type: string
+      description: An operation to be applied to the hardware.
+      enum:
+        - On
+        - Off
+        - Soft-Restart
+        - Hard-Restart
+        - Init
+        - Force-Off
+        - Soft-Off
+      example: Soft-Restart
+      # When responding to API requests, the service always capitalizes the transitions, but in requests,
+      # the transitions are not case sensitive
+      readOnly: true
+
+    transition_status:
+      type: string
+      description: The status of the power transition.
+      example: in-progress
+      enum:
+        - new
+        - in-progress
+        - completed
+        - aborted
+        - abort-signaled
 
     xname:
       type: string
