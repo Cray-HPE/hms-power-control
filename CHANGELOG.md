@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2024-10-22
+
+### Fixed
+
+- CASMHMS-6287: Updated API spec to correctly reflect the possible return values for
+  power transition operations, and to note that input values for power transition
+  operations are not case sensitive.
+- Fix broken docker-compose tests because of Github runner changes
+
+### Changed
+
+- CASMHMS-6287: Created `power_operation` and `transition_status` schemas in API spec
+  to eliminate redundancies (no semantic change to spec).
+
 ## [2.3.0] - 2024-03-26
 
 ### Added
