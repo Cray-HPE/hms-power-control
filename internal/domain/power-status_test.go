@@ -40,7 +40,7 @@ import (
     "github.com/Cray-HPE/hms-xname/xnametypes"
     "github.com/sirupsen/logrus"
     "github.com/stretchr/testify/suite"
-	trsapi "github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api"
+	trsapi "github.com/Cray-HPE/hms-trs-app-api/v2/pkg/trs_http_api"
 )
 
 type PwrStat_TS struct {

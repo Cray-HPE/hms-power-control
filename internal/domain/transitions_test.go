@@ -39,7 +39,7 @@ import (
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/Cray-HPE/hms-power-control/internal/storage"
 	base "github.com/Cray-HPE/hms-base"
-	trsapi "github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api"
+	trsapi "github.com/Cray-HPE/hms-trs-app-api/v2/pkg/trs_http_api"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 )

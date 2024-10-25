@@ -38,7 +38,7 @@ import (
 	pcsmodel "github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/Cray-HPE/hms-power-control/internal/storage"
 	rf "github.com/Cray-HPE/hms-smd/v2/pkg/redfish"
-	trsapi "github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api"
+	trsapi "github.com/Cray-HPE/hms-trs-app-api/v2/pkg/trs_http_api"
 	"github.com/Cray-HPE/hms-xname/xnametypes"
 
 	"github.com/sirupsen/logrus"
