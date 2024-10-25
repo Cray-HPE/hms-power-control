@@ -43,7 +43,7 @@ COPY .version $GOPATH/src/github.com/Cray-HPE/hms-power-control/.version
 ### Build Stage ###
 FROM base AS builder
 
-RUN set -ex && CGO_ENABLED=1 go build -v -o -tags musl /usr/local/bin/hms-power-control github.com/Cray-HPE/hms-power-control/cmd/hms-power-control
+RUN set -ex && CGO_ENABLED=1 go build -v -tags musl -o /usr/local/bin/hms-power-control github.com/Cray-HPE/hms-power-control/cmd/hms-power-control
 
 ### Final Stage ###
 
