@@ -47,7 +47,7 @@ RUN set -ex && CGO_ENABLED=1 go build -v -o -tags musl /usr/local/bin/hms-power-
 
 ### Final Stage ###
 
-FROM artifactory.algol60.net/docker.io/alpine:3
+FROM artifactory.algol60.net/docker.io/alpine:3.20
 LABEL maintainer="Hewlett Packard Enterprise"
 EXPOSE 28007
 STOPSIGNAL SIGTERM
