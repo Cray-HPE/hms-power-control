@@ -105,7 +105,7 @@ func (e *ETCDStorage) kvGet(key string, val interface{}) error {
 	return err
 }
 
-//if a key doesnt exist, etcd doesn't return an error
+// if a key doesnt exist, etcd doesn't return an error
 func (e *ETCDStorage) kvDelete(key string) error {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
