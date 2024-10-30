@@ -273,7 +273,7 @@ func (suite *PwrStat_TS) Test_PowerStatusMonitor() {
 	t = suite.T()
 
 	//First initialize the power monitor
-	err := PowerStatusMonitorInit(&domGlb,(600*time.Second),tlogger,(5*time.Second))
+	err := PowerStatusMonitorInit(&domGlb, (600*time.Second), tlogger, (5*time.Second), 30, 3)
 	suite.Assert().Equal(nil,err,"PowerStatusMonitorInit() error: %v",err)
 
 	//Wait a while for the internal componant map to get updated.
