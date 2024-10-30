@@ -436,8 +436,12 @@ func getHWStatesFromHW() error {
 	hashCType := http.CanonicalHeaderKey("CType")
 	hashFQDN  := http.CanonicalHeaderKey("FQDN")
 
-	sourceTL := trsapi.HttpTask{Timeout: time.Duration(httpTimeout) * time.Second,
-				    RetryPolicy.Retries: httpRetries}
+	sourceTL := trsapi.HttpTask {
+						Timeout: time.Duration(httpTimeout) * time.Second,
+						RetryPolicy: trsapi.RetryPolicy{
+							Retries: httpRetries,
+						},
+					}
 
 	//Get vault creds where needed
 
