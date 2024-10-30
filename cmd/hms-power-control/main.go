@@ -344,6 +344,8 @@ func main() {
 
 	dlockTimeout := 60
 	pwrSampleInterval := 30
+	statusTimeout := 30
+	statusRetries := 3
 	envstr = os.Getenv("PCS_POWER_SAMPLE_INTERVAL")
 	if (envstr != "") {
 		tps,err := strconv.Atoi(envstr)
@@ -364,9 +366,30 @@ func main() {
 			dlockTimeout = tps
 		}
 	}
+	envstr = os.Getenv("PCS_STATUS_HTTP_TIMEOUT")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_STATUS_HTTP_TIMEOUT, defaulting to %d",
+				statusTimeout)
+		} else {
+			statusTimeout = tps
+		}
+	}
+	envstr = os.Getenv("PCS_STATUS_HTTP_RETRIES")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_STATUS_HTTP_RETRIES, defaulting to %d",
+				statusRetries)
+		} else {
+			statusRetries = tps
+		}
+	}
+
 	domain.PowerStatusMonitorInit(&domainGlobals,
 		(time.Duration(dlockTimeout)*time.Second),
-		logger.Log,(time.Duration(pwrSampleInterval)*time.Second))
+		logger.Log,(time.Duration(pwrSampleInterval)*time.Second), statusTimeout, statusRetries)
 
 	domain.StartRecordsReaper()
 
