@@ -87,11 +87,10 @@ var distLockMaxTime time.Duration
 var pstateMonitorRunning bool
 var serviceRunning *bool
 var vaultEnabled = false
-//var httpTimeout = 30 //seconds
+var httpTimeout = 30
+var httpRetries = 3
 var isPowerStatusMaster = false
 var powerStatusMasterInterval = 15
-var httpTimeout int
-var httpRetries int
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -110,8 +109,8 @@ func PowerStatusMonitorInit(domGlb *DOMAIN_GLOBALS,
                             distLockMaxTimeIn time.Duration,
                             loggerIn *logrus.Logger,
                             sampleInterval time.Duration,
-														bmcTimeout int,
-														bmcRetries int) error {
+                            httpTimeoutOverride int,
+                            httpRetriesOverride int) error {
 	if loggerIn == nil {
 		glogger = logrus.New()
 	} else {
@@ -151,8 +150,8 @@ func PowerStatusMonitorInit(domGlb *DOMAIN_GLOBALS,
 	pmSampleInterval = sampleInterval
 	serviceRunning = domGlb.Running
 	vaultEnabled = domGlb.VaultEnabled
-	httpTimeout = bmcTimeout
-	httpRetries = bmcRetries
+	httpTimeout = httpTimeoutOverride
+	httpRetries = httpRetriesOverride
 
 	go monitorHW()
 	return nil
@@ -437,7 +436,8 @@ func getHWStatesFromHW() error {
 	hashCType := http.CanonicalHeaderKey("CType")
 	hashFQDN  := http.CanonicalHeaderKey("FQDN")
 
-	sourceTL := trsapi.HttpTask{Timeout: time.Duration(httpTimeout) * time.Second}
+	sourceTL := trsapi.HttpTask{Timeout: time.Duration(httpTimeout) * time.Second,
+				    RetryPolicy.Retries: httpRetries}
 
 	//Get vault creds where needed
 
@@ -485,10 +485,6 @@ func getHWStatesFromHW() error {
 					taskList[taskIX].Request.Header.Add(hashXName, k)
 					taskList[taskIX].Request.Header.Add(hashCType, string(ctype))
 					taskList[taskIX].Request.Header.Add(hashFQDN, v.HSMData.RfFQDN)
-
-					taskList[taskIX].Timeout = time.Second * time.Duration(httpTimeout)
-					taskList[taskIX].RetryPolicy.Retries = httpRetries
-
 					taskIX ++
 					activeTasks ++
 				}
