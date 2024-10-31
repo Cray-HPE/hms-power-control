@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2018-2021] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2018-2022] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -65,6 +65,8 @@ const (
 var ErrHMSStateInvalid = e.NewChild("was not a valid HMS state")
 var ErrHMSStateUnsupported = e.NewChild("HMSState value not supported for this operation")
 var ErrHMSNeedForce = e.NewChild("operation not allowed and not forced.")
+var ErrHMSTypeInvalid = e.NewChild("got HMSTypeInvalid instead of valid type")
+var ErrHMSTypeUnsupported = e.NewChild("HMSType value not supported for this operation") // TODO should this be in base?
 
 // For case-insensitive verification and normalization of state strings
 var hmsStateMap = map[string]HMSState{

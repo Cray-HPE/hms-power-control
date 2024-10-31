@@ -1,7 +1,7 @@
 # github.com/Cray-HPE/hms-base v1.15.1
 ## explicit
 github.com/Cray-HPE/hms-base
-# github.com/Cray-HPE/hms-base/v2 v2.0.0
+# github.com/Cray-HPE/hms-base/v2 v2.0.1
 github.com/Cray-HPE/hms-base/v2
 # github.com/Cray-HPE/hms-certs v1.3.3
 ## explicit
@@ -20,7 +20,7 @@ github.com/Cray-HPE/hms-securestorage
 github.com/Cray-HPE/hms-smd/v2/pkg/redfish
 github.com/Cray-HPE/hms-smd/v2/pkg/service-reservations
 github.com/Cray-HPE/hms-smd/v2/pkg/sm
-# github.com/Cray-HPE/hms-trs-app-api/v2 v2.0.0
+# github.com/Cray-HPE/hms-trs-app-api/v2 v2.1.0
 ## explicit
 github.com/Cray-HPE/hms-trs-app-api/v2/pkg/trs_http_api
 # github.com/Cray-HPE/hms-trs-kafkalib/v2 v2.0.1
@@ -64,11 +64,11 @@ github.com/gorilla/mux
 ## explicit
 # github.com/hashicorp/errwrap v1.0.0
 github.com/hashicorp/errwrap
-# github.com/hashicorp/go-cleanhttp v0.5.1
+# github.com/hashicorp/go-cleanhttp v0.5.2
 github.com/hashicorp/go-cleanhttp
 # github.com/hashicorp/go-multierror v1.1.0
 github.com/hashicorp/go-multierror
-# github.com/hashicorp/go-retryablehttp v0.7.0
+# github.com/hashicorp/go-retryablehttp v0.7.7
 github.com/hashicorp/go-retryablehttp
 # github.com/hashicorp/go-rootcerts v1.0.1
 github.com/hashicorp/go-rootcerts
@@ -110,7 +110,7 @@ github.com/ryanuber/go-glob
 # github.com/sirupsen/logrus v1.8.1
 ## explicit
 github.com/sirupsen/logrus
-# github.com/stretchr/testify v1.7.0
+# github.com/stretchr/testify v1.7.2
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
@@ -129,8 +129,7 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20200817155316-9781c653f443
-golang.org/x/sys/internal/unsafeheader
+# golang.org/x/sys v0.20.0
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/text v0.3.3
@@ -220,5 +219,5 @@ gopkg.in/square/go-jose.v2/json
 gopkg.in/square/go-jose.v2/jwt
 # gopkg.in/yaml.v2 v2.2.8
 ## explicit
-# gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
+# gopkg.in/yaml.v3 v3.0.1
 gopkg.in/yaml.v3
