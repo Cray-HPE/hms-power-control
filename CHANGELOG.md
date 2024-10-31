@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Added ability to configure http status timeout and retries with
+  PCS_STATUS_HTTP_TIMEOUT and PCS_STATUS_HTTP_RETRIES env variables
 - Updated hms-trs-app-api vendor code to latest version
 
 ## [2.4.1] - 2024-10-22
