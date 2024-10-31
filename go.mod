@@ -1,6 +1,6 @@
 module github.com/Cray-HPE/hms-power-control
 
-go 1.16
+go 1.17
 
 //todo hms-base needs to be converted to hms-xname as soon as that package is available.
 
