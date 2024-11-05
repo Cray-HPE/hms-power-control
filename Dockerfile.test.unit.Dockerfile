@@ -22,7 +22,7 @@
 
 # This file only exists as a means to run tests in an automated fashion.
 
-FROM artifactory.algol60.net/docker.io/library/golang:1.16-alpine
+FROM artifactory.algol60.net/docker.io/library/golang:1.17-alpine
 
 RUN set -ex \
     && apk -U upgrade \
@@ -61,9 +61,9 @@ COPY .version $GOPATH/src/github.com/Cray-HPE/hms-power-control/.version
 CMD set -ex \
     && ./scripts/wait-for-discovery.sh \
     && go version \
-    && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/domain \
-    && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/api \
-    && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/model \
-    && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/storage \
-    && go test -cover -v -o power-control github.com/Cray-HPE/hms-power-control/internal/hsm
+    && go test -cover -v -tags musl -o power-control github.com/Cray-HPE/hms-power-control/internal/domain \
+    && go test -cover -v -tags musl -o power-control github.com/Cray-HPE/hms-power-control/internal/api \
+    && go test -cover -v -tags musl -o power-control github.com/Cray-HPE/hms-power-control/internal/model \
+    && go test -cover -v -tags musl -o power-control github.com/Cray-HPE/hms-power-control/internal/storage \
+    && go test -cover -v -tags musl -o power-control github.com/Cray-HPE/hms-power-control/internal/hsm
 

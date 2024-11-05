@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2022-2024] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -38,7 +38,7 @@ import (
 	pcsmodel "github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/Cray-HPE/hms-power-control/internal/storage"
 	rf "github.com/Cray-HPE/hms-smd/v2/pkg/redfish"
-	trsapi "github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api"
+	trsapi "github.com/Cray-HPE/hms-trs-app-api/v2/pkg/trs_http_api"
 	"github.com/Cray-HPE/hms-xname/xnametypes"
 
 	"github.com/sirupsen/logrus"
@@ -87,7 +87,8 @@ var distLockMaxTime time.Duration
 var pstateMonitorRunning bool
 var serviceRunning *bool
 var vaultEnabled = false
-var httpTimeout = 30 //seconds
+var httpTimeout = 30
+var httpRetries = 3
 var isPowerStatusMaster = false
 var powerStatusMasterInterval = 15
 
@@ -107,7 +108,9 @@ var powerStatusMasterInterval = 15
 func PowerStatusMonitorInit(domGlb *DOMAIN_GLOBALS,
                             distLockMaxTimeIn time.Duration,
                             loggerIn *logrus.Logger,
-                            sampleInterval time.Duration) error {
+                            sampleInterval time.Duration,
+                            httpTimeoutOverride int,
+                            httpRetriesOverride int) error {
 	if loggerIn == nil {
 		glogger = logrus.New()
 	} else {
@@ -147,6 +150,8 @@ func PowerStatusMonitorInit(domGlb *DOMAIN_GLOBALS,
 	pmSampleInterval = sampleInterval
 	serviceRunning = domGlb.Running
 	vaultEnabled = domGlb.VaultEnabled
+	httpTimeout = httpTimeoutOverride
+	httpRetries = httpRetriesOverride
 
 	go monitorHW()
 	return nil
@@ -431,7 +436,12 @@ func getHWStatesFromHW() error {
 	hashCType := http.CanonicalHeaderKey("CType")
 	hashFQDN  := http.CanonicalHeaderKey("FQDN")
 
-	sourceTL := trsapi.HttpTask{Timeout: time.Duration(httpTimeout) * time.Second}
+	sourceTL := trsapi.HttpTask {
+						Timeout: time.Duration(httpTimeout) * time.Second,
+						RetryPolicy: trsapi.RetryPolicy{
+							Retries: httpRetries,
+						},
+					}
 
 	//Get vault creds where needed
 

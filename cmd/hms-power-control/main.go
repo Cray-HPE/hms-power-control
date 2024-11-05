@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -42,7 +42,7 @@ import (
 	"github.com/Cray-HPE/hms-power-control/internal/hsm"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/storage"
-	trsapi "github.com/Cray-HPE/hms-trs-app-api/pkg/trs_http_api"
+	trsapi "github.com/Cray-HPE/hms-trs-app-api/v2/pkg/trs_http_api"
 	"github.com/namsral/flag"
 	"github.com/sirupsen/logrus"
 )
@@ -344,6 +344,8 @@ func main() {
 
 	dlockTimeout := 60
 	pwrSampleInterval := 30
+	statusHttpTimeout := 30
+	statusHttpRetries := 3
 	envstr = os.Getenv("PCS_POWER_SAMPLE_INTERVAL")
 	if (envstr != "") {
 		tps,err := strconv.Atoi(envstr)
@@ -364,9 +366,30 @@ func main() {
 			dlockTimeout = tps
 		}
 	}
+	envstr = os.Getenv("PCS_STATUS_HTTP_TIMEOUT")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_STATUS_HTTP_TIMEOUT, defaulting to %d",
+				statusHttpTimeout)
+		} else {
+			statusHttpTimeout = tps
+		}
+	}
+	envstr = os.Getenv("PCS_STATUS_HTTP_RETRIES")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_STATUS_HTTP_RETRIES, defaulting to %d",
+				statusHttpRetries)
+		} else {
+			statusHttpRetries = tps
+		}
+	}
+
 	domain.PowerStatusMonitorInit(&domainGlobals,
 		(time.Duration(dlockTimeout)*time.Second),
-		logger.Log,(time.Duration(pwrSampleInterval)*time.Second))
+		logger.Log,(time.Duration(pwrSampleInterval)*time.Second), statusHttpTimeout, statusHttpRetries)
 
 	domain.StartRecordsReaper()
 
