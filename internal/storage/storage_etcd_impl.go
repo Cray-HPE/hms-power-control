@@ -105,7 +105,7 @@ func (e *ETCDStorage) kvGet(key string, val interface{}) error {
 	return err
 }
 
-//if a key doesnt exist, etcd doesn't return an error
+// if a key doesnt exist, etcd doesn't return an error
 func (e *ETCDStorage) kvDelete(key string) error {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
@@ -177,6 +177,7 @@ func (e *ETCDStorage) Init(Logger *logrus.Logger) error {
 func (e *ETCDStorage) Ping() error {
 	e.Logger.Debug("ETCD PING")
 	key := fmt.Sprintf("/ping/%s", uuid.New().String())
+	e.Logger.Infof("TRACE4: Ping, key: %s", key)
 	err := e.kvStore(key, "")
 	if err == nil {
 		err = e.kvDelete(key)
@@ -197,6 +198,7 @@ func (e *ETCDStorage) GetPowerStatusMaster() (time.Time, error) {
 
 func (e *ETCDStorage) StorePowerStatusMaster(now time.Time) error {
 	key := fmt.Sprintf("%s", keySegPowerStatusMaster)
+	e.Logger.Infof("TRACE4: StorePowerStatusMaster, key: %s", key)
 	err := e.kvStore(key, now)
 	if err != nil {
 		e.Logger.Error(err)
@@ -206,6 +208,7 @@ func (e *ETCDStorage) StorePowerStatusMaster(now time.Time) error {
 
 func (e *ETCDStorage) TASPowerStatusMaster(now time.Time, testVal time.Time) (bool, error) {
 	key := fmt.Sprintf("%s", keySegPowerStatusMaster)
+	e.Logger.Infof("TRACE4: TASPowerStatusMaster, key: %s", key)
 	ok, err := e.kvTAS(key, testVal, now)
 	if err != nil {
 		e.Logger.Error(err)
@@ -218,6 +221,7 @@ func (e *ETCDStorage) StorePowerStatus(p model.PowerStatusComponent) error {
 		return fmt.Errorf("Error parsing '%s': invalid xname format.", p.XName)
 	}
 	key := fmt.Sprintf("%s/%s", keySegPowerState, p.XName)
+	e.Logger.Infof("TRACE4: StorePowerStatus, key: %s", key)
 	err := e.kvStore(key, p)
 	if err != nil {
 		e.Logger.Error(err)
@@ -301,6 +305,7 @@ func (e *ETCDStorage) GetPowerStatusHierarchy(xname string) (model.PowerStatus, 
 
 func (e *ETCDStorage) StorePowerCapTask(task model.PowerCapTask) error {
 	key := fmt.Sprintf("%s/%s", keySegPowerCap, task.TaskID.String())
+	e.Logger.Infof("TRACE4: StorePowerCapTask, key: %s", key)
 	err := e.kvStore(key, task)
 	if err != nil {
 		e.Logger.Error(err)
@@ -312,6 +317,7 @@ func (e *ETCDStorage) StorePowerCapOperation(op model.PowerCapOperation) error {
 	// Store PowerCapOperations using their parent task's key so it will be
 	// easier to get all of them when needed.
 	key := fmt.Sprintf("%s/%s/%s", keySegPowerCapOp, op.TaskID.String(), op.OperationID.String())
+	e.Logger.Infof("TRACE4: StorePowerCapOperation, key: %s", key)
 	err := e.kvStore(key, op)
 	if err != nil {
 		e.Logger.Error(err)
@@ -413,6 +419,7 @@ type WatchTransitionCBHandle struct {
 
 func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
+	e.Logger.Infof("TRACE4: StoreTransition, key: %s", key)
 	err := e.kvStore(key, transition)
 	if err != nil {
 		e.Logger.Error(err)
@@ -424,6 +431,7 @@ func (e *ETCDStorage) StoreTransitionTask(task model.TransitionTask) error {
 	// Store TransitionTasks using their parent transition's key so it will be
 	// easier to get all of them when needed.
 	key := fmt.Sprintf("%s/%s/%s", keySegTransitionTask, task.TransitionID.String(), task.TaskID.String())
+	e.Logger.Infof("TRACE4: StoreTransitionTask, key: %s", key)
 	err := e.kvStore(key, task)
 	if err != nil {
 		e.Logger.Error(err)
@@ -515,6 +523,7 @@ func (e *ETCDStorage) DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.U
 
 func (e *ETCDStorage) TASTransition(transition model.Transition, testVal model.Transition) (bool, error) {
 	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
+	e.Logger.Infof("TRACE4: TASTransition, key: %s", key)
 	ok, err := e.kvTAS(key, testVal, transition)
 	if err != nil {
 		e.Logger.Error(err)
