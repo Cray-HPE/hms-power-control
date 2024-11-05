@@ -860,11 +860,33 @@ func updateHWState(xname string, hwState pcsmodel.PowerStateFilter,
 	psc.SupportedPowerTransitions = comp.PSComp.SupportedPowerTransitions
 	psc.LastUpdated = comp.PSComp.LastUpdated
 
-	err := (*kvStore).StorePowerStatus(psc)
-	if err != nil {
-		glogger.Errorf("%s: ERROR storing component state for '%s': %v",
-			funcname, xname, err)
-		return
+	isNewState := true
+	currPsc, gerr := (*kvStore).GetPowerStatus(psc.XName)
+	if gerr == nil {
+		if currPsc.XName == psc.XName &&
+			currPsc.PowerState == psc.PowerState &&
+			currPsc.ManagementState == psc.ManagementState &&
+			currPsc.Error == psc.Error &&
+			len(currPsc.SupportedPowerTransitions) == len(psc.SupportedPowerTransitions) {
+			transitionsMatch := true
+			for i, value := range currPsc.SupportedPowerTransitions {
+				if value != psc.SupportedPowerTransitions[i] {
+					transitionsMatch = false
+				}
+			}
+			if transitionsMatch {
+				isNewState = false
+			}
+		}
+	}
+	glogger.Infof("updateHWState. xname: %s, isNewState: %t", psc.XName, isNewState)
+	if isNewState {
+		err := (*kvStore).StorePowerStatus(psc)
+		if err != nil {
+			glogger.Errorf("%s: ERROR storing component state for '%s': %v",
+				funcname, xname, err)
+			return
+		}
 	}
 }
 
