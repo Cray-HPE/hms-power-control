@@ -454,12 +454,12 @@ func getHWStatesFromHW() error {
 
 	sourceTL := trsapi.HttpTask {
 		Timeout: time.Duration(statusTimeout) * time.Second,
-		CPolicy: ClientPolicy {
-			retry:
-				RetryPolicy {
+		CPolicy: trsapi.ClientPolicy {
+			Retry:
+				trsapi.RetryPolicy {
 					Retries: httpRetries,
 				},
-			tx:
+			Tx:
 				HttpTxPolicy {
 					Enabled:             true,
 					MaxIdleConns:        maxIdleConns,

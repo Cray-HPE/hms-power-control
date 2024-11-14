@@ -665,7 +665,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 	trsTaskIdx := 0
 	for _, op := range goodOps {
 		trsTaskMap[trsTaskList[trsTaskIdx].GetID()] = op
-		trsTaskList[trsTaskIdx].RetryPolicy.Retries = 3
+		trsTaskList[trsTaskIdx].CPolicy.Retry.Retries = 3
 		if taskIsPatch {
 			var method string
 			var path string

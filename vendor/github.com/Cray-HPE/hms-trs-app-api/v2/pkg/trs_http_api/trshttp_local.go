@@ -134,8 +134,8 @@ func (tloc *TRSHTTPLocal) CreateTaskList(source *HttpTask, numTasks int) []HttpT
 // Create and configure a new client transport for use with HTTP clients.
 
 func configureClient(client *retryablehttp.Client, task *HttpTask, tloc *TRSHTTPLocal, clientType string) {
-	retryPolicy := task.CPolicy.retry
-	httpTxPolicy := task.CPolicy.tx
+	retryPolicy := task.CPolicy.Retry
+	httpTxPolicy := task.CPolicy.Tx
 
 	// Configure the httpretryable client retry count
 	if (retryPolicy.Retries > 0) {

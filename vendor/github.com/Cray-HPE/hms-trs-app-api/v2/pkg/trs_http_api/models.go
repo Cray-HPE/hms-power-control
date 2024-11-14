@@ -89,8 +89,8 @@ type HttpTxPolicy struct {
 }
 
 type ClientPolicy struct {
-	retry    RetryPolicy
-	tx       HttpTxPolicy
+	Retry    RetryPolicy
+	Tx       HttpTxPolicy
 }
 
 type HttpTask struct {
