@@ -1,17 +1,17 @@
 // MIT License
-// 
+//
 // (C) Copyright [2020-2021,2024] Hewlett Packard Enterprise Development LP
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
 // to deal in the Software without restriction, including without limitation
 // the rights to use, copy, modify, merge, publish, distribute, sublicense,
 // and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included
 // in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
@@ -19,7 +19,6 @@
 // OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
-
 
 package trs_http_api
 
@@ -29,12 +28,13 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"net/http"
+	"time"
+
+	base "github.com/Cray-HPE/hms-base/v2"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/sirupsen/logrus"
-	"net/http"
-	"time"
-	"github.com/Cray-HPE/hms-base/v2"
 )
 
 const (
@@ -69,10 +69,13 @@ func (tloc *TRSHTTPLocal) Init(serviceName string, logger *logrus.Logger) error 
 	}
 	if tloc.clientMap == nil {
 		tloc.clientMutex.Lock()
-		tloc.clientMap = make(map[RetryPolicy]*clientPack)
+		tloc.clientMap = make(map[ClientPolicy]*clientPack)
 		tloc.clientMutex.Unlock()
 	}
 	tloc.svcName = serviceName
+
+	tloc.Logger.Tracef("Init() successful")
+
 	return nil
 }
 
@@ -105,6 +108,8 @@ func (tloc *TRSHTTPLocal) SetSecurity(inParams interface{}) error {
 		}
 	}
 
+	tloc.Logger.Tracef("SetSecurity() successful")
+
 	return nil
 }
 
@@ -126,97 +131,134 @@ func (tloc *TRSHTTPLocal) CreateTaskList(source *HttpTask, numTasks int) []HttpT
 	return createHTTPTaskArray(source, numTasks)
 }
 
+// Create and configure a new client transport for use with HTTP clients.
+
+func configureClient(client *retryablehttp.Client, task *HttpTask, tloc *TRSHTTPLocal, clientType string) {
+	retryPolicy := task.CPolicy.retry
+	httpTxPolicy := task.CPolicy.tx
+
+	// Configure the httpretryable client retry count
+	if (retryPolicy.Retries > 0) {
+		client.RetryMax = retryPolicy.Retries
+	} else {
+		client.RetryMax = DFLT_RETRY_MAX
+	}
+
+	// Configure the httpretryable client backoff timeout
+	if (retryPolicy.BackoffTimeout > 0) {
+		client.RetryWaitMax = retryPolicy.BackoffTimeout
+	} else {
+		client.RetryWaitMax = DFLT_BACKOFF_MAX * time.Second
+	}
+
+	// HTTPClient timeout should be 90% of the task's context timeout
+	client.HTTPClient.Timeout = task.Timeout * 9 / 10
+
+	// Configure TLS for the client transport
+	var tr *http.Transport
+	if clientType == "insecure" {
+		tr = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true,},}
+	} else {
+		tlsConfig := &tls.Config{RootCAs: tloc.CACertPool,}
+		tlsConfig.BuildNameToCertificate()
+		tr = &http.Transport{TLSClientConfig: tlsConfig,}
+	}
+
+	// Configure the client't http transport policy
+	if httpTxPolicy.Enabled {
+		tr.MaxIdleConns          = httpTxPolicy.MaxIdleConns          // if 0 defaults to 2
+		tr.MaxIdleConnsPerHost   = httpTxPolicy.MaxIdleConnsPerHost   // if 0 defaults to 100
+		tr.IdleConnTimeout       = httpTxPolicy.IdleConnTimeout       // if 0 defaults to no timeout
+		tr.ResponseHeaderTimeout = httpTxPolicy.ResponseHeaderTimeout // if 0 defaults to no timeout
+		tr.TLSHandshakeTimeout   = httpTxPolicy.TLSHandshakeTimeout   // if 0 defaults to 10s
+		tr.DisableKeepAlives	 = httpTxPolicy.DisableKeepAlives     // if 0 defaults to false
+	}
+
+	// Log the configuration we're going to use. Clients are generally long
+	// lived so this shouldn't be too spammy. Knowing this information can
+	// be pretty critical when debugging issues on site
+	tloc.Logger.Errorf("Created %s client with incoming policy %v (to's %s and %s)",
+					   clientType, task.CPolicy, task.Timeout, client.HTTPClient.Timeout)
+
+	// Write through to the client
+	client.HTTPClient.Transport = tr
+}
+
 func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 	//Find a client or make one!
 	var cpack *clientPack
 	tloc.clientMutex.Lock()
-	if _, ok := tloc.clientMap[tct.task.RetryPolicy]; !ok {
-		//MAKE NEW CLIENT!!!
-		//Calculate backoff params.  If caller didn't specify them, we get
-		//1 try and a 1 second wait.  Not good.  We'll use default minimums
-		//for both if caller doesn't.
-		rtMax := DFLT_RETRY_MAX
-		boffMax := DFLT_BACKOFF_MAX * time.Second
-		if (tct.task.RetryPolicy.Retries > 0) {
-			rtMax = tct.task.RetryPolicy.Retries
-		}
-		if (tct.task.RetryPolicy.BackoffTimeout > 0) {
-			boffMax = tct.task.RetryPolicy.BackoffTimeout
-		}
+	if _, ok := tloc.clientMap[tct.task.CPolicy]; !ok {
 		httpLogger := logrus.New()
 		httpLogger.SetLevel(logrus.ErrorLevel)
+
 		cpack = new(clientPack)
+
 		cpack.insecure = retryablehttp.NewClient()
-		tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true},}
-		cpack.insecure.HTTPClient.Transport = tr
 		cpack.insecure.Logger = httpLogger
-		cpack.insecure.RetryMax = rtMax
-		cpack.insecure.RetryWaitMax = boffMax
+
+		configureClient(cpack.insecure, tct.task, tloc, "insecure")
+
 		if (tloc.CACertPool != nil) {
 			cpack.secure = retryablehttp.NewClient()
-			tlsConfig := &tls.Config{RootCAs: tloc.CACertPool,}
-			tlsConfig.BuildNameToCertificate()
-			trs := &http.Transport{TLSClientConfig: tlsConfig,}
-			cpack.secure.HTTPClient.Transport = trs
 			cpack.secure.Logger = httpLogger
-			cpack.secure.RetryMax = rtMax
-			cpack.secure.RetryWaitMax = boffMax
+
+			configureClient(cpack.secure, tct.task, tloc, "secure")
+
+			tloc.Logger.Tracef("Created secure client with policy %v", tct.task.CPolicy)
 		}
-		tloc.clientMap[tct.task.RetryPolicy] = cpack
+		tloc.clientMap[tct.task.CPolicy] = cpack
 	} else {
-		cpack = tloc.clientMap[tct.task.RetryPolicy]
+		cpack = tloc.clientMap[tct.task.CPolicy]
 	}
 	tloc.clientMutex.Unlock()
 
 	if ok, err := tct.task.Validate(); !ok {
 		tloc.Logger.Errorf("Failed validation of request: %+v, err: %s", tct.task, err)
 		tct.task.Err = &err
+		tct.taskListChannel <- tct.task
+		return
 	}
-
-	tloc.Logger.Tracef("setting up context for request")
 
 	//setup timeouts and context for request
 	tct.task.context, tct.task.contextCancel = context.WithTimeout(tloc.ctx, tct.task.Timeout)
+
 	base.SetHTTPUserAgent(tct.task.Request,tloc.svcName)
 	req, err := retryablehttp.FromRequest(tct.task.Request)
-	req = req.WithContext(tct.task.context)
 	if err != nil {
-		tloc.Logger.Error(err)
-		tct.task.Request.Response = nil
+		tloc.Logger.Errorf("Failed wrapping request with retryablehttp: %v", err)
 		tct.task.Err = &err
-	}
-
-	if (tct.task.Err != nil) && (*tct.task.Err != nil) {
-		SendDelayedError(tct, tloc.Logger)
-		return
-	} else {
-		var tmpError error
-
-		if (tct.task.forceInsecure || (tloc.CACertPool == nil) ||
-		   (cpack.secure == nil)) {
-			tct.task.Request.Response, tmpError = cpack.insecure.Do(req)
-		} else {
-			tct.task.Request.Response, tmpError = cpack.secure.Do(req)
-
-			//If the error is a TLS error, fall back to insecure and log it.
-			if (tmpError != nil) {
-				tloc.Logger.Warnf("TLS request failed, retrying without validation: %v",
-					tmpError)
-				tct.task.Request.Response, tmpError = cpack.insecure.Do(req)
-			}
-		}
-
-		tct.task.Err = &tmpError
-		if (*tct.task.Err) != nil {
-			tloc.Logger.Tracef("Err: %s", (*tct.task.Err).Error())
-		}
-		if tct.task.Request.Response != nil {
-			tloc.Logger.Tracef("Response: %d", tct.task.Request.Response.StatusCode)
-		}
 		tct.taskListChannel <- tct.task
+		return
 	}
 
-	return
+	req = req.WithContext(tct.task.context)
+
+	// Execute the request
+	var tmpError error
+	if (tct.task.forceInsecure || tloc.CACertPool == nil || cpack.secure == nil) {
+		tloc.Logger.Tracef("Using INSECURE client to send request")
+		tct.task.Request.Response, tmpError = cpack.insecure.Do(req)
+	} else {
+		tloc.Logger.Tracef("Using secure client to send request")
+		tct.task.Request.Response, tmpError = cpack.secure.Do(req)
+
+		//If the error is a TLS error, fall back to insecure and log it.
+		if (tmpError != nil) {
+			tloc.Logger.Warnf("TLS request failed, retrying using INSECURE client (TLS failure: '%v')", tmpError)
+			tct.task.Request.Response, tmpError = cpack.insecure.Do(req)
+		}
+	}
+
+	tct.task.Err = &tmpError
+	if (*tct.task.Err) != nil {
+		tloc.Logger.Tracef("Request failed: %s", (*tct.task.Err).Error())
+	}
+	if tct.task.Request.Response != nil {
+		tloc.Logger.Tracef("Response: %d", tct.task.Request.Response.StatusCode)
+	}
+
+	tct.taskListChannel <- tct.task
 }
 
 // Launch an array of tasks.  This is non-blocking.  Use Check() to get
@@ -276,6 +318,8 @@ func (tloc *TRSHTTPLocal) Launch(taskList *[]HttpTask) (chan *HttpTask, error) {
 		go ExecuteTask(tloc, tct)
 	}
 
+	tloc.Logger.Tracef("Launch() completed")
+
 	return taskListChannel, nil
 }
 
@@ -323,6 +367,7 @@ func (tloc *TRSHTTPLocal) Cancel(taskList *[]HttpTask) {
 			v.contextCancel()
 		}
 	}
+	tloc.Logger.Tracef("Cancel() completed")
 }
 
 // Close out a task list transaction.  The frees up a small amount of resources
@@ -333,8 +378,23 @@ func (tloc *TRSHTTPLocal) Cancel(taskList *[]HttpTask) {
 func (tloc *TRSHTTPLocal) Close(taskList *[]HttpTask) {
 	for _, v := range *taskList {
 		if (v.Ignore == false) {
+			// All tasks must be cancelled to prevent resource leaks.  The
+			// caller may have called Cancel() to prematurely cancel the
+			// operation, but that's probably not a common thing so we will
+			// do it here.  There is no harm in cancelling twice.  We must
+			// do this before closing the response body.
+
+			v.contextCancel()
+
+			// The caller should have closed the response body, but we'll also
+			// do it here to both prevent resource leaks.  Note that if that
+			// was the case, that connection was closed by the above cancel.
+
 			if v.Request.Response != nil && v.Request.Response.Body != nil {
+				// No need to drain response body as connection was closed
 				v.Request.Response.Body.Close()
+				v.Request.Response.Body = nil
+				tloc.Logger.Tracef("Response body for task %s closed", v.id)
 			}
 		}
 		tloc.taskMutex.Lock()
@@ -342,6 +402,7 @@ func (tloc *TRSHTTPLocal) Close(taskList *[]HttpTask) {
 		tloc.taskMutex.Unlock()
 
 	}
+	tloc.Logger.Tracef("Close() completed")
 }
 
 // Clean up a local HTTP task system.
@@ -376,5 +437,6 @@ func (tloc *TRSHTTPLocal) Cleanup() {
 		tloc.taskMutex.Unlock()
 
 	}
+	tloc.Logger.Tracef("Cleanup() completed")
 	// this really just a big red button to STOP ALL? b/c im not clearing any memory
 }
