@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2020-2022,2024] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2020-2022] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -26,14 +26,13 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"sync"
-	"time"
-
-	tkafka "github.com/Cray-HPE/hms-trs-kafkalib/v2/pkg/trs-kafkalib"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/sirupsen/logrus"
+	tkafka "github.com/Cray-HPE/hms-trs-kafkalib/v2/pkg/trs-kafkalib"
+	"sync"
+	"time"
 )
 
 // Interface for TRS operations.  There will be 2 sets of interface methods --
@@ -44,7 +43,7 @@ import (
 // This is intentional -- using the local or remote variants of the interface
 // shouldn't make the code any different at all.   If using the remote/worker
 // variant, the Kafka topics are calculated based on service name, sender id,
-// and send/receive.   This is all done under the covers, but will be
+// and send/receive.   This is all done under the covers, but will be 
 // predictable enough for debugging.
 //
 // If for whatever reason an application wants a different return topic, it
@@ -86,7 +85,7 @@ type TRSHTTPLocal struct {
 	ctxCancelFunc context.CancelFunc
 	CACertPool    *x509.CertPool
 	ClientCert    tls.Certificate
-	clientMap     map[ClientPolicy]*clientPack
+	clientMap     map[RetryPolicy]*clientPack
 	clientMutex   sync.Mutex
 	taskMap       map[uuid.UUID]*taskChannelTuple
 	taskMutex     sync.Mutex
