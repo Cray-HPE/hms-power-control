@@ -460,7 +460,7 @@ func getHWStatesFromHW() error {
 					Retries: httpRetries,
 				},
 			Tx:
-				HttpTxPolicy {
+				trsapi.HttpTxPolicy {
 					Enabled:             true,
 					MaxIdleConns:        maxIdleConns,
 					MaxIdleConnsPerHost: maxIdleConnsPerHost,
