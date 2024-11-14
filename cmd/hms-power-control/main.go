@@ -146,6 +146,7 @@ func main() {
 	BaseTRSTask.Request, _ = http.NewRequest("GET", "", nil)
 	BaseTRSTask.Request.Header.Set("Content-Type", "application/json")
 	BaseTRSTask.Request.Header.Add("HMS-Service", BaseTRSTask.ServiceName)
+	// TBD: Set CPolicy here or let derived users do that?
 
 	//INITIALIZE TRS
 

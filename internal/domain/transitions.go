@@ -813,6 +813,11 @@ func doTransition(transitionID uuid.UUID) {
 					if err != nil {
 						taskErr = err
 						break
+					} else {
+						if tdone.Request.Response != nil {
+							tdone.Request.Response.Body.Close()
+							tdone.Request.Response.Body = nil
+						}
 					}
 
 				}
@@ -846,6 +851,7 @@ func doTransition(transitionID uuid.UUID) {
 				}
 			}
 			(*GLOB.RFTloc).Close(&trsTaskList)
+			close(rchan)
 		}
 
 		// TRS section for getting power state for confirmation.

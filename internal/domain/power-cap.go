@@ -725,6 +725,11 @@ func doPowerCapTask(taskID uuid.UUID) {
 				if err != nil {
 					taskErr = err
 					break
+				} else {
+					if tdone.Request.Response != nil {
+						tdone.Request.Response.Body.Close()
+						tdone.Request.Response.Body = nil
+					}
 				}
 
 				if !taskIsPatch {
@@ -773,6 +778,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 			}
 		}
 		(*GLOB.RFTloc).Close(&trsTaskList)
+		close(rchan)
 	}
 
 	// Task Complete
