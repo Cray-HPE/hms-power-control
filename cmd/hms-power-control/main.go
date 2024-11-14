@@ -34,7 +34,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Cray-HPE/hms-base"
+	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
 	"github.com/Cray-HPE/hms-power-control/internal/api"
 	"github.com/Cray-HPE/hms-power-control/internal/credstore"
@@ -344,8 +344,11 @@ func main() {
 
 	dlockTimeout := 60
 	pwrSampleInterval := 30
-	statusHttpTimeout := 30
+	statusTimeout := 30
 	statusHttpRetries := 3
+	maxIdleConns := 4000
+	maxIdleConnsPerHost := 4
+
 	envstr = os.Getenv("PCS_POWER_SAMPLE_INTERVAL")
 	if (envstr != "") {
 		tps,err := strconv.Atoi(envstr)
@@ -366,14 +369,14 @@ func main() {
 			dlockTimeout = tps
 		}
 	}
-	envstr = os.Getenv("PCS_STATUS_HTTP_TIMEOUT")
+	envstr = os.Getenv("PCS_STATUS_TIMEOUT")
 	if (envstr != "") {
 		tps,err := strconv.Atoi(envstr)
 		if (err != nil) {
-			logger.Log.Errorf("Invalid value of PCS_STATUS_HTTP_TIMEOUT, defaulting to %d",
-				statusHttpTimeout)
+			logger.Log.Errorf("Invalid value of PCS_STATUS_TIMEOUT, defaulting to %d",
+				statusTimeout)
 		} else {
-			statusHttpTimeout = tps
+			statusTimeout = tps
 		}
 	}
 	envstr = os.Getenv("PCS_STATUS_HTTP_RETRIES")
@@ -386,10 +389,31 @@ func main() {
 			statusHttpRetries = tps
 		}
 	}
+	envstr = os.Getenv("PCS_MAX_IDLE_CONNS")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_MAX_IDLE_CONNS, defaulting to %d",
+				statusHttpRetries)
+		} else {
+			maxIdleConns = tps
+		}
+	}
+	envstr = os.Getenv("PCS_MAX_IDLE_CONNS_PER_HOST")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_MAX_IDLE_CONNS_PER_HOST, defaulting to %d",
+				statusHttpRetries)
+		} else {
+			maxIdleConns = tps
+		}
+	}
 
 	domain.PowerStatusMonitorInit(&domainGlobals,
 		(time.Duration(dlockTimeout)*time.Second),
-		logger.Log,(time.Duration(pwrSampleInterval)*time.Second), statusHttpTimeout, statusHttpRetries)
+		logger.Log,(time.Duration(pwrSampleInterval)*time.Second),
+		statusTimeout, statusHttpRetries, maxIdleConns, maxIdleConnsPerHost)
 
 	domain.StartRecordsReaper()
 
