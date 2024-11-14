@@ -87,8 +87,10 @@ var distLockMaxTime time.Duration
 var pstateMonitorRunning bool
 var serviceRunning *bool
 var vaultEnabled = false
-var httpTimeout = 30
+var statusTimeout = 30      // context timeout for an entire task list status request
 var httpRetries = 3
+var maxIdleConns = 4000     // maximum number of idle connections in the TRS pool
+var maxIdleConnsPerHost = 4 // maximum number of idle connections per host in the TRS pool
 var isPowerStatusMaster = false
 var powerStatusMasterInterval = 15
 
@@ -109,8 +111,11 @@ func PowerStatusMonitorInit(domGlb *DOMAIN_GLOBALS,
                             distLockMaxTimeIn time.Duration,
                             loggerIn *logrus.Logger,
                             sampleInterval time.Duration,
-                            httpTimeoutOverride int,
-                            httpRetriesOverride int) error {
+                            statusTimeoutOverride int,
+                            httpRetriesOverride int,
+                            maxIdleConnsOverride int,
+                            maxIdleConnsPerHostOverride int,
+                            ) error {
 	if loggerIn == nil {
 		glogger = logrus.New()
 	} else {
@@ -150,8 +155,10 @@ func PowerStatusMonitorInit(domGlb *DOMAIN_GLOBALS,
 	pmSampleInterval = sampleInterval
 	serviceRunning = domGlb.Running
 	vaultEnabled = domGlb.VaultEnabled
-	httpTimeout = httpTimeoutOverride
+	statusTimeout = statusTimeoutOverride
 	httpRetries = httpRetriesOverride
+	maxIdleConns = maxIdleConnsOverride
+	maxIdleConnsPerHost = maxIdleConnsPerHostOverride
 
 	go monitorHW()
 	return nil
@@ -436,12 +443,31 @@ func getHWStatesFromHW() error {
 	hashCType := http.CanonicalHeaderKey("CType")
 	hashFQDN  := http.CanonicalHeaderKey("FQDN")
 
+	// IdleConnTimeout is the time after which idle connections are closed.
+	// For these big status operations in PCS, we want connections in the
+	// connection pool to stay open between polling intervals so they
+	// can be reused for the next poll.  Thus, we set it to the worst case
+	// time it takes for one poll (statusTimeout) plus the time until
+	// the next poll (pmSampleInterval).  We then add an additional 50% to
+	// that sum for a buffer (ie. multiply by 150%).
+	idleConnTimeout := (statusTimeout + int(pmSampleInterval)) * 15 / 10
+
 	sourceTL := trsapi.HttpTask {
-						Timeout: time.Duration(httpTimeout) * time.Second,
-						RetryPolicy: trsapi.RetryPolicy{
-							Retries: httpRetries,
-						},
-					}
+		Timeout: time.Duration(statusTimeout) * time.Second,
+		CPolicy: ClientPolicy {
+			retry:
+				RetryPolicy {
+					Retries: httpRetries,
+				},
+			tx:
+				HttpTxPolicy {
+					Enabled:             true,
+					MaxIdleConns:        maxIdleConns,
+					MaxIdleConnsPerHost: maxIdleConnsPerHost,
+					IdleConnTimeout:     time.Duration(idleConnTimeout) * time.Second,
+				},
+		},
+	}
 
 	//Get vault creds where needed
 
@@ -467,6 +493,9 @@ func getHWStatesFromHW() error {
 			case xnametypes.NodeBMC:       fallthrough
 			case xnametypes.RouterBMC:     fallthrough
 			case xnametypes.ChassisBMC:    fallthrough
+				// TODO: See below...  we maybe don't need to send requests
+				// for these since we can just use the responses from the
+				// Node, Chassis, and RouterModule requests.
 			case xnametypes.Node:          fallthrough
 			case xnametypes.Chassis:       fallthrough
 			case xnametypes.ComputeModule: fallthrough
@@ -484,6 +513,7 @@ func getHWStatesFromHW() error {
 					taskList[taskIX].Request, _ = http.NewRequest(http.MethodGet, url, nil)
 					taskList[taskIX].Request.SetBasicAuth(v.BmcUsername, v.BmcPassword)
 					taskList[taskIX].Request.Header.Set("Accept", "*/*")
+
 					//Hack alert: set the xname and comp type in the req header 
 					//so we can use it when processing the responses.
 					taskList[taskIX].Request.Header.Add(hashXName, k)
@@ -545,9 +575,21 @@ func getHWStatesFromHW() error {
 				//TODO: an optimization would be to unmarshall stuff here.
 				//But, that makes the code quite a bit messier and scattered.
 				rmp.body, rspErr = ioutil.ReadAll(task.Request.Response.Body)
+
+				// Close the response body now that we've copied it
+				if task.Request.Response.Body != nil {
+					task.Request.Response.Body.Close()
+					task.Request.Response.Body = nil
+				}
+
+				// If there was an error reading the response body, log it and
+				// free up the entire response structure.  This prevents it
+				// from attempting to be unmarshalled later
 				if rspErr != nil {
 					glogger.Errorf("%s: ERROR reading response body for '%s' '%s' '%s': %v",
 					               fname, xname, fqdn, task.Request.URL.Path, rspErr)
+					rmp.body = nil
+					task.Request.Response = nil
 				}
 			} else {
 				rspErr = nil
@@ -566,6 +608,7 @@ func getHWStatesFromHW() error {
 		}
 	}
 	(*tloc).Close(&taskList)
+	close(rchan)
 	glogger.Tracef("%s: DONE Waiting for tasks.", fname)
 
 	//For each response, get the XName via Request.Header["XName"].

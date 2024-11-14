@@ -5,9 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2024-11-08
+
+### Fixed
+
+- Various resource leaks
+
 ## [2.5.0] - 2024-10-25
 
 ### Changed
+### Fixed
 
 - Added ability to configure http status timeout and retries with
   PCS_STATUS_HTTP_TIMEOUT and PCS_STATUS_HTTP_RETRIES env variables
