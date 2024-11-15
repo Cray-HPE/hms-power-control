@@ -154,7 +154,7 @@ func main() {
 	trsLogger.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 	})
-	trsLogger.SetLevel(logrus.ErrorLevel) //It could be set to logger.Log.GetLevel()
+	trsLogger.SetLevel(logger.Log.GetLevel())
 	trsLogger.SetReportCaller(true)
 
 	var envstr string

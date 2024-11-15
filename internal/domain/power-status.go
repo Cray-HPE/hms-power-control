@@ -450,7 +450,7 @@ func getHWStatesFromHW() error {
 	// time it takes for one poll (statusTimeout) plus the time until
 	// the next poll (pmSampleInterval).  We then add an additional 50% to
 	// that sum for a buffer (ie. multiply by 150%).
-	idleConnTimeout := (statusTimeout + int(pmSampleInterval)) * 15 / 10
+	idleConnTimeout := (statusTimeout + int(pmSampleInterval / time.Second)) * 15 / 10
 
 	sourceTL := trsapi.HttpTask {
 		Timeout: time.Duration(statusTimeout) * time.Second,

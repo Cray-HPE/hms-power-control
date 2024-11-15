@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Various resource leaks
+- Updated hms-trs-app-api vendor code (bug fixes and enhancements)
+- Increased size of default connection pool
+- Added ability to configure connection pools via helm chart
+- Passed PCS's log level through to TRS to match PCS
+- Fixed several resource leaks associated with TRS usage
 
 ## [2.5.0] - 2024-10-25
 
