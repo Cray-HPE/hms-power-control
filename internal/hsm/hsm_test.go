@@ -156,6 +156,12 @@ func doHTTP(url string, method string, pld []byte) ([]byte,int,error) {
 	}
 
 	rsp,perr := svcClient.Do(req)
+
+	// Always close response bodies
+	if rsp != nil && rsp.Body != nil {
+		defer rsp.Body.Close()
+	}
+
 	if (perr != nil) {
 		return rdata,0,fmt.Errorf("Error performing http %s: %v",method,perr)
 	}

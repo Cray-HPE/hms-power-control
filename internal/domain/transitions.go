@@ -810,16 +810,14 @@ func doTransition(transitionID uuid.UUID) {
 						break
 					}
 					_, err := ioutil.ReadAll(tdone.Request.Response.Body)
+
+					// Must always close response bodies
+					tdone.Request.Response.Body.Close()
+
 					if err != nil {
 						taskErr = err
 						break
-					} else {
-						if tdone.Request.Response != nil {
-							tdone.Request.Response.Body.Close()
-							tdone.Request.Response.Body = nil
-						}
 					}
-
 				}
 				if taskErr != nil {
 					comp.Task.Status = model.TransitionTaskStatusFailed

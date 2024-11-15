@@ -25,13 +25,14 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io/ioutil"
+	"net/http"
+
 	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/domain"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
-	"net/http"
 )
 
 // The API layer is responsible for Json Unmarshaling and Marshaling,
@@ -110,10 +111,14 @@ func GetPowerStatus(w http.ResponseWriter, req *http.Request) {
 // PostPowerStatus - Returns the power status of the hardware, but
 // with the parameters being in the payload of the request
 func PostPowerStatus(w http.ResponseWriter, req *http.Request) {
-	var pb model.Passback
+	var	 pb model.Passback
 	var parameters model.PowerStatusParameter
 	if req.Body != nil {
 		body, err := ioutil.ReadAll(req.Body)
+
+		// Must always close response bodies
+		req.Body.Close()
+
 		logger.Log.WithFields(logrus.Fields{"body": string(body)}).Trace("Printing request body")
 
 		if err != nil {

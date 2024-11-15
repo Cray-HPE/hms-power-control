@@ -579,7 +579,6 @@ func getHWStatesFromHW() error {
 				// Close the response body now that we've copied it
 				if task.Request.Response.Body != nil {
 					task.Request.Response.Body.Close()
-					task.Request.Response.Body = nil
 				}
 
 				// If there was an error reading the response body, log it and

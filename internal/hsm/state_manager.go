@@ -28,6 +28,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -145,11 +146,21 @@ func (b *HSMv2) Ping() (err error) {
 		return
 	}
 
-	_, err = b.HSMGlobals.SVCHttpClient.Do(req)
+	rsp, err := b.HSMGlobals.SVCHttpClient.Do(req)
+
+	// Always close response bodies
+	if rsp != nil && rsp.Body != nil {
+		defer rsp.Body.Close()
+	}
+
 	if err != nil {
 		b.HSMGlobals.Logger.Error(err)
 		return
 	}
+
+	// Must always drain successfully received response bodies
+	_, _ = io.Copy(io.Discard, rsp.Body)
+
 	return
 }
 
@@ -387,6 +398,12 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 		req = req.WithContext(reqContext)
 
 		rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
+
+		// Always close response bodies
+		if rsp != nil && rsp.Body != nil {
+			defer rsp.Body.Close()
+		}
+
 		if rsperr != nil {
 			return fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 		}
@@ -569,6 +586,12 @@ func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error)
 	req = req.WithContext(reqContext)
 
 	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
+
+	// Always close response bodies
+	if rsp != nil && rsp.Body != nil {
+		defer rsp.Body.Close()
+	}
+
 	if rsperr != nil {
 		return retData, fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 	}
@@ -603,6 +626,12 @@ func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
 	req = req.WithContext(reqContext)
 
 	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
+
+	// Always close response bodies
+	if rsp != nil && rsp.Body != nil {
+		defer rsp.Body.Close()
+	}
+
 	if rsperr != nil {
 		return fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 	}

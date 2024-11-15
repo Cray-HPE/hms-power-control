@@ -28,6 +28,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -211,8 +212,8 @@ func configureClient(client *retryablehttp.Client, task *HttpTask, tloc *TRSHTTP
 	// Log the configuration we're going to use. Clients are generally long
 	// lived so this shouldn't be too spammy. Knowing this information can
 	// be pretty critical when debugging issues on site
-	tloc.Logger.Errorf("Created %s client with incoming policy %v (to's %s and %s)",
-					   clientType, task.CPolicy, task.Timeout, client.HTTPClient.Timeout)
+	tloc.Logger.Errorf("Created %s client with incoming policy %v (to's %s and %s) (ll %v)",
+					   clientType, task.CPolicy, task.Timeout, client.HTTPClient.Timeout, tloc.Logger.GetLevel())
 
 	// Write through to the client
 	client.HTTPClient.Transport = tr
@@ -428,7 +429,7 @@ func (tloc *TRSHTTPLocal) Close(taskList *[]HttpTask) {
 			// was the case, that connection was closed by the above cancel.
 
 			if v.Request.Response != nil && v.Request.Response.Body != nil {
-				// No need to drain response body as connection was closed
+				_, _ = io.Copy(io.Discard, v.Request.Response.Body)
 				v.Request.Response.Body.Close()
 				v.Request.Response.Body = nil
 				tloc.Logger.Tracef("Response body for task %s closed", v.id)
