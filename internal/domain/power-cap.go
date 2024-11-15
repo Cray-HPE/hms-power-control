@@ -724,8 +724,8 @@ func doPowerCapTask(taskID uuid.UUID) {
 				body, err := ioutil.ReadAll(tdone.Request.Response.Body)
 
 				// Must always close response bodies
-				if tdone.Request.Response != nil && tdone.Request.Response.Body != nil {
-					defer tdone.Request.Response.Body.Close()
+				if tdone.Request.Response.Body != nil {
+					tdone.Request.Response.Body.Close()
 				}
 
 				if err != nil {

@@ -134,12 +134,6 @@ func doHTTP(url string, method string, pld []byte) ([]byte,int,error) {
 	}
 
 	rsp,perr := svcClient.Do(req)
-
-	// Always close response bodies
-	if rsp != nil && rsp.Body != nil {
-		defer rsp.Body.Close()
-	}
-
 	if (perr != nil) {
 		return rdata,0,fmt.Errorf("Error performing http %s: %v",method,perr)
 	}
@@ -147,6 +141,11 @@ func doHTTP(url string, method string, pld []byte) ([]byte,int,error) {
 	rdata,err = ioutil.ReadAll(rsp.Body)
 	if (err != nil) {
 		return rdata,0,fmt.Errorf("Error reading http rsp body: %v",err)
+	}
+
+	// Always close response bodies
+	if rsp.Body != nil {
+		rsp.Body.Close()
 	}
 
 	return rdata,rsp.StatusCode,nil

@@ -147,19 +147,16 @@ func (b *HSMv2) Ping() (err error) {
 	}
 
 	rsp, err := b.HSMGlobals.SVCHttpClient.Do(req)
-
-	// Always close response bodies
-	if rsp != nil && rsp.Body != nil {
-		defer rsp.Body.Close()
-	}
-
 	if err != nil {
 		b.HSMGlobals.Logger.Error(err)
 		return
 	}
 
-	// Must always drain successfully received response bodies
-	_, _ = io.Copy(io.Discard, rsp.Body)
+	// Always drain response bodies and close even if not looking at body
+	if rsp != nil && rsp.Body != nil {
+		_, _ = io.Copy(io.Discard, rsp.Body)
+		rsp.Body.Close()
+	}
 
 	return
 }
@@ -398,12 +395,6 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 		req = req.WithContext(reqContext)
 
 		rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
-
-		// Always close response bodies
-		if rsp != nil && rsp.Body != nil {
-			defer rsp.Body.Close()
-		}
-
 		if rsperr != nil {
 			return fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 		}
@@ -412,6 +403,11 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 		if bderr != nil {
 			return fmt.Errorf("Error reading response body for '%s': %v",
 				smurl, bderr)
+		}
+
+		// Always close response bodies
+		if rsp.Body != nil {
+			rsp.Body.Close()
 		}
 
 		var jdata sm.ComponentEndpointArray
@@ -586,12 +582,6 @@ func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error)
 	req = req.WithContext(reqContext)
 
 	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
-
-	// Always close response bodies
-	if rsp != nil && rsp.Body != nil {
-		defer rsp.Body.Close()
-	}
-
 	if rsperr != nil {
 		return retData, fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 	}
@@ -600,6 +590,11 @@ func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error)
 	if bderr != nil {
 		return retData, fmt.Errorf("Error reading response body for '%s': %v",
 			smurl, bderr)
+	}
+
+	// Always close response bodies
+	if rsp.Body != nil {
+		rsp.Body.Close()
 	}
 
 	bderr = json.Unmarshal(body, &retData)
@@ -626,12 +621,6 @@ func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
 	req = req.WithContext(reqContext)
 
 	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
-
-	// Always close response bodies
-	if rsp != nil && rsp.Body != nil {
-		defer rsp.Body.Close()
-	}
-
 	if rsperr != nil {
 		return fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 	}
@@ -639,6 +628,11 @@ func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
 	body, bderr := ioutil.ReadAll(rsp.Body)
 	if bderr != nil {
 		return fmt.Errorf("Error reading response body for '%s': %v", smurl, bderr)
+	}
+
+	// Always close response bodies
+	if rsp.Body != nil {
+		rsp.Body.Close()
 	}
 
 	bderr = json.Unmarshal(body, &retData)

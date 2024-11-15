@@ -431,7 +431,6 @@ func (tloc *TRSHTTPLocal) Close(taskList *[]HttpTask) {
 			if v.Request.Response != nil && v.Request.Response.Body != nil {
 				_, _ = io.Copy(io.Discard, v.Request.Response.Body)
 				v.Request.Response.Body.Close()
-				v.Request.Response.Body = nil
 				tloc.Logger.Tracef("Response body for task %s closed", v.id)
 			}
 		}

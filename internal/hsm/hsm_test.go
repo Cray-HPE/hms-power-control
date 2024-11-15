@@ -1,6 +1,6 @@
 // MIT License
 // 
-// (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2022-2024] Hewlett Packard Enterprise Development LP
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -156,14 +156,13 @@ func doHTTP(url string, method string, pld []byte) ([]byte,int,error) {
 	}
 
 	rsp,perr := svcClient.Do(req)
-
-	// Always close response bodies
-	if rsp != nil && rsp.Body != nil {
-		defer rsp.Body.Close()
-	}
-
 	if (perr != nil) {
 		return rdata,0,fmt.Errorf("Error performing http %s: %v",method,perr)
+	}
+
+	// Always close response bodies
+	if rsp.Body != nil {
+		defer rsp.Body.Close()
 	}
 
 	rdata,err = ioutil.ReadAll(rsp.Body)
