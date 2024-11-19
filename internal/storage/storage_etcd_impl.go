@@ -30,7 +30,7 @@ import (
 	"sync"
 	"time"
 
-	hmetcd "github.com/Cray-HPE/hms-hmetcd"
+	hmetcd "github.com/Cray-HPE/hms-hmetcd/v2"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/Cray-HPE/hms-xname/xnametypes"
 	"github.com/google/uuid"
@@ -105,7 +105,7 @@ func (e *ETCDStorage) kvGet(key string, val interface{}) error {
 	return err
 }
 
-//if a key doesnt exist, etcd doesn't return an error
+// if a key doesnt exist, etcd doesn't return an error
 func (e *ETCDStorage) kvDelete(key string) error {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()

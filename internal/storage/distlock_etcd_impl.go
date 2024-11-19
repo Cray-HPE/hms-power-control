@@ -1,17 +1,17 @@
 // MIT License
-// 
+//
 // (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
 // to deal in the Software without restriction, including without limitation
 // the rights to use, copy, modify, merge, publish, distribute, sublicense,
 // and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included
 // in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
@@ -27,8 +27,9 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	hmetcd "github.com/Cray-HPE/hms-hmetcd/v2"
 	"github.com/sirupsen/logrus"
-	hmetcd "github.com/Cray-HPE/hms-hmetcd"
 )
 
 //This file contains an ETCD-based implementation of a distributed timed
@@ -36,9 +37,9 @@ import (
 //multiple instances of a microservice.
 
 type ETCDLockProvider struct {
-	Logger *logrus.Logger
+	Logger   *logrus.Logger
 	Duration time.Duration
-	mutex *sync.Mutex
+	mutex    *sync.Mutex
 	kvHandle hmetcd.Kvi
 }
 
@@ -98,12 +99,12 @@ func (d *ETCDLockProvider) InitFromStorage(m interface{}, Logger *logrus.Logger)
 	d.Logger = ms.Logger
 	d.mutex = ms.mutex
 	d.kvHandle = ms.kvHandle
-	if (Logger == nil) {
+	if Logger == nil {
 		d.Logger = ms.Logger
 	} else {
 		d.Logger = Logger
 	}
-	if (d.Logger == nil) {
+	if d.Logger == nil {
 		d.Logger = logrus.New()
 	}
 }
@@ -114,14 +115,14 @@ func (d *ETCDLockProvider) Ping() error {
 }
 
 func (d *ETCDLockProvider) DistributedTimedLock(maxLockTime time.Duration) error {
-	if (maxLockTime < 1) {
+	if maxLockTime < 1 {
 		return fmt.Errorf("Error: lock duration request invalid (%s seconds) -- must be >= 1.",
-					maxLockTime.String())
+			maxLockTime.String())
 	}
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	err := d.kvHandle.DistTimedLock(int(maxLockTime.Seconds()))
-	if (err != nil) {
+	if err != nil {
 		return err
 	}
 	d.Duration = maxLockTime
@@ -139,4 +140,3 @@ func (d *ETCDLockProvider) Unlock() error {
 func (d *ETCDLockProvider) GetDuration() time.Duration {
 	return d.Duration
 }
-
