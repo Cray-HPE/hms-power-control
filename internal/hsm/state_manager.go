@@ -383,7 +383,7 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 				smurl, err)
 		}
 
-		reqContext, _ := context.WithTimeout(context.Background(), 40 * time.Second)
+		reqContext, _ := context.WithTimeout(context.Background(), 120 * time.Second)
 		req = req.WithContext(reqContext)
 
 		rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
@@ -565,7 +565,7 @@ func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error)
 			smurl, err)
 	}
 
-	reqContext, _ := context.WithTimeout(context.Background(), 40 * time.Second)
+	reqContext, _ := context.WithTimeout(context.Background(), 120 * time.Second)
 	req = req.WithContext(reqContext)
 
 	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
@@ -599,7 +599,7 @@ func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
 		return fmt.Errorf("ERROR creating HTTP request for '%s': %v", smurl, err)
 	}
 
-	reqContext, _ := context.WithTimeout(context.Background(), 40 * time.Second)
+	reqContext, _ := context.WithTimeout(context.Background(), 120 * time.Second)
 	req = req.WithContext(reqContext)
 
 	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
