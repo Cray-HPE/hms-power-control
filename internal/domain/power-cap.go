@@ -672,9 +672,9 @@ func doPowerCapTask(taskID uuid.UUID) {
 	// to BMCs so would benefit from connections pools.  However, it is
 	// not currently enabled in the CSM 1.6.0 release
 
-	trsTaskList := (*GLOB.RFTloc).CreateTaskList(GLOB.BaseTRSTask, len(goodOps))
 	// Create TRS task list
 	trsTaskMap := make(map[uuid.UUID]model.PowerCapOperation)
+	trsTaskList := (*GLOB.RFTloc).CreateTaskList(GLOB.BaseTRSTask, len(goodOps))
 	trsTaskIdx := 0
 	for _, op := range goodOps {
 		trsTaskMap[trsTaskList[trsTaskIdx].GetID()] = op

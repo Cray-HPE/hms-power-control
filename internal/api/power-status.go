@@ -111,7 +111,7 @@ func GetPowerStatus(w http.ResponseWriter, req *http.Request) {
 // PostPowerStatus - Returns the power status of the hardware, but
 // with the parameters being in the payload of the request
 func PostPowerStatus(w http.ResponseWriter, req *http.Request) {
-	var	 pb model.Passback
+	var pb model.Passback
 	var parameters model.PowerStatusParameter
 	if req.Body != nil {
 		body, err := ioutil.ReadAll(req.Body)

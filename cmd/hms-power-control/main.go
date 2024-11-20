@@ -146,7 +146,13 @@ func main() {
 	BaseTRSTask.Request, _ = http.NewRequest("GET", "", nil)
 	BaseTRSTask.Request.Header.Set("Content-Type", "application/json")
 	BaseTRSTask.Request.Header.Add("HMS-Service", BaseTRSTask.ServiceName)
-	// TBD: Set CPolicy here or let derived users do that?
+
+	// TODO: We could convert BaseTRSTask to a new connection pool aware TRS
+	// client, or create a new ConnPoolTRSTask.  That all users (status,
+	// power cap, and transition) could easily share a single client
+	// definition.  Not really necessary though until/if we decide to add
+	// non-default connection pool support to the power cap and transition
+	// paths.
 
 	//INITIALIZE TRS
 
