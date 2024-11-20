@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math"
 	"net/http"
@@ -659,9 +660,21 @@ func doPowerCapTask(taskID uuid.UUID) {
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing power capping task")
 	}
 
+	// Repeated power transitions to the same BMCs it not a frequent
+	// thing so we continue using the default TRS configuration provided
+	// by the default BaseTRSTask.  It may still be beneficial though to
+	// consider sharing the PCS TRS client which does have connection
+	// pools already configured to the same BMCs we want to talk to here.
+	// It would likely not be beneficial to create our own TRS client due
+	// to less frequent use
+	//
+	// SPC is another consideration. It frequent repeated http requests
+	// to BMCs so would benefit from connections pools.  However, it is
+	// not currently enabled in the CSM 1.6.0 release
+
+	trsTaskList := (*GLOB.RFTloc).CreateTaskList(GLOB.BaseTRSTask, len(goodOps))
 	// Create TRS task list
 	trsTaskMap := make(map[uuid.UUID]model.PowerCapOperation)
-	trsTaskList := (*GLOB.RFTloc).CreateTaskList(GLOB.BaseTRSTask, len(goodOps))
 	trsTaskIdx := 0
 	for _, op := range goodOps {
 		trsTaskMap[trsTaskList[trsTaskIdx].GetID()] = op
@@ -711,10 +724,24 @@ func doPowerCapTask(taskID uuid.UUID) {
 
 				if *tdone.Err != nil {
 					taskErr = *tdone.Err
+
+					// Must always drain and close response bodies even if we don't use them
+					if tdone.Request.Response != nil && tdone.Request.Response.Body != nil {
+						_, _ = io.Copy(io.Discard, tdone.Request.Response.Body)
+						tdone.Request.Response.Body.Close()
+					}
+
 					break
 				}
 				if tdone.Request.Response.StatusCode < 200 && tdone.Request.Response.StatusCode >= 300 {
 					taskErr = errors.New("bad status code: " + strconv.Itoa(tdone.Request.Response.StatusCode))
+
+					// Must always drain and close response bodies even if we don't use them
+					if tdone.Request.Response != nil && tdone.Request.Response.Body != nil {
+						_, _ = io.Copy(io.Discard, tdone.Request.Response.Body)
+						tdone.Request.Response.Body.Close()
+					}
+
 					break
 				}
 				if tdone.Request.Response.Body == nil {
@@ -724,9 +751,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 				body, err := ioutil.ReadAll(tdone.Request.Response.Body)
 
 				// Must always close response bodies
-				if tdone.Request.Response.Body != nil {
-					tdone.Request.Response.Body.Close()
-				}
+				tdone.Request.Response.Body.Close()
 
 				if err != nil {
 					taskErr = err

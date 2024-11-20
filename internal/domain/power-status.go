@@ -493,9 +493,6 @@ func getHWStatesFromHW() error {
 			case xnametypes.NodeBMC:       fallthrough
 			case xnametypes.RouterBMC:     fallthrough
 			case xnametypes.ChassisBMC:    fallthrough
-				// TODO: See below...  we maybe don't need to send requests
-				// for these since we can just use the responses from the
-				// Node, Chassis, and RouterModule requests.
 			case xnametypes.Node:          fallthrough
 			case xnametypes.Chassis:       fallthrough
 			case xnametypes.ComputeModule: fallthrough

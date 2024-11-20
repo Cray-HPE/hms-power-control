@@ -348,7 +348,7 @@ func main() {
 	statusTimeout := 30
 	statusHttpRetries := 3
 	maxIdleConns := 4000
-	maxIdleConnsPerHost := 4
+	maxIdleConnsPerHost := 4	// 4000 / 4 = 4 open conns for each of 1000 BMCs
 
 	envstr = os.Getenv("PCS_POWER_SAMPLE_INTERVAL")
 	if (envstr != "") {
@@ -395,7 +395,7 @@ func main() {
 		tps,err := strconv.Atoi(envstr)
 		if (err != nil) {
 			logger.Log.Errorf("Invalid value of PCS_MAX_IDLE_CONNS, defaulting to %d",
-				statusHttpRetries)
+				maxIdleConns)
 		} else {
 			maxIdleConns = tps
 		}
@@ -405,9 +405,9 @@ func main() {
 		tps,err := strconv.Atoi(envstr)
 		if (err != nil) {
 			logger.Log.Errorf("Invalid value of PCS_MAX_IDLE_CONNS_PER_HOST, defaulting to %d",
-				statusHttpRetries)
+				maxIdleConnsPerHost)
 		} else {
-			maxIdleConns = tps
+			maxIdleConnsPerHost = tps
 		}
 	}
 

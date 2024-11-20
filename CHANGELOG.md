@@ -5,15 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.6.0] - 2024-11-08
+## [2.6.0] - 2024-11-25
 
 ### Fixed
 
 - Updated hms-trs-app-api vendor code (bug fixes and enhancements)
-- Increased size of default connection pool
-- Added ability to configure connection pools via helm chart
 - Passed PCS's log level through to TRS to match PCS
-- Fixed several resource leaks associated with TRS usage
+- Configured TRS to use connection pools for status requests to BMCs
+- Did not modify transition and power cap paths to use connection pools
+- Renamed PCS_STATUS_HTTP_TIMEOUT to PCS_STATUS_TIMEOUT as it is not an http
+  timeout
+- Added PCS_MAX_IDLE_CONNS and PCS_MAX_IDLE_CONNS_PER_HOST env variables
+  which allow overriding connection pool settings in TRS
+- The above variables are configurable on PCS's helm chart
+- Fixed many resource leaks associated with TRS and http requests
 
 ## [2.5.0] - 2024-10-25
 

@@ -147,16 +147,23 @@ func doHTTP(url string, method string, pld []byte, auth *bAuth) ([]byte,int,erro
 
 	rsp,perr := svcClient.Do(req)
 
-	// Always close response bodies
-	if rsp != nil && rsp.Body != nil {
-		defer rsp.Body.Close()
-	}
-
 	if (perr != nil) {
+		// Always close response bodies
+		if rsp != nil && rsp.Body != nil {
+			_, _ = io.Copy(io.Discard, rsp.Body)
+			rsp.Body.Close()
+		}
+
 		return rdata,0,fmt.Errorf("Error performing http %s: %v",method,perr)
 	}
 
 	rdata,err = ioutil.ReadAll(rsp.Body)
+
+	// Always close response bodies
+	if rsp != nil && rsp.Body != nil {
+		rsp.Body.Close()
+	}
+
 	if (err != nil) {
 		return rdata,0,fmt.Errorf("Error reading http rsp body: %v",err)
 	}
