@@ -398,7 +398,7 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 		if rsperr != nil {
 			// Always drain and close response bodies
 			if rsp != nil && rsp.Body != nil {
-				_, _ = io.Copy(io.Discard, tdone.Request.Response.Body)
+				_, _ = io.Copy(io.Discard, rsp.Body)
 				rsp.Body.Close()
 			}
 
@@ -592,7 +592,7 @@ func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error)
 	if rsperr != nil {
 		// Always drain and close response bodies
 		if rsp != nil && rsp.Body != nil {
-			_, _ = io.Copy(io.Discard, tdone.Request.Response.Body)
+			_, _ = io.Copy(io.Discard, rsp.Body)
 			rsp.Body.Close()
 		}
 
@@ -638,7 +638,7 @@ func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
 	if rsperr != nil {
 		// Always drain and close response bodies
 		if rsp != nil && rsp.Body != nil {
-			_, _ = io.Copy(io.Discard, tdone.Request.Response.Body)
+			_, _ = io.Copy(io.Discard, rsp.Body)
 			rsp.Body.Close()
 		}
 
