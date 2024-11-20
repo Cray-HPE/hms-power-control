@@ -16,9 +16,9 @@ require (
 	github.com/Cray-HPE/hms-trs-app-api/v2 v2.1.1
 	github.com/Cray-HPE/hms-xname v1.0.0
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/mux v1.8.1
 	github.com/namsral/flag v1.7.4-pre
-	github.com/sirupsen/logrus v1.8.1
+	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 )
 
