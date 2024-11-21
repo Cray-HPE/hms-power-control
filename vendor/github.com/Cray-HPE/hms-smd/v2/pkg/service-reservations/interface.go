@@ -37,7 +37,7 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/sirupsen/logrus"
-	"github.com/Cray-HPE/hms-base"
+	"github.com/Cray-HPE/hms-base/v2"
 	"github.com/Cray-HPE/hms-smd/v2/pkg/sm"
 )
 

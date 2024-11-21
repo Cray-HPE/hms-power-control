@@ -12,9 +12,9 @@ require (
 	github.com/Cray-HPE/hms-compcredentials v1.11.2
 	github.com/Cray-HPE/hms-hmetcd/v2 v2.0.0-20241118152751-aea690838b44
 	github.com/Cray-HPE/hms-securestorage v1.12.2
-	github.com/Cray-HPE/hms-smd/v2 v2.4.0
+	github.com/Cray-HPE/hms-smd/v2 v2.29.1-0.20241120235913-8ed46b1fc184
 	github.com/Cray-HPE/hms-trs-app-api/v2 v2.1.1
-	github.com/Cray-HPE/hms-xname v1.0.0
+	github.com/Cray-HPE/hms-xname v1.3.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/namsral/flag v1.7.4-pre
@@ -42,6 +42,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hashicorp/vault/api v1.0.4 // indirect
 	github.com/hashicorp/vault/sdk v0.1.13 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.3.0 // indirect
 	github.com/pierrec/lz4 v2.4.1+incompatible // indirect
