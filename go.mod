@@ -1,6 +1,8 @@
 module github.com/Cray-HPE/hms-power-control
 
-go 1.17
+go 1.23
+
+toolchain go1.23.1
 
 //todo hms-base needs to be converted to hms-xname as soon as that package is available.
 
@@ -11,7 +13,7 @@ require (
 	github.com/Cray-HPE/hms-hmetcd v1.10.3
 	github.com/Cray-HPE/hms-securestorage v1.12.2
 	github.com/Cray-HPE/hms-smd/v2 v2.4.0
-	github.com/Cray-HPE/hms-trs-app-api/v2 v2.1.2-0.20241120232424-0f7f73da1960
+	github.com/Cray-HPE/hms-trs-app-api/v2 v2.1.2-0.20241121000320-ba3d5f4c7728
 	github.com/Cray-HPE/hms-xname v1.0.0
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
