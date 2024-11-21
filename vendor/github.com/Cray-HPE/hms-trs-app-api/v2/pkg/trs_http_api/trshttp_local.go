@@ -220,12 +220,15 @@ func (c *trsRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 //
 // WARNING!  The Go runtime behavior surrounding connections has changed in
 //			 more recent versions of Go.  Prior to version 1.23, if any
-//			 connection in the connection pool experiences a timeout, the
-//			 Go runtime closes ALL idle connections.  There is nothing we
-//			 can do about this in TRS, other than use a newer version of Go
-//			 that doesn't exhibit this (horrible) behavior.  Our clever
-//			 trick below with CloseIdleConnections() cannot prevent the
-//			 Go runtime from doing this.
+//			 request experiences a timeout, the Go runtime closes ALL idle
+//			 connections.  There is nothing we can do about this in TRS,
+//			 other than use a newer version of Go that doesn't exhibit this
+//			 behavior.  Issue is documented here:
+//
+//				* https://github.com/golang/go/issues/59017
+//				* https://github.com/golang/go/commit/334ce510046ad30b1be466634cf313aad3040892
+//
+//			 Will attempt to jump to Go 1.23 with this commit.
 
 func (c *trsRoundTripper) CloseIdleConnections() {
 
