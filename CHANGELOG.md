@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which allow overriding connection pool settings in TRS
 - The above variables are configurable on PCS's helm chart
 - Fixed many resource leaks associated with TRS and http requests
+- Update required version of Go to 1.23 to avoid
+  https://github.com/golang/go/issues/59017
 
 ## [2.5.0] - 2024-10-25
 
