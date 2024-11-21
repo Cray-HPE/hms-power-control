@@ -25,13 +25,14 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/Cray-HPE/hms-power-control/internal/domain"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
-	"net/http"
 )
 
 // The API layer is responsible for Json Unmarshaling and Marshaling,
@@ -47,7 +48,7 @@ func SnapshotPowerCap(w http.ResponseWriter, req *http.Request) {
 	if req.Body != nil {
 		body, err := ioutil.ReadAll(req.Body)
 
-		// Must always close response bodies
+		// Not necessarily needed, but close request body anyways
 		req.Body.Close()
 
 		logger.Log.WithFields(logrus.Fields{"body": string(body)}).Trace("Printing request body")
@@ -102,7 +103,7 @@ func PatchPowerCap(w http.ResponseWriter, req *http.Request) {
 	if req.Body != nil {
 		body, err := ioutil.ReadAll(req.Body)
 
-		// Must always close response bodies
+		// Not necessarily needed, but close request body anyways
 		req.Body.Close()
 
 		logger.Log.WithFields(logrus.Fields{"body": string(body)}).Trace("Printing request body")

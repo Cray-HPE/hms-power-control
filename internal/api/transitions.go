@@ -50,7 +50,7 @@ func CreateTransition(w http.ResponseWriter, req *http.Request) {
 	if req.Body != nil {
 		body, err := ioutil.ReadAll(req.Body)
 
-		// Must always close response bodies
+		// Not necessarily needed, but close request body anyways
 		req.Body.Close()
 
 		logger.Log.WithFields(logrus.Fields{"body": string(body)}).Trace("Printing request body")
