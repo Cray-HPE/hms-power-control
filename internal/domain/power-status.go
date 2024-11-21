@@ -511,6 +511,10 @@ func getHWStatesFromHW() error {
 					taskList[taskIX].Request.SetBasicAuth(v.BmcUsername, v.BmcPassword)
 					taskList[taskIX].Request.Header.Set("Accept", "*/*")
 
+					// Set keep-alive in case target BMCs are HTTP/1.0 or
+					// HTTP/1.1 configured non-default.
+					taskList[taskIX].Request.Header.Set("Connection","keep-alive")
+
 					//Hack alert: set the xname and comp type in the req header 
 					//so we can use it when processing the responses.
 					taskList[taskIX].Request.Header.Add(hashXName, k)
@@ -529,6 +533,7 @@ func getHWStatesFromHW() error {
 
 	if activeTasks == 0 {
 		glogger.Warnf("%s: No TRS tasks to launch", fname)
+		(*tloc).Close(&taskList)
 		return nil
 	}
 

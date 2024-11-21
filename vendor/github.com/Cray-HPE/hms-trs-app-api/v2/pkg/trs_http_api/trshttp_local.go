@@ -61,6 +61,7 @@ func (tloc *TRSHTTPLocal) Init(serviceName string, logger *logrus.Logger) error 
 	} else {
 		tloc.Logger = logrus.New()
 	}
+	//wrapperLogger = tloc.Logger	// only uncomment if debugging wrapper issues
 
 	tloc.ctx, tloc.ctxCancelFunc = context.WithCancel(context.Background())
 
@@ -230,13 +231,16 @@ func (c *trsRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 //
 //			 Will attempt to jump to Go 1.23 with this commit.
 
-func (c *trsRoundTripper) CloseIdleConnections() {
+//var wrapperLogger *logrus.Logger	// only uncomment if debugging wrapper issues
 
+func (c *trsRoundTripper) CloseIdleConnections() {
 	// Skip closing idle connections if counter > 0
 
 	c.skipCloseMutex.Lock()
 	if c.skipCloseCount > 0 {
 		c.skipCloseCount--
+
+		//wrapperLogger.Errorf("CloseIdleConnections: skipCloseCount now %v", c.skipCloseCount)
 
 		if c.skipCloseCount == 0 {
 			// Mark the time the counter last reached zero
@@ -247,9 +251,16 @@ func (c *trsRoundTripper) CloseIdleConnections() {
 			// If its been two hours since we last closed idle connections
 			// or since the counter last reached zero, reset the counter to
 			// zero and proceed to close idle connections
+
 			c.skipCloseCount = 0
+
+			//wrapperLogger.Errorf("CloseIdleConnections: skipCloseCount reset due to expired time")
+
+			// Time will be marked below when we close idle connections
 		} else {
 			c.skipCloseMutex.Unlock()
+
+			//wrapperLogger.Errorf("CloseIdleConnections: returning without closing idle connections")
 
 			return
 		}
@@ -260,15 +271,27 @@ func (c *trsRoundTripper) CloseIdleConnections() {
 	if c.closeIdleConnectionsFn == nil {
 		// Nothing to do so release mutex
 		c.skipCloseMutex.Unlock()
+
+		//wrapperLogger.Errorf("CloseIdleConnections: no lower closeIdleConnectionsFn() to call")
 	} else {
 		// Mark the time of this call to close connections
 		c.timeLastClosedOrReachedZeroCloseCount = time.Now()
 
 		c.skipCloseMutex.Unlock()
 
+		//wrapperLogger.Errorf("CloseIdleConnections: calling lower closeIdleConnectionsFn()")
+
 		// Call next level down
 		c.closeIdleConnectionsFn()
 	}
+}
+
+// Custom request wrapper that includes a retry counter that we'll use to
+// determine whether or not to close idle connections
+type trsWrappedReq struct {
+	orig        *http.Request // request we're wrapping
+	retryMax    int           // retry max from request
+	retryCount  int           // retry count for this request
 }
 
 // Our wrapper around retryablehttp's CheckRetry().  if we detect an http
@@ -278,6 +301,7 @@ func (c *trsRoundTripper) CloseIdleConnections() {
 // level system version that actually closes idle connections.
 
 func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response, err error) (bool, error) {
+	//wrapperLogger.Errorf("trsCheckRetry: err=%v errType=%T", err, err)
 
 	// Skip a retry for this request if it hit one of these specific timeouts
 
@@ -292,6 +316,8 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 
 			c.skipCloseMutex.Unlock()
 
+			//wrapperLogger.Errorf("trsCheckRetry: skipCloseCount now %v (http timeout)", c.skipCloseCount)
+
 			return false, err	// skip it
 		}
 
@@ -300,6 +326,8 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 			c.skipCloseCount++
 
 			c.skipCloseMutex.Unlock()
+
+			//wrapperLogger.Errorf("trsCheckRetry: skipCloseCount now %v (ctx timeout)", c.skipCloseCount)
 
 			return false, err	// skip it
 		}
@@ -314,14 +342,21 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 		//		c.skipCloseCount++
 		//
 		//		c.skipCloseMutex.Unlock()
+		//
+		//		wrapperLogger.Errorf("trsCheckRetry: skipCloseCount now %v (ctx timeout)", c.skipCloseCount)
+		//
 		//		return false, err	// skip it
 		// }
 
 		c.skipCloseMutex.Unlock()
+
+		//wrapperLogger.Errorf("trsCheckRetry: deferring to DefaultRetryPolicy() for this error")
 	}
 
 	// If none of the above, delegate retry check to retryablehttp
 	shouldRetry, err := retryablehttp.DefaultRetryPolicy(ctx, resp, err)
+
+	//wrapperLogger.Errorf("trsCheckRetry: DefaultRetryPolicy: shouldRetry=%v", shouldRetry)
 
 	// Determine if we should override DefaultRetryPolicy()'s opinion
 	if shouldRetry {
@@ -330,6 +365,8 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 
 		trsWR := ctx.Value(trsRetryCountKey).(*trsWrappedReq)
 		trsWR.retryCount++
+
+		//wrapperLogger.Errorf("trsCheckRetry: retryCount now %v", trsWR.retryCount)
 
 		// If the retry limit was reached we do not want to close all idle
 		// connections unnecessarily so imcrement skipCloseCount counter so
@@ -361,6 +398,8 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 			c.skipCloseCount++
 			c.skipCloseMutex.Unlock()
 
+			//wrapperLogger.Errorf("trsCheckRetry: skipCloseCount now %v and err is %v", c.skipCloseCount, err)
+			
 			return false, err
 		}
 	}
@@ -407,10 +446,16 @@ func createClient(task *HttpTask, tloc *TRSHTTPLocal, clientType string) (client
 	client = retryablehttp.NewClient()
 
 	client.HTTPClient.Transport = retryabletr
-	client.HTTPClient.Timeout   = task.Timeout * 9 / 10 // 90% of the task's context timeout
 
-	// Wrap httpretryable's DefaultRetryPolicy() so we can prevent
-	// retries when desired
+	// We could set a global http timeout for all users of the client but
+	// that's a bit inflexible.  Let's keep it at the default (unlimited)
+	// and use the user provided context timeout to limit the request.
+	// The context timeout they provide could be different from caller to
+	// caller as well.
+	//
+	//client.HTTPClient.Timeout   = task.Timeout * 9 / 10
+
+	// Wrap httpretryable's DefaultRetryPolicy() so we can override
 	client.CheckRetry = retryabletr.trsCheckRetry
 
 	// Configure the httpretryable client retry count
@@ -427,22 +472,30 @@ func createClient(task *HttpTask, tloc *TRSHTTPLocal, clientType string) (client
 		client.RetryWaitMax = DFLT_BACKOFF_MAX * time.Second
 	}
 
-	// Log this client's configuration
-	tloc.Logger.Errorf("Created %s client with incoming policy %v " +
-					   "(to's %s and %s) (ll %v) (cpnum=%v) (goVer=%v)",
-					   clientType, task.CPolicy, task.Timeout,
-					   client.HTTPClient.Timeout, tloc.Logger.GetLevel(),
-					   len(tloc.clientMap) + 1, runtime.Version())
+	// Log this client's requested configuration and actual configuration
+
+	tloc.Logger.Errorf("Created %s TRS client", clientType)
+	tloc.Logger.Errorf("    CPolicy request:           %v", task.CPolicy)
+	tloc.Logger.Errorf("    RetryMax:                  %v", client.RetryMax)
+	tloc.Logger.Errorf("    RetryWaitMax:              %v", client.RetryWaitMax)
+	tloc.Logger.Errorf("    task.Timeout:              %v", task.Timeout)
+	tloc.Logger.Errorf("    HTTPClient.Timeout:        %v", client.HTTPClient.Timeout)
+
+	if (httpTxPolicy.Enabled) {
+		tloc.Logger.Errorf("    tx.MaxIdleConns:           %v", tr.MaxIdleConns)
+		tloc.Logger.Errorf("    tx.MaxIdleConnsPerHost:    %v", tr.MaxIdleConnsPerHost)
+		tloc.Logger.Errorf("    tx.IdleConnTimeout:        %v", tr.IdleConnTimeout)
+		tloc.Logger.Errorf("    tx.ResponseHeaderTimeout:  %v", tr.ResponseHeaderTimeout)
+		tloc.Logger.Errorf("    tx.TLSHandshakeTimeout:    %v", tr.TLSHandshakeTimeout)
+		tloc.Logger.Errorf("    tx.DisableKeepAlives:      %v", tr.DisableKeepAlives)
+	}
+
+	tloc.Logger.Errorf("    Client pair count:         %v", len(tloc.clientMap) + 1)
+	//tloc.Logger.Errorf("    Log level:                 %v", tloc.Logger.GetLevel())
+	tloc.Logger.Errorf("    Log level:                 %v", logrus.ErrorLevel)
+	tloc.Logger.Errorf("    Go version:                %v", runtime.Version())
 
 	return client
-}
-
-// Custom request wrapper that includes a retry counter that we'll use to
-// determine whether or not to close idle connections
-type trsWrappedReq struct {
-	orig        *http.Request // request we're wrapping
-	retryMax    int           // retry max from request
-	retryCount  int           // retry count for this request
 }
 
 type retryKey string	// avoids compiler warning
@@ -463,8 +516,10 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 
 		// Do not use leveled logging for now.  See explanation further
 		// up in the source code.  Instead, use standard logger set at
-		// error level
+		// error level to avoid excessive logging
 		//
+		//httpLogger := logrus.New()
+		//httpLogger.SetLevel(tloc.Logger.GetLevel())
 		//retryablehttpLogger := retryablehttp.LeveledLogger(&leveledLogrus{httpLogger})
 		//cpack.insecure.Logger = retryablehttpLogger
 
@@ -485,7 +540,7 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 	}
 	tloc.clientMutex.Unlock()
 
-	// Found a client to use, now set up a request
+	// Found a client to use (or created a new one), now set up a request
 
 	// First validate our task
 	if ok, err := tct.task.Validate(); !ok {
@@ -495,11 +550,26 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 		return
 	}
 
-	// Set context timeout
-	tct.task.context, tct.task.contextCancel = context.WithTimeout(tloc.ctx, tct.task.Timeout)
-
 	// Add user agent header to the request
 	base.SetHTTPUserAgent(tct.task.Request,tloc.svcName)
+
+	// Wrap the request so trsCheckRetry() can keep its own retry count
+	// We'll attach this to the context further below so that it has access
+	// to it
+	trsWR := &trsWrappedReq{
+		orig:       tct.task.Request, 		 // Core request
+		retryCount: 0,						 // Counter for CLIC()
+		retryMax:   cpack.insecure.RetryMax, // CLIC() will need access to this
+											 // same for both secure & insecure
+	}
+
+	// Create child context with timeout and our own retry counter
+
+	baseCtx, cancel := context.WithTimeout(tloc.ctx, tct.task.Timeout)
+	ctxWithValue := context.WithValue(baseCtx, trsRetryCountKey, trsWR)
+
+	tct.task.context = ctxWithValue
+	tct.task.contextCancel = cancel
 
 	// Create a retryablehttp request using the caller's request
 	req, err := retryablehttp.FromRequest(tct.task.Request)
@@ -510,15 +580,7 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 		return
 	}
 
-	// Add our own retry counter to the context
-	trsWR := &trsWrappedReq{
-		orig:       tct.task.Request, // Assign the original request
-		retryMax:   cpack.insecure.RetryMax, // secure and insecure contain same value
-		retryCount: 0,
-	}
-	tct.task.context = context.WithValue(req.Request.Context(), trsRetryCountKey, trsWR)
-
-	// Link retryablehttp's request context to the caller's request context
+	// Link retryablehttp's request context to the task's context
 	req.Request = req.Request.WithContext(tct.task.context)
 
 	// Execute the request
@@ -532,6 +594,13 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 
 		//If the error is a TLS error, fall back to insecure and log it.
 		if (tmpError != nil) {
+			// But first make sure we drain/close the body of the failed
+			// response, if there was one
+			if tct.task.Request.Response != nil && tct.task.Request.Response.Body != nil {
+				_, _ = io.Copy(io.Discard, tct.task.Request.Response.Body)
+				tct.task.Request.Response.Body.Close()
+			}
+
 			tloc.Logger.Warnf("TLS request failed, retrying using INSECURE client (TLS failure: '%v')", tmpError)
 			tct.task.Request.Response, tmpError = cpack.insecure.Do(req)
 		}

@@ -873,6 +873,9 @@ func doTransition(transitionID uuid.UUID) {
 			}
 			(*GLOB.RFTloc).Close(&trsTaskList)
 			close(rchan)
+		} else {
+			// Free up this memory
+			(*GLOB.RFTloc).Close(&trsTaskList)
 		}
 
 		// TRS section for getting power state for confirmation.
