@@ -141,17 +141,16 @@ func (tloc *TRSHTTPLocal) CreateTaskList(source *HttpTask, numTasks int) []HttpT
 //      https://github.com/hashicorp/go-retryablehttp/issues/93
 //
 // In the final version of the commit that added this capability, the
-// decision was made NOT to pass our leveldLogrus down to retryablehttp.
+// decision was made NOT to pass our leveledLogrus down to retryablehttp.
 // With the prior implementation, TRS was passing down a non-leveled
-// logger but did so incorrectly which resulted in NO log messages ever
-// being made by retryablehttp.  With the following leveled logger
-// being correctly passed down, logs start to happen but by doing this
-// it was observed that retryablehttp is overly verbose in its logging,
-// even at the error level.  To prevent log volume issues, we are keeping
-// the currently incorrectly configured logger in place down inside of
-// ExecuteTask() so that no logging happens in retryablehttp.  We are
-// keeping the code needed for leveled logging in place though in the
-// event a new version of retryablehttp becomes less chatty.
+// logger set at Error level.  With the leveled logger set at Error level
+// it is actually much more chatty and logs every standard http request
+// that fails for whatever reason.  While this is helpful, and useful,
+// it produces much more log data than previously.  To prevent any
+// topential log volume issues, the prior mechanism will be kept in place.
+// The code needed for leveled logging will remain in place though in the
+// event a new version of retryablehttp becomes less chatty at the Error
+// level.
 
 type leveledLogrus struct {
 	*logrus.Logger
@@ -455,21 +454,25 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 	var cpack *clientPack
 	tloc.clientMutex.Lock()
 	if _, ok := tloc.clientMap[tct.task.CPolicy]; !ok {
-		httpLogger := logrus.New()
-		httpLogger.SetLevel(tloc.Logger.GetLevel())
-
-		// Do not use leveled logging for now.  See explanation further
-		// up in the source code.
-		//
-		//retryablehttpLogger := retryablehttp.LeveledLogger(&leveledLogrus{httpLogger})
-
 		cpack = new(clientPack)
 
 		cpack.insecure = createClient(tct.task, tloc, "insecure")
+
+		// Do not use leveled logging for now.  See explanation further
+		// up in the source code.  Instead, use standard logger set at
+		// error level
+		//
+		//retryablehttpLogger := retryablehttp.LeveledLogger(&leveledLogrus{httpLogger})
+		//cpack.insecure.Logger = retryablehttpLogger
+
+		httpLogger := logrus.New()
+		httpLogger.SetLevel(logrus.ErrorLevel)
 		cpack.insecure.Logger = httpLogger
 
 		if (tloc.CACertPool != nil) {
 			cpack.secure = createClient(tct.task, tloc, "secure")
+
+			//cpack.secure.Logger = retryablehttpLogger
 			cpack.secure.Logger = httpLogger
 		}
 
@@ -504,7 +507,6 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 		return
 	}
 
-// TODO: ONLY CONFIG IF NO TX POLICY SO IT CAN BE DISABLED IN FIELD BY DEPLOYMENT CHANGE
 	// Add our own retry counter to the context
 	trsWR := &trsWrappedReq{
 		orig:       tct.task.Request, // Assign the original request
