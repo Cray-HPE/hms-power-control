@@ -729,13 +729,12 @@ func doTransition(transitionID uuid.UUID) {
 			}
 		}
 
-		// Repeated power transitions to the same BMCs it not a frequent
-		// thing so we continue using the default TRS configuration provided
-		// by the default BaseTRSTask.  It may still be beneficial though to
-		// consider sharing the PCS TRS client which does have connection
-		// pools already configured to the same BMCs we want to talk to here.
-		// It would likely not be beneficial to create our own TRS client due
-		// to less frequent use
+		// Repeated and frequent power transitions to the same BMCs is not
+		// common so we use the default TRS configuration provided by the
+		// default BaseTRSTask task prototype.  It may be beneficial to
+		// consider sharing the PCS TRS client in the future as requesting
+		// power state transitions generally shares the same set of BMC targets
+		// we want to talk to
 
 		// Create TRS task list
 		trsTaskMap := make(map[uuid.UUID]*TransitionComponent)

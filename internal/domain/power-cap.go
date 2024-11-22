@@ -660,17 +660,15 @@ func doPowerCapTask(taskID uuid.UUID) {
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing power capping task")
 	}
 
-	// Repeated power transitions to the same BMCs it not a frequent
-	// thing so we continue using the default TRS configuration provided
-	// by the default BaseTRSTask.  It may still be beneficial though to
-	// consider sharing the PCS TRS client which does have connection
-	// pools already configured to the same BMCs we want to talk to here.
-	// It would likely not be beneficial to create our own TRS client due
-	// to less frequent use
+	// Repeated and frequent power caps to the same BMCs is not
+	// common so we use the default TRS configuration provided by the
+	// default BaseTRSTask task prototype.  It may be beneficial to
+	// consider sharing the PCS TRS client in the future as power capping
+	// generally shares the same set of BMC targets we want to talk to.
 	//
-	// SPC is another consideration. It frequent repeated http requests
-	// to BMCs so would benefit from connections pools.  However, it is
-	// not currently enabled in the CSM 1.6.0 release
+	// SPC does initiatefrequent repeated http requests to BMCs so when
+	// it is added to CSM for formal release, we should consider adding
+	// a new client or sharing (and enlarging) the PCS TRS client.
 
 	// Create TRS task list
 	trsTaskMap := make(map[uuid.UUID]model.PowerCapOperation)

@@ -611,6 +611,7 @@ func getHWStatesFromHW() error {
 	}
 	(*tloc).Close(&taskList)
 	close(rchan)
+
 	glogger.Tracef("%s: DONE Waiting for tasks.", fname)
 
 	//For each response, get the XName via Request.Header["XName"].
