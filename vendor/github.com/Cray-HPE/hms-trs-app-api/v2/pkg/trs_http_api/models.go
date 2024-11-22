@@ -79,7 +79,7 @@ type RetryPolicy struct {
 }
 
 type HttpTxPolicy struct {
-	Enabled					bool	// Enable or disable the policy
+	Enabled				bool	// Enable or disable the policy
 	MaxIdleConns			int
 	MaxIdleConnsPerHost		int
 	IdleConnTimeout			time.Duration

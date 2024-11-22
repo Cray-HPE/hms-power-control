@@ -220,16 +220,16 @@ func (c *trsRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 // occasionally after a two hour period, not a big deal.
 //
 // WARNING!  The Go runtime behavior surrounding connections has changed in
-//			 more recent versions of Go.  Prior to version 1.23, if any
-//			 request experiences a timeout, the Go runtime closes ALL idle
-//			 connections.  There is nothing we can do about this in TRS,
-//			 other than use a newer version of Go that doesn't exhibit this
-//			 behavior.  Issue is documented here:
+//           more recent versions of Go.  Prior to version 1.23, if any
+//           request experiences a timeout, the Go runtime closes ALL idle
+//           connections.  There is nothing we can do about this in TRS,
+//           other than use a newer version of Go that doesn't exhibit this
+//           behavior.  Issue is documented here:
 //
-//				* https://github.com/golang/go/issues/59017
-//				* https://github.com/golang/go/commit/334ce510046ad30b1be466634cf313aad3040892
+//           * https://github.com/golang/go/issues/59017
+//           * https://github.com/golang/go/commit/334ce510046ad30b1be466634cf313aad3040892
 //
-//			 Will attempt to jump to Go 1.23 with this commit.
+//           Will attempt to jump to Go 1.23 with this commit.
 
 //var wrapperLogger *logrus.Logger	// only uncomment if debugging wrapper issues
 
@@ -339,13 +339,13 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 		// connections when they do happen is not a big deal.
 		//
 		// if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-		//		c.skipCloseCount++
+		//     c.skipCloseCount++
 		//
-		//		c.skipCloseMutex.Unlock()
+		//     c.skipCloseMutex.Unlock()
 		//
-		//		wrapperLogger.Errorf("trsCheckRetry: skipCloseCount now %v (ctx timeout)", c.skipCloseCount)
+		//     wrapperLogger.Errorf("trsCheckRetry: skipCloseCount now %v (ctx timeout)", c.skipCloseCount)
 		//
-		//		return false, err	// skip it
+		//     return false, err  // skip it
 		// }
 
 		c.skipCloseMutex.Unlock()
@@ -399,7 +399,7 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 			c.skipCloseMutex.Unlock()
 
 			//wrapperLogger.Errorf("trsCheckRetry: skipCloseCount now %v and err is %v", c.skipCloseCount, err)
-			
+
 			return false, err
 		}
 	}
@@ -417,7 +417,7 @@ func createClient(task *HttpTask, tloc *TRSHTTPLocal, clientType string) (client
 		tr.TLSClientConfig = &tls.Config{
 			InsecureSkipVerify: true,
 		}
-	} else {	// insecure
+	} else {     // secure
 		tr.TLSClientConfig = &tls.Config{
 			RootCAs: tloc.CACertPool,
 		}
@@ -557,10 +557,10 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 	// We'll attach this to the context further below so that it has access
 	// to it
 	trsWR := &trsWrappedReq{
-		orig:       tct.task.Request, 		 // Core request
-		retryCount: 0,						 // Counter for CLIC()
+		orig:       tct.task.Request,        // Core request
+		retryCount: 0,                       // Counter for CLIC()
 		retryMax:   cpack.insecure.RetryMax, // CLIC() will need access to this
-											 // same for both secure & insecure
+		                                     // same for both secure & insecure
 	}
 
 	// Create child context with timeout and our own retry counter
@@ -745,8 +745,8 @@ func (tloc *TRSHTTPLocal) Close(taskList *[]HttpTask) {
 			v.contextCancel()
 
 			// The caller should have closed the response body, but we'll also
-			// do it here to both prevent resource leaks.  Note that if that
-			// was the case, that connection was closed by the above cancel.
+			// do it here to prevent resource leaks.  Note that if that was
+			// the case, that connection was closed by the above cancel.
 
 			if v.Request.Response != nil && v.Request.Response.Body != nil {
 				_, _ = io.Copy(io.Discard, v.Request.Response.Body)
@@ -796,5 +796,4 @@ func (tloc *TRSHTTPLocal) Cleanup() {
 	}
 	tloc.Logger.Tracef("Cleanup() completed")
 	// this really just a big red button to STOP ALL? b/c im not clearing any memory
-	// TEST
 }
