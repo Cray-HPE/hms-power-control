@@ -10,15 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Updated hms-trs-app-api vendor code (bug fixes and enhancements)
-- Passed PCS's log level through to TRS to match PCS
+- Passed PCS's log level through to TRS to match PCS's
 - Configured TRS to use connection pools for status requests to BMCs
-- Did not modify transition and power cap paths to use connection pools
 - Renamed PCS_STATUS_HTTP_TIMEOUT to PCS_STATUS_TIMEOUT as it is not an
   http timeout
 - Added PCS_MAX_IDLE_CONNS and PCS_MAX_IDLE_CONNS_PER_HOST env variables
-  which allow overriding connection pool settings in TRS
+  which allow overriding PCS's connection pool settings in TRS
 - The above variables are configurable on PCS's helm chart
-- Fixed many resource leaks associated with TRS and http requests
+- Fixed many resource leaks associated with making http requests and using TRS
 - Update required version of Go to 1.23 to avoid
   https://github.com/golang/go/issues/59017
 
