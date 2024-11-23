@@ -25,6 +25,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 
@@ -109,6 +110,13 @@ func GetTransitions(w http.ResponseWriter, req *http.Request) {
 	if _, ok := params["transitionID"]; ok {
 		//parse uuid and if its good then call GetTransition
 		pb = GetUUIDFromVars("transitionID", req)
+
+		// Drain and close request body to ensure connection reuse
+		if (req.Body != nil) {
+			_, _ = io.Copy(io.Discard, req.Body)	// drain in case partially read
+			req.Body.Close()
+		}
+
 		if pb.IsError {
 			WriteHeaders(w, pb)
 			return
@@ -117,6 +125,12 @@ func GetTransitions(w http.ResponseWriter, req *http.Request) {
 		pb = domain.GetTransition(transitionID)
 
 	} else {
+		// Drain and close request body to ensure connection reuse
+		if (req.Body != nil) {
+			_, _ = io.Copy(io.Discard, req.Body)
+			req.Body.Close()
+		}
+
 		pb = domain.GetTransitionStatuses()
 	}
 	WriteHeaders(w, pb)
@@ -126,6 +140,13 @@ func GetTransitions(w http.ResponseWriter, req *http.Request) {
 // AbortTransitionID - abort transition by transitionID
 func AbortTransitionID(w http.ResponseWriter, req *http.Request) {
 	pb := GetUUIDFromVars("transitionID", req)
+
+	// Drain and close request body to ensure connection reuse
+	if (req.Body != nil) {
+		_, _ = io.Copy(io.Discard, req.Body)
+		req.Body.Close()
+	}
+
 	if pb.IsError {
 		WriteHeaders(w, pb)
 		return

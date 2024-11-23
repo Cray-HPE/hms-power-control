@@ -25,6 +25,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 
@@ -48,8 +49,7 @@ func SnapshotPowerCap(w http.ResponseWriter, req *http.Request) {
 	if req.Body != nil {
 		body, err := ioutil.ReadAll(req.Body)
 
-		// Not necessarily needed, but close request body anyways
-		req.Body.Close()
+		req.Body.Close()  // Close body to ensure connection reuse
 
 		logger.Log.WithFields(logrus.Fields{"body": string(body)}).Trace("Printing request body")
 
@@ -169,6 +169,12 @@ func PatchPowerCap(w http.ResponseWriter, req *http.Request) {
 
 // GetPowerCap - Get PowerCap tasks array
 func GetPowerCap(w http.ResponseWriter, req *http.Request) {
+	// Drain and close request body to ensure connection reuse
+	if (req.Body != nil) {
+		_, _ = io.Copy(io.Discard, req.Body)
+		req.Body.Close()
+	}
+
 	var pb model.Passback
 	pb = domain.GetPowerCap()
 	WriteHeaders(w, pb)
@@ -178,6 +184,13 @@ func GetPowerCap(w http.ResponseWriter, req *http.Request) {
 // GetPowerCapQuery - Get PowerCap information by ID
 func GetPowerCapQuery(w http.ResponseWriter, req *http.Request) {
 	pb := GetUUIDFromVars("taskID", req)
+
+	// Drain and close request body to ensure connection reuse
+	if (req.Body != nil) {
+		_, _ = io.Copy(io.Discard, req.Body)	// drain in case only partially read
+		req.Body.Close()
+	}
+
 	if pb.IsError {
 		WriteHeaders(w, pb)
 		return

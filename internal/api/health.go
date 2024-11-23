@@ -23,13 +23,15 @@
 package api
 
 import (
+	"io"
 	"reflect"
 	"strings"
 
-	"github.com/Cray-HPE/hms-power-control/internal/domain"
-	"github.com/Cray-HPE/hms-power-control/internal/model"
-	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"net/http"
+
+	"github.com/Cray-HPE/hms-power-control/internal/domain"
+	"github.com/Cray-HPE/hms-power-control/internal/logger"
+	"github.com/Cray-HPE/hms-power-control/internal/model"
 )
 
 
@@ -49,12 +51,24 @@ type healthRsp struct {
 
 // Returns the microservice liveness indicator.  Any response means we're live.
 func GetLiveness(w http.ResponseWriter, req *http.Request) {
+	// Drain and close request body to ensure connection reuse
+	if (req.Body != nil) {
+		_, _ = io.Copy(io.Discard, req.Body)
+		req.Body.Close()
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // Readiness - Returns the microservice readiness indicator
 func GetReadiness(w http.ResponseWriter, req *http.Request) {
 	var err error
+
+	// Drain and close request body to ensure connection reuse
+	if (req.Body != nil) {
+		_, _ = io.Copy(io.Discard, req.Body)
+		req.Body.Close()
+	}
 
 	fname := "GetReadiness"
 	glb   := *domain.GLOB
@@ -120,6 +134,12 @@ func GetHealth(w http.ResponseWriter, req *http.Request) {
 	sep := ", "
 
 	glb   := *domain.GLOB
+
+	// Drain and close request body to ensure connection reuse
+	if (req.Body != nil) {
+		_, _ = io.Copy(io.Discard, req.Body)
+		req.Body.Close()
+	}
 
 	//Check KVStore
 
