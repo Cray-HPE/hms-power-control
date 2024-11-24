@@ -578,7 +578,8 @@ func getHWStatesFromHW() error {
 						    len(rchan), cap(rchan))
 
 			if task.Request.Response != nil {
-				glogger.Tracef("%s: Response received from %s,%s,%s, status: %d",
+				//glogger.Tracef("%s: Response received from %s,%s,%s, status: %d",
+				glogger.Errorf("%s: Response received from %s,%s,%s, status: %d",
 				               fname, xname, fqdn, task.Request.URL.Path,
 				               task.Request.Response.StatusCode)
 
