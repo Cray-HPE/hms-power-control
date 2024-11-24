@@ -569,7 +569,7 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 	ctxWithValue := context.WithValue(baseCtx, trsRetryCountKey, trsWR)
 
 	tct.task.context = ctxWithValue
-	tct.task.contextCancel = cancel
+	tct.task.ContextCancel = cancel
 
 	// Create a retryablehttp request using the caller's request
 	req, err := retryablehttp.FromRequest(tct.task.Request)
@@ -726,7 +726,7 @@ func (tloc *TRSHTTPLocal) Alive() (bool, error) {
 func (tloc *TRSHTTPLocal) Cancel(taskList *[]HttpTask) {
 	for _, v := range *taskList {
 		if (v.Ignore == false) {
-			v.contextCancel()
+			v.ContextCancel()
 		}
 	}
 	tloc.Logger.Tracef("Cancel() completed")
@@ -745,8 +745,12 @@ func (tloc *TRSHTTPLocal) Close(taskList *[]HttpTask) {
 			// operation, but that's probably not a common thing so we will
 			// do it here.  There is no harm in cancelling twice.  We must
 			// do this before closing the response body.
+			//
+			// TODO: We may also want to consider having each go routine
+			// call cancel above in ExecuteTask() for themselves.  Doing it
+			// like that might be less error prone.
 
-			v.contextCancel()
+			v.ContextCancel()
 
 			// The caller should have closed the response body, but we'll also
 			// do it here to prevent resource leaks.  Note that if that was
@@ -789,7 +793,7 @@ func (tloc *TRSHTTPLocal) Cleanup() {
 	//clean up task map
 	for k := range tloc.taskMap {
 		//cancel it first
-		tloc.taskMap[k].task.contextCancel()
+		tloc.taskMap[k].task.ContextCancel()
 		//close the channel
 		close(tloc.taskMap[k].taskListChannel)
 		//delete it out of the map

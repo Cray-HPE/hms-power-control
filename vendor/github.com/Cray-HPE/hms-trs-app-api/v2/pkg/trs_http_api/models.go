@@ -103,7 +103,7 @@ type HttpTask struct {
 	CPolicy       ClientPolicy
 	Ignore        bool
 	context       context.Context
-	contextCancel context.CancelFunc
+	ContextCancel context.CancelFunc
 	forceInsecure bool
 }
 

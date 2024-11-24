@@ -27,6 +27,7 @@ package domain
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -568,6 +569,12 @@ func getHWStatesFromHW() error {
 		if xname == "" {
 			glogger.Errorf("%s: INTERNAL ERROR: xname not found in task headers! Can't process response.",
 			               fname)
+
+			// Still need to drain and close the response body
+			if task.Request.Response.Body != nil {
+				_, _ = io.Copy(io.Discard, task.Request.Response.Body)
+				task.Request.Response.Body.Close()
+			}
 		} else {
 			rmp := rspStuff{task: task}
 
@@ -612,6 +619,8 @@ func getHWStatesFromHW() error {
 			}
 			rspMap[xname] = &rmp
 		}
+
+		task.ContextCancel()
 
 		nDone++
 		if nDone >= activeTasks {
