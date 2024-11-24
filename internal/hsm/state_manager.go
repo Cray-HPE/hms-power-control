@@ -595,14 +595,15 @@ func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error)
 	req = req.WithContext(reqContext)
 
 	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
+
+	reqCtxCancel() // Release resources and signal context timeout to stop
+
 	if rsperr != nil {
 		// Always drain and close response bodies
 		if rsp != nil && rsp.Body != nil {
 			_, _ = io.Copy(io.Discard, rsp.Body)
 			rsp.Body.Close()
 		}
-
-		reqCtxCancel() // Release resources and signal context timeout to stop
 
 		return retData, fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 	}
@@ -613,8 +614,6 @@ func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error)
 	if rsp != nil && rsp.Body != nil {
 		rsp.Body.Close()
 	}
-
-	reqCtxCancel() // Release resources and signal context timeout to stop
 
 	if bderr != nil {
 		return retData, fmt.Errorf("Error reading response body for '%s': %v",
@@ -646,14 +645,15 @@ func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
 	req = req.WithContext(reqContext)
 
 	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
+
+	reqCtxCancel() // Release resources and signal context timeout to stop
+
 	if rsperr != nil {
 		// Always drain and close response bodies
 		if rsp != nil && rsp.Body != nil {
 			_, _ = io.Copy(io.Discard, rsp.Body)
 			rsp.Body.Close()
 		}
-
-		reqCtxCancel() // Release resources and signal context timeout to stop
 
 		return fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 	}
@@ -664,8 +664,6 @@ func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
 	if rsp != nil && rsp.Body != nil {
 		rsp.Body.Close()
 	}
-
-	reqCtxCancel() // Release resources and signal context timeout to stop
 
 	if bderr != nil {
 		return fmt.Errorf("Error reading response body for '%s': %v", smurl, bderr)

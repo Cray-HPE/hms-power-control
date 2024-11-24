@@ -291,6 +291,7 @@ func doTransition(transitionID uuid.UUID) {
 	// Start the Keep Alive thread
 	cancelChan := make(chan bool)
 	go transitionKeepAlive(tr.TransitionID, cancelChan)
+	// TODO: Where to close channel?
 
 	if tr.Operation == model.Operation_SoftOff {
 		isSoft = true

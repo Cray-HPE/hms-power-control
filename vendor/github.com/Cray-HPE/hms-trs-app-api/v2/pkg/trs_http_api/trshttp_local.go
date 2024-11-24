@@ -592,8 +592,9 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 		tloc.Logger.Tracef("Using secure client to send request")
 		tct.task.Request.Response, tmpError = cpack.secure.Do(req)
 
-		//If the error is a TLS error, fall back to insecure and log it.
-		if (tmpError != nil) {
+		// Fall back to insecure only if the enclosing context was not
+		// cancelled or timed out.
+		if tmpError != nil && tct.task.context.Err() == nil {
 			// But first make sure we drain/close the body of the failed
 			// response, if there was one
 			if tct.task.Request.Response != nil && tct.task.Request.Response.Body != nil {
@@ -615,6 +616,9 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 	} else {
 		tloc.Logger.Tracef("No response received")
 	}
+
+	// TODO: Consider cancelling the context for this task here instead of
+	// leaving it up to the caller
 
 	tct.taskListChannel <- tct.task
 }

@@ -79,13 +79,13 @@ type RetryPolicy struct {
 }
 
 type HttpTxPolicy struct {
-	Enabled				bool	// Enable or disable the policy
-	MaxIdleConns			int
-	MaxIdleConnsPerHost		int
-	IdleConnTimeout			time.Duration
-	ResponseHeaderTimeout	time.Duration
-	TLSHandshakeTimeout		time.Duration
-	DisableKeepAlives		bool
+	Enabled                 bool    // Enable or disable the policy
+	MaxIdleConns            int
+	MaxIdleConnsPerHost     int
+	IdleConnTimeout         time.Duration
+	ResponseHeaderTimeout   time.Duration
+	TLSHandshakeTimeout     time.Duration
+	DisableKeepAlives       bool
 }
 
 type ClientPolicy struct {
