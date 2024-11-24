@@ -8,7 +8,7 @@ toolchain go1.23.1
 
 require (
 	github.com/Cray-HPE/hms-base v1.15.1
-	github.com/Cray-HPE/hms-certs v1.4.1-0.20241124204937-96ec9e0abcf0
+	github.com/Cray-HPE/hms-certs v1.3.3
 	github.com/Cray-HPE/hms-compcredentials v1.11.2
 	github.com/Cray-HPE/hms-hmetcd v1.10.3
 	github.com/Cray-HPE/hms-securestorage v1.13.0
