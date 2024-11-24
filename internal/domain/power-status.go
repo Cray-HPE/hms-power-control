@@ -570,7 +570,8 @@ func getHWStatesFromHW() error {
 		} else {
 			rmp := rspStuff{task: task}
 
-			glogger.Tracef("%s: Task %d complete, xname: %s, FQDN: %s, " +
+			//glogger.Tracef("%s: Task %d complete, xname: %s, FQDN: %s, " +
+			glogger.Errorf("%s: Task %d complete, xname: %s, FQDN: %s, " +
 						   "URL: '%s', status code: %d (rchan status: %d/%d)",
 			               fname, nDone + 1, xname, fqdn,
 						   task.Request.URL.Path, getStatusCode(task),
