@@ -157,7 +157,8 @@ func main() {
 	}
 	var BaseTRSTask trsapi.HttpTask
 	BaseTRSTask.ServiceName = serviceName
-	BaseTRSTask.Timeout = time.Duration(baseTrsTaskTimeout) * time.Second
+	//BaseTRSTask.Timeout = time.Duration(baseTrsTaskTimeout) * time.Second
+	BaseTRSTask.Timeout = 40 * time.Second
 	BaseTRSTask.Request, _ = http.NewRequest("GET", "", nil)
 	BaseTRSTask.Request.Header.Set("Content-Type", "application/json")
 	BaseTRSTask.Request.Header.Add("HMS-Service", BaseTRSTask.ServiceName)
