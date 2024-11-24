@@ -29,7 +29,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -408,7 +407,7 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 			return fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 		}
 
-		body, bderr := ioutil.ReadAll(rsp.Body)
+		body, bderr := io.ReadAll(rsp.Body)
 
 		// Always close response bodies
 		if rsp != nil && rsp.Body != nil {
@@ -607,7 +606,7 @@ func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error)
 		return retData, fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 	}
 
-	body, bderr := ioutil.ReadAll(rsp.Body)
+	body, bderr := io.ReadAll(rsp.Body)
 
 	// Always close response bodies
 	if rsp != nil && rsp.Body != nil {
@@ -658,7 +657,7 @@ func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
 		return fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 	}
 
-	body, bderr := ioutil.ReadAll(rsp.Body)
+	body, bderr := io.ReadAll(rsp.Body)
 
 	// Always close response bodies
 	if rsp != nil && rsp.Body != nil {

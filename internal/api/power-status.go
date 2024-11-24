@@ -26,7 +26,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	base "github.com/Cray-HPE/hms-base"
@@ -121,7 +120,7 @@ func PostPowerStatus(w http.ResponseWriter, req *http.Request) {
 	var pb model.Passback
 	var parameters model.PowerStatusParameter
 	if req.Body != nil {
-		body, err := ioutil.ReadAll(req.Body)
+		body, err := io.ReadAll(req.Body)
 
 		// Close request body to ensure connection reuse
 		req.Body.Close()

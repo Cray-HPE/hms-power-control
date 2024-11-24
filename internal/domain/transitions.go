@@ -27,7 +27,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -837,7 +836,7 @@ func doTransition(transitionID uuid.UUID) {
 						taskErr = errors.New("empty body")
 						break
 					}
-					_, err := ioutil.ReadAll(tdone.Request.Response.Body)
+					_, err := io.ReadAll(tdone.Request.Response.Body)
 
 					// Must always close response bodies
 					tdone.Request.Response.Body.Close()
@@ -875,6 +874,7 @@ func doTransition(transitionID uuid.UUID) {
 				if err != nil {
 					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
 				}
+
 				// Cancel task contexts after they're no longer needed
 				if tdone.ContextCancel != nil {
 					tdone.ContextCancel()

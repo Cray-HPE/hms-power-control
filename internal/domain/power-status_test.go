@@ -26,7 +26,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"sync"
@@ -158,7 +157,7 @@ func doHTTP(url string, method string, pld []byte, auth *bAuth) ([]byte,int,erro
 		return rdata,0,fmt.Errorf("Error performing http %s: %v",method,perr)
 	}
 
-	rdata,err = ioutil.ReadAll(rsp.Body)
+	rdata,err = io.ReadAll(rsp.Body)
 
 	// Always close response bodies
 	if rsp != nil && rsp.Body != nil {

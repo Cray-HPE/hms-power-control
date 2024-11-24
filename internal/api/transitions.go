@@ -26,7 +26,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	// base "github.com/Cray-HPE/hms-base"
@@ -49,7 +48,7 @@ func CreateTransition(w http.ResponseWriter, req *http.Request) {
 	var pb model.Passback
 	var parameters model.TransitionParameter
 	if req.Body != nil {
-		body, err := ioutil.ReadAll(req.Body)
+		body, err := io.ReadAll(req.Body)
 
 		// Not necessarily needed, but close request body anyways
 		req.Body.Close()

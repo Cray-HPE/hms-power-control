@@ -28,7 +28,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -591,7 +590,7 @@ func getHWStatesFromHW() error {
 
 				//TODO: an optimization would be to unmarshall stuff here.
 				//But, that makes the code quite a bit messier and scattered.
-				rmp.body, rspErr = ioutil.ReadAll(task.Request.Response.Body)
+				rmp.body, rspErr = io.ReadAll(task.Request.Response.Body)
 
 				// Close the response body now that we've copied it
 				if task.Request.Response.Body != nil {

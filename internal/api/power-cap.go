@@ -26,7 +26,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/Cray-HPE/hms-power-control/internal/domain"
@@ -47,7 +46,7 @@ func SnapshotPowerCap(w http.ResponseWriter, req *http.Request) {
 	var pb model.Passback
 	var parameters model.PowerCapSnapshotParameter
 	if req.Body != nil {
-		body, err := ioutil.ReadAll(req.Body)
+		body, err := io.ReadAll(req.Body)
 
 		req.Body.Close()  // Close body to ensure connection reuse
 
@@ -101,7 +100,7 @@ func PatchPowerCap(w http.ResponseWriter, req *http.Request) {
 	var pb model.Passback
 	var parameters model.PowerCapPatchParameter
 	if req.Body != nil {
-		body, err := ioutil.ReadAll(req.Body)
+		body, err := io.ReadAll(req.Body)
 
 		// Not necessarily needed, but close request body anyways
 		req.Body.Close()

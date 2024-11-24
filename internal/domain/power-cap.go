@@ -28,7 +28,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"net/url"
@@ -750,7 +749,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 					taskErr = errors.New("empty body")
 					break
 				}
-				body, err := ioutil.ReadAll(tdone.Request.Response.Body)
+				body, err := io.ReadAll(tdone.Request.Response.Body)
 
 				// Must always close response bodies
 				tdone.Request.Response.Body.Close()
