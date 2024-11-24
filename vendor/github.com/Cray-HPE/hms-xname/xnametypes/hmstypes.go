@@ -1,26 +1,24 @@
+// MIT License
 //
-//  MIT License
+// (C) Copyright 2018-2023 Hewlett Packard Enterprise Development LP
 //
-//  (C) Copyright 2018-2022 Hewlett Packard Enterprise Development LP
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the "Software"),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a
-//  copy of this software and associated documentation files (the "Software"),
-//  to deal in the Software without restriction, including without limitation
-//  the rights to use, copy, modify, merge, publish, distribute, sublicense,
-//  and/or sell copies of the Software, and to permit persons to whom the
-//  Software is furnished to do so, subject to the following conditions:
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
 //
-//  The above copyright notice and this permission notice shall be included
-//  in all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-//  THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
-//  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
-//  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-//  OTHER DEALINGS IN THE SOFTWARE.
-//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+// OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+// ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+// OTHER DEALINGS IN THE SOFTWARE.
 package xnametypes
 
 import (
@@ -28,12 +26,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
-
-	base "github.com/Cray-HPE/hms-base/v2"
 )
-
-// Use HMS-wrapped errors.  Subsequent errors will be children of this one.
-var e = base.NewHMSError("hms", "GenericError")
 
 //
 // HMS Component type.  This is the top-level classification.  There may be
@@ -79,6 +72,7 @@ const (
 	NodeEnclosurePowerSupply HMSType = "NodeEnclosurePowerSupply" // xXcCsSeEtT
 	NodePowerConnector       HMSType = "NodePowerConnector"       // xXcCsSjJ
 	Node                     HMSType = "Node"                     // xXcCsSbBnN
+	VirtualNode              HMSType = "VirtualNode"              // xXcCsSbBnNvV
 	Processor                HMSType = "Processor"                // xXcCsSbBnNpP
 	StorageGroup             HMSType = "StorageGroup"             // xXcCsSbBnNgG
 	Drive                    HMSType = "Drive"                    // xXcCsSbBnNgGkK
@@ -115,9 +109,6 @@ const (
 	HMSTypeInvalid HMSType = "INVALID"   // Not a valid type/xname
 )
 
-var ErrHMSTypeInvalid = e.NewChild("got HMSTypeInvalid instead of valid type")
-var ErrHMSTypeUnsupported = e.NewChild("HMSType value not supported for this operation") // TODO should this be in base?
-
 type HMSCompRecognitionEntry struct {
 	Type          HMSType
 	ParentType    HMSType
@@ -129,6 +120,7 @@ type HMSCompRecognitionEntry struct {
 
 // Component recognition table keyed by normalized (i.e. all lowercase)
 // component name.
+// WARNING: if you modify this map you MUST regenerate the xnames, see https://github.com/Cray-HPE/hms-xname#code-generation
 var hmsCompRecognitionTable = map[string]HMSCompRecognitionEntry{
 	"invalid": {
 		HMSTypeInvalid,
@@ -296,7 +288,7 @@ var hmsCompRecognitionTable = map[string]HMSCompRecognitionEntry{
 		"xXcCbBiI",
 		regexp.MustCompile("^x([0-9]{1,4})c([0-7])b([0])i([0-3])$"),
 		"x%dc%db%di%d",
-		3,
+		4,
 	},
 	"cmmfpga": {
 		CMMFpga,
@@ -401,6 +393,14 @@ var hmsCompRecognitionTable = map[string]HMSCompRecognitionEntry{
 		regexp.MustCompile("^x([0-9]{1,4})c([0-7])s([0-9]+)b([0-9]+)n([0-9]+)$"),
 		"x%dc%ds%db%dn%d",
 		5,
+	},
+	"virtualnode": {
+		VirtualNode,
+		Node, // The hypervisor
+		"xXcCsSbBnNvV",
+		regexp.MustCompile("^x([0-9]{1,4})c([0-7])s([0-9]+)b([0-9]+)n([0-9]+)v([0-9]+)$"),
+		"x%dc%ds%db%dn%dv%d",
+		6,
 	},
 	"nodenic": {
 		NodeNic,
@@ -764,7 +764,8 @@ func GetHMSTypeRegex(hmsType HMSType) (*regexp.Regexp, error) {
 func (t HMSType) String() string { return string(t) }
 
 // Given a properly formatted xname, get its immediate parent.
-//  i.e. x0c0s22b11 would become x0c0s22
+//
+//	i.e. x0c0s22b11 would become x0c0s22
 func GetHMSCompParent(xname string) string {
 	hmsType := GetHMSType(xname)
 	if hmsType == CDU || hmsType == Cabinet {
@@ -787,7 +788,7 @@ func GetHMSCompParent(xname string) string {
 // normalization should still be as invalid or valid as an xname as it
 // was prior to this call.
 func NormalizeHMSCompID(xname string) string {
-	xnameNorm := base.RemoveLeadingZeros(strings.TrimSpace(xname))
+	xnameNorm := RemoveLeadingZeros(strings.TrimSpace(xname))
 	return strings.ToLower(xnameNorm)
 }
 
@@ -837,4 +838,42 @@ func ValidateCompIDs(compIDs []string, dupsValid bool) ([]string, []string) {
 	}
 
 	return valid, invalid
+}
+
+// Remove leading zeros, i.e. for each run of numbers, trim off leading
+// zeros so each run starts with either non-zero, or is a single zero.
+// This has been duplicated from hms-base, but it allows the packages to be independent.
+func RemoveLeadingZeros(s string) string {
+	//var b strings.Builder // Go 1.10
+	b := []byte("")
+
+	// base case
+	length := len(s)
+	if length < 2 {
+		return s
+	}
+	// Look for 0 after letter and before number. Skip these and
+	// pretend the previous value was still a letter for the next
+	// round, to catch multiple leading zeros.
+	i := 0
+	lastLetter := true
+	for ; i < length-1; i++ {
+		if s[i] == '0' && lastLetter == true {
+			if unicode.IsNumber(rune(s[i+1])) {
+				// leading zero
+				continue
+			}
+		}
+		if unicode.IsNumber(rune(s[i])) {
+			lastLetter = false
+		} else {
+			lastLetter = true
+		}
+		// b.WriteByte(s[i]) // Go 1.10
+		b = append(b, s[i])
+	}
+	//b.WriteByte(s[i]) // Go 1.10
+	//return b.String()
+	b = append(b, s[i])
+	return string(b)
 }
