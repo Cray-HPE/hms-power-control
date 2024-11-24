@@ -620,7 +620,10 @@ func getHWStatesFromHW() error {
 			rspMap[xname] = &rmp
 		}
 
-		task.ContextCancel()
+		// Cancel task contexts after they're no longer needed
+		if task.ContextCancel != nil {
+			task.ContextCancel()
+		}
 
 		nDone++
 		if nDone >= activeTasks {

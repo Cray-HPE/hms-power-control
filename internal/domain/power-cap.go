@@ -804,6 +804,11 @@ func doPowerCapTask(taskID uuid.UUID) {
 			if err != nil {
 				logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing power capping operation")
 			}
+
+			// Cancel task contexts after they're no longer needed
+			if tdone.ContextCancel != nil {
+				tdone.ContextCancel()
+			}
 		}
 		(*GLOB.RFTloc).Close(&trsTaskList)
 		close(rchan)
