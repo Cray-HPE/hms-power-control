@@ -807,7 +807,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 		}
 		(*GLOB.RFTloc).Close(&trsTaskList)
 		close(rchan)
-		//glogger.Infof("%s: Done processing BMC responses", fname)
+		logger.Log.Infof("%s: Done processing BMC responses", fname)
 	}
 
 	// Task Complete

@@ -878,7 +878,7 @@ func doTransition(transitionID uuid.UUID) {
 			}
 			(*GLOB.RFTloc).Close(&trsTaskList)
 			close(rchan)
-			glogger.Infof("%s: Done processing BMC responses", fname)
+			logger.Log.Infof("%s: Done processing BMC responses", fname)
 		} else {
 			// Free up this memory
 			(*GLOB.RFTloc).Close(&trsTaskList)
