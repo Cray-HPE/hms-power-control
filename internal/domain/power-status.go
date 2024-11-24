@@ -193,6 +193,9 @@ func GetPowerStatus(xnames []string,
 	//match the xnames in the passed-in array.  Grab pertinent data and create
 	//a pcsmodel.PowerStatus object 'pstatus', and return it.
 
+	// TODO: We should consider the performance and scaling impact of
+	// retrieving status for every single component in the system if the
+	// caller only wants the status of a few components.
 	statusObj, err := (*kvStore).GetAllPowerStatus()
 	if err != nil {
 		//TODO: we don't have an HTTP status code from a failed 
@@ -567,8 +570,11 @@ func getHWStatesFromHW() error {
 		} else {
 			rmp := rspStuff{task: task}
 
-			glogger.Tracef("%s: Task %d complete, xname: %s, FQDN: %s, URL: '%s', status code: %d",
-			               fname, nDone + 1, xname, fqdn, task.Request.URL.Path, getStatusCode(task))
+			glogger.Tracef("%s: Task %d complete, xname: %s, FQDN: %s, " +
+						   "URL: '%s', status code: %d (rchan status: %d/%d)",
+			               fname, nDone + 1, xname, fqdn,
+						   task.Request.URL.Path, getStatusCode(task),
+						    len(rchan), cap(rchan))
 
 			if task.Request.Response != nil {
 				glogger.Tracef("%s: Response received from %s,%s,%s, status: %d",
@@ -598,8 +604,10 @@ func getHWStatesFromHW() error {
 				if task.Err != nil {
 					rspErr = *task.Err
 				}
-				glogger.Errorf("%s: ERROR no response body for '%s' '%s' '%s', err: %v",
-				               fname, xname, fqdn, task.Request.URL.Path, rspErr)
+				glogger.Errorf("%s: ERROR no response body for '%s' '%s' " +
+							   "'%s', err: %v (rchan status: %d/%d)",
+							   fname, xname, fqdn, task.Request.URL.Path,
+							   rspErr, len(rchan), cap(rchan))
 			}
 			rspMap[xname] = &rmp
 		}
