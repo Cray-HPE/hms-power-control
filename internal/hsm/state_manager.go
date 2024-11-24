@@ -651,10 +651,9 @@ func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
 		if rsp != nil && rsp.Body != nil {
 			_, _ = io.Copy(io.Discard, rsp.Body)
 			rsp.Body.Close()
-
-			reqCtxCancel() // Release resources and signal context timeout to stop
-
 		}
+
+		reqCtxCancel() // Release resources and signal context timeout to stop
 
 		return fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 	}
