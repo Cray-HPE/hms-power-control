@@ -543,6 +543,8 @@ func getHWStatesFromHW() error {
 
 	//Launch
 
+	glogger.Infof("%s: Initiating %d/%d status requests to BMCs", fname, activeTasks, taskIX)
+
 	rchan,err := (*tloc).Launch(&taskList)
 	if err != nil {
 		return fmt.Errorf("%s: TRS Launch() error: %v.", fname, err)
@@ -552,7 +554,6 @@ func getHWStatesFromHW() error {
 
 	rspMap := make(map[string]*rspStuff)
 	nDone := 0
-	glogger.Tracef("%s: Waiting for %d/%d tasks.", fname, activeTasks, taskIX)
 
 	for {
 		task := <-rchan
@@ -570,8 +571,7 @@ func getHWStatesFromHW() error {
 		} else {
 			rmp := rspStuff{task: task}
 
-			//glogger.Tracef("%s: Task %d complete, xname: %s, FQDN: %s, " +
-			glogger.Errorf("%s: Task %d complete, xname: %s, FQDN: %s, " +
+			glogger.Tracef("%s: Task %d complete, xname: %s, FQDN: %s, " +
 						   "URL: '%s', status code: %d (rchan status: %d/%d)",
 			               fname, nDone + 1, xname, fqdn,
 						   task.Request.URL.Path, getStatusCode(task),
@@ -621,7 +621,7 @@ func getHWStatesFromHW() error {
 	(*tloc).Close(&taskList)
 	close(rchan)
 
-	glogger.Tracef("%s: DONE Waiting for tasks.", fname)
+	glogger.Infof("%s: Processing BMC status responses", fname)
 
 	//For each response, get the XName via Request.Header["XName"].
 	//Get it's type via Request.Header["CType"].
@@ -637,6 +637,8 @@ func getHWStatesFromHW() error {
 		ctypeArr := v.task.Request.Header[hashCType]
 		fqdnArr  := v.task.Request.Header[hashFQDN]
 		if len(ctypeArr) == 0 || len(fqdnArr) == 0 {
+			// TODO: Probably not good to leave all the other responses
+			// unprocessed
 			return fmt.Errorf("Internal error: response headers for xname/ctype/fqdn are empty: '%v', '%v'",
 			                  ctypeArr, fqdnArr)
 		}
@@ -788,6 +790,8 @@ func getHWStatesFromHW() error {
 				              "Unknown component type")
 		}
 	}
+
+	glogger.Infof("%s: Done processing BMC responses", fname)
 
 	return nil
 }

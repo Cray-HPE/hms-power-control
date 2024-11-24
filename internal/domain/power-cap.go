@@ -388,6 +388,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 	var xnames []string
 	goodOps := make([]model.PowerCapOperation, 0)
 	patchParametersMap := make(map[string]map[string]int)
+	fname := "doPowerCapTask"
 
 	task, err := (*GLOB.DSP).GetPowerCapTask(taskID)
 	if err != nil {
@@ -709,6 +710,9 @@ func doPowerCapTask(taskID uuid.UUID) {
 	}
 
 	if len(trsTaskList) > 0 {
+		logger.Log.Infof("%s: Initiating %d/%d power cap requests to BMCs",
+					     fname, trsTaskIdx, len(goodOps))
+
 		rchan, err := (*GLOB.RFTloc).Launch(&trsTaskList)
 		if err != nil {
 			logrus.Error(err)
@@ -803,6 +807,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 		}
 		(*GLOB.RFTloc).Close(&trsTaskList)
 		close(rchan)
+		glogger.Infof("%s: Done processing BMC responses", fname)
 	}
 
 	// Task Complete

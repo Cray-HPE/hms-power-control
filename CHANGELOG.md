@@ -16,7 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   http timeout
 - Added PCS_MAX_IDLE_CONNS and PCS_MAX_IDLE_CONNS_PER_HOST env variables
   which allow overriding PCS's connection pool settings in TRS
+- Added PCS_BASE_TRS_TASK_TIMEOUT env variable which allows the timeout
+  for power transitions and capping to be configured
 - The above variables are configurable on PCS's helm chart
+- At PCS start time, log all env variables that were set
+- Log start and end of large batched requests to BMCs
 - Fixed many resource leaks associated with making http requests and using TRS
 - Update required version of Go to 1.23 to avoid
   https://github.com/golang/go/issues/59017

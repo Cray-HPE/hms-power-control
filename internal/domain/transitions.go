@@ -268,6 +268,8 @@ func doTransition(transitionID uuid.UUID) {
 		waitForever     bool
 	)
 
+	fname := "doTransition"
+
 	tr, err := (*GLOB.DSP).GetTransition(transitionID)
 	if err != nil {
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Cannot retrieve transition, cannot generate tasks")
@@ -796,6 +798,9 @@ func doTransition(transitionID uuid.UUID) {
 
 		// Launch the TRS tasks and wait to hear back
 		if len(trsTaskList) > 0 {
+			logger.Log.Infof("%s: Initiating %d/%d transition requests to BMCs",
+						     fname, trsTaskIdx, len(compList))
+
 			rchan, err := (*GLOB.RFTloc).Launch(&trsTaskList)
 			if err != nil {
 				logrus.Error(err)
@@ -873,6 +878,7 @@ func doTransition(transitionID uuid.UUID) {
 			}
 			(*GLOB.RFTloc).Close(&trsTaskList)
 			close(rchan)
+			glogger.Infof("%s: Done processing BMC responses", fname)
 		} else {
 			// Free up this memory
 			(*GLOB.RFTloc).Close(&trsTaskList)

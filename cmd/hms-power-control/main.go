@@ -140,9 +140,24 @@ func main() {
 	//CONFIGURATION
 	//////////////////////////////
 
+	baseTrsTaskTimeout := 40
+
+	var envstr string
+
+	envstr = os.Getenv("PCS_BASE_TRS_TASK_TIMEOUT")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_BASE_TRS_TASK_TIMEOUT, defaulting to %d",
+				baseTrsTaskTimeout)
+		} else {
+			logger.Log.Infof("Using PCS_BASE_TRS_TASK_TIMEOUT: %v", tps)
+			baseTrsTaskTimeout = tps
+		}
+	}
 	var BaseTRSTask trsapi.HttpTask
 	BaseTRSTask.ServiceName = serviceName
-	BaseTRSTask.Timeout = 40 * time.Second
+	BaseTRSTask.Timeout = time.Duration(baseTrsTaskTimeout) * time.Second
 	BaseTRSTask.Request, _ = http.NewRequest("GET", "", nil)
 	BaseTRSTask.Request.Header.Set("Content-Type", "application/json")
 	BaseTRSTask.Request.Header.Add("HMS-Service", BaseTRSTask.ServiceName)
@@ -163,7 +178,6 @@ func main() {
 	trsLogger.SetLevel(logger.Log.GetLevel())
 	trsLogger.SetReportCaller(true)
 
-	var envstr string
 	envstr = os.Getenv("TRS_IMPLEMENTATION")
 
 	if envstr == "REMOTE" {
@@ -173,6 +187,7 @@ func main() {
 		workerInsec.Logger = trsLogger
 		TLOC_rf = workerSec
 		TLOC_svc = workerInsec
+		logger.Log.Infof("Using TRS_IMPLEMENTATION: REMOTE")
 	} else {
 		workerSec := &trsapi.TRSHTTPLocal{}
 		workerSec.Logger = trsLogger
@@ -180,12 +195,14 @@ func main() {
 		workerInsec.Logger = trsLogger
 		TLOC_rf = workerSec
 		TLOC_svc = workerInsec
+		logger.Log.Infof("Using TRS_IMPLEMENTATION: LOCAL")
 	}
 
 	//Set up TRS TLOCs and HTTP clients, all insecure to start with
 
 	envstr = os.Getenv("PCS_CA_URI")
 	if envstr != "" {
+		logger.Log.Infof("Using PCS_CA_URI: %s", envstr)
 		caURI = envstr
 	}
 	//These are for debugging/testing
@@ -363,6 +380,7 @@ func main() {
 			logger.Log.Errorf("Invalid value of PCS_POWER_SAMPLE_INTERVAL, defaulting to %d",
 				pwrSampleInterval)
 		} else {
+			logger.Log.Infof("Using PCS_POWER_SAMPLE_INTERVAL: %v", tps)
 			pwrSampleInterval = tps
 		}
 	}
@@ -373,6 +391,7 @@ func main() {
 			logger.Log.Errorf("Invalid value of PCS_DISTLOCK_TIMEOUT, defaulting to %d",
 				dlockTimeout)
 		} else {
+			logger.Log.Infof("Using PCS_DISTLOCK_TIMEOUT: %v", tps)
 			dlockTimeout = tps
 		}
 	}
@@ -383,6 +402,7 @@ func main() {
 			logger.Log.Errorf("Invalid value of PCS_STATUS_TIMEOUT, defaulting to %d",
 				statusTimeout)
 		} else {
+			logger.Log.Infof("Using PCS_STATUS_TIMEOUT: %v", tps)
 			statusTimeout = tps
 		}
 	}
@@ -393,6 +413,7 @@ func main() {
 			logger.Log.Errorf("Invalid value of PCS_STATUS_HTTP_RETRIES, defaulting to %d",
 				statusHttpRetries)
 		} else {
+			logger.Log.Infof("Using PCS_STATUS_HTTP_RETRIES: %v", tps)
 			statusHttpRetries = tps
 		}
 	}
@@ -403,6 +424,7 @@ func main() {
 			logger.Log.Errorf("Invalid value of PCS_MAX_IDLE_CONNS, defaulting to %d",
 				maxIdleConns)
 		} else {
+			logger.Log.Infof("Using PCS_MAX_IDLE_CONNS: %v", tps)
 			maxIdleConns = tps
 		}
 	}
@@ -413,6 +435,7 @@ func main() {
 			logger.Log.Errorf("Invalid value of PCS_MAX_IDLE_CONNS_PER_HOST, defaulting to %d",
 				maxIdleConnsPerHost)
 		} else {
+			logger.Log.Infof("Using PCS_MAX_IDLE_CONNS_PER_HOST: %v", tps)
 			maxIdleConnsPerHost = tps
 		}
 	}
