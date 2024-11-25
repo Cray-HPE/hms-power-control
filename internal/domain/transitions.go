@@ -275,18 +275,21 @@ func doTransition(transitionID uuid.UUID) {
 		return
 	}
 
-	defer logger.Log.Infof("Transition %s Completed", tr.TransitionID.String())
+	defer logger.Log.Infof("Transition %s Completed (%s)",
+						   tr.TransitionID.String(), GLOB.PodName)
 
 	// Restarting a transition
 	if tr.Status != model.TransitionStatusNew {
-		logger.Log.Infof("Restarting Transition %s", tr.TransitionID.String())
+		logger.Log.Infof("Restarting Transition %s (%s)",
+						 tr.TransitionID.String(), GLOB.PodName)
 		if tr.Status == model.TransitionStatusCompleted ||
 		   tr.Status == model.TransitionStatusAborted {
 			// Shouldn't pick up completed Transitions anyway
 			return
 		}
 	} else {
-		logger.Log.Infof("Starting Transition %s", tr.TransitionID.String())
+		logger.Log.Infof("Starting Transition %s (%s)",
+						 tr.TransitionID.String(), GLOB.PodName)
 	}
 
 	// Start the Keep Alive thread

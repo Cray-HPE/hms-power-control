@@ -50,8 +50,7 @@ const (
 	hsmReservationReleasePath         = "/hsm/v2/locks/service/reservations/release"
 	hsmPowerMapPath                   = "/hsm/v2/sysinfo/powermaps"
 
-	//HSM_MAX_COMPONENT_QUERY = 2000
-	HSM_MAX_COMPONENT_QUERY = 200
+	HSM_MAX_COMPONENT_QUERY = 2000
 )
 
 //For some reason this is not defined in the HSM code base...

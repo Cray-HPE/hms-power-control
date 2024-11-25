@@ -395,10 +395,12 @@ func doPowerCapTask(taskID uuid.UUID) {
 		return
 	}
 
-	defer logger.Log.Infof("Power Capping Task %s Completed", task.TaskID.String())
+	defer logger.Log.Infof("Power Capping Task %s Completed (%s)",
+						   task.TaskID.String(), GLOB.PodName)
 
 	if task.Type == model.PowerCapTaskTypePatch {
-		logger.Log.Infof("Starting Power Capping Patch Task %s - %v", task.TaskID.String(), *task.PatchParameters)
+		logger.Log.Infof("Starting Power Capping Patch Task %s - %v (%s)",
+						 task.TaskID.String(), *task.PatchParameters, GLOB.PodName)
 		taskIsPatch = true
 		for _, param := range task.PatchParameters.Components {
 			xnames = append(xnames, param.Xname)
@@ -412,7 +414,8 @@ func doPowerCapTask(taskID uuid.UUID) {
 			patchParametersMap[param.Xname] = ctlMap
 		}
 	} else {
-		logger.Log.Infof("Starting Power Capping Snapshot Task %s - %v", task.TaskID.String(), *task.SnapshotParameters)
+		logger.Log.Infof("Starting Power Capping Snapshot Task %s - %v (%s)",
+						 task.TaskID.String(), *task.SnapshotParameters, GLOB.PodName)
 		xnames = task.SnapshotParameters.Xnames
 	}
 

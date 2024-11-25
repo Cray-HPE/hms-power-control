@@ -443,9 +443,6 @@ func createClient(task *HttpTask, tloc *TRSHTTPLocal, clientType string) (client
 		tr.ResponseHeaderTimeout = httpTxPolicy.ResponseHeaderTimeout // if 0 defaults to no timeout
 		tr.TLSHandshakeTimeout   = httpTxPolicy.TLSHandshakeTimeout   // if 0 defaults to 10s
 		tr.DisableKeepAlives	 = httpTxPolicy.DisableKeepAlives     // if 0 defaults to false
-
-		// TODO: REMOVE IF DOESN"T WORK
-		tr.ForceAttemptHTTP2 = true
 	}
 
 	// Wrap base transport with retryablehttp
