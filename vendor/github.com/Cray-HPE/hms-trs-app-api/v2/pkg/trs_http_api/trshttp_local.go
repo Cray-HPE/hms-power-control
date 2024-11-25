@@ -368,7 +368,7 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 	}
 
 	// If none of the above, delegate retry check to retryablehttp
-	shouldRetry, err := retryablehttp.DefaultRetryPolicy(ctx, resp, err)
+	shouldRetry, defaultRPErr := retryablehttp.DefaultRetryPolicy(ctx, resp, err)
 
 	//wrapperLogger.Errorf("trsCheckRetry: DefaultRetryPolicy: shouldRetry=%v", shouldRetry)
 
@@ -411,7 +411,7 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 		}
 	}
 
-	return shouldRetry, err
+	return shouldRetry, defaultRPErr
 }
 
 // Create and configure a new client transport for use with HTTP clients.
@@ -622,7 +622,8 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 	}
 
 	// TODO: Consider cancelling the context for this task here instead of
-	// leaving it up to the caller
+	// leaving it up to the caller - Would have to read and close response
+	// here as well
 
 	tct.taskListChannel <- tct.task
 }
@@ -767,6 +768,16 @@ func (tloc *TRSHTTPLocal) Close(taskList *[]HttpTask) {
 		tloc.taskMutex.Unlock()
 
 	}
+// See if this helps memory leak
+for k := range tloc.clientMap {
+	if (tloc.clientMap[k].insecure != nil) {
+		tloc.clientMap[k].insecure.HTTPClient.CloseIdleConnections()
+	}
+	if (tloc.clientMap[k].secure != nil) {
+		tloc.clientMap[k].secure.HTTPClient.CloseIdleConnections()
+	}
+}
+
 	tloc.Logger.Tracef("Close() completed")
 }
 
