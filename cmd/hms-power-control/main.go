@@ -34,7 +34,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Cray-HPE/hms-base"
+	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
 	"github.com/Cray-HPE/hms-power-control/internal/api"
 	"github.com/Cray-HPE/hms-power-control/internal/credstore"
@@ -42,7 +42,7 @@ import (
 	"github.com/Cray-HPE/hms-power-control/internal/hsm"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/storage"
-	trsapi "github.com/Cray-HPE/hms-trs-app-api/v2/pkg/trs_http_api"
+	trsapi "github.com/Cray-HPE/hms-trs-app-api/v3/pkg/trs_http_api"
 	"github.com/namsral/flag"
 	"github.com/sirupsen/logrus"
 )
@@ -140,12 +140,35 @@ func main() {
 	//CONFIGURATION
 	//////////////////////////////
 
+	baseTrsTaskTimeout := 40
+
+	var envstr string
+
+	envstr = os.Getenv("PCS_BASE_TRS_TASK_TIMEOUT")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_BASE_TRS_TASK_TIMEOUT, defaulting to %d",
+				baseTrsTaskTimeout)
+		} else {
+			logger.Log.Infof("Using PCS_BASE_TRS_TASK_TIMEOUT: %v", tps)
+			baseTrsTaskTimeout = tps
+		}
+	}
+
 	var BaseTRSTask trsapi.HttpTask
 	BaseTRSTask.ServiceName = serviceName
-	BaseTRSTask.Timeout = 40 * time.Second
+	BaseTRSTask.Timeout = time.Duration(baseTrsTaskTimeout) * time.Second
 	BaseTRSTask.Request, _ = http.NewRequest("GET", "", nil)
 	BaseTRSTask.Request.Header.Set("Content-Type", "application/json")
 	BaseTRSTask.Request.Header.Add("HMS-Service", BaseTRSTask.ServiceName)
+
+	// TODO: We could convert BaseTRSTask to a new connection pool aware TRS
+	// client, or create a new ConnPoolTRSTask.  That all users (status,
+	// power cap, and transition) could easily share a single client
+	// definition.  Not really necessary though until/if we decide to add
+	// non-default connection pool support to the power cap and transition
+	// paths.
 
 	//INITIALIZE TRS
 
@@ -153,10 +176,9 @@ func main() {
 	trsLogger.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 	})
-	trsLogger.SetLevel(logrus.ErrorLevel) //It could be set to logger.Log.GetLevel()
+	trsLogger.SetLevel(logger.Log.GetLevel())
 	trsLogger.SetReportCaller(true)
 
-	var envstr string
 	envstr = os.Getenv("TRS_IMPLEMENTATION")
 
 	if envstr == "REMOTE" {
@@ -166,6 +188,7 @@ func main() {
 		workerInsec.Logger = trsLogger
 		TLOC_rf = workerSec
 		TLOC_svc = workerInsec
+		logger.Log.Infof("Using TRS_IMPLEMENTATION: REMOTE")
 	} else {
 		workerSec := &trsapi.TRSHTTPLocal{}
 		workerSec.Logger = trsLogger
@@ -173,12 +196,14 @@ func main() {
 		workerInsec.Logger = trsLogger
 		TLOC_rf = workerSec
 		TLOC_svc = workerInsec
+		logger.Log.Infof("Using TRS_IMPLEMENTATION: LOCAL")
 	}
 
 	//Set up TRS TLOCs and HTTP clients, all insecure to start with
 
 	envstr = os.Getenv("PCS_CA_URI")
 	if envstr != "" {
+		logger.Log.Infof("Using PCS_CA_URI: %s", envstr)
 		caURI = envstr
 	}
 	//These are for debugging/testing
@@ -259,11 +284,17 @@ func main() {
 		CS.Init(&credStoreGlob)
 	}
 
+	// Capture hostname, which is the name of the pod
+	podName, err := os.Hostname()
+	if err != nil {
+		podName = "unknown_pod_name"
+	}
+
 	//DOMAIN CONFIGURATION
 	var domainGlobals domain.DOMAIN_GLOBALS
 	domainGlobals.NewGlobals(&BaseTRSTask, &TLOC_rf, &TLOC_svc, rfClient, svcClient,
 	                         rfClientLock, &Running, &DSP, &HSM, VaultEnabled,
-	                         &CS, &DLOCK, maxNumCompleted, expireTimeMins)
+	                         &CS, &DLOCK, maxNumCompleted, expireTimeMins, podName)
 
 	//Wait for vault PKI to respond for CA bundle.  Once this happens, re-do
 	//the globals.  This goroutine will run forever checking if the CA trust
@@ -344,8 +375,11 @@ func main() {
 
 	dlockTimeout := 60
 	pwrSampleInterval := 30
-	statusHttpTimeout := 30
+	statusTimeout := 30
 	statusHttpRetries := 3
+	maxIdleConns := 4000
+	maxIdleConnsPerHost := 4	// 4000 / 4 = 4 open conns for each of 1000 BMCs
+
 	envstr = os.Getenv("PCS_POWER_SAMPLE_INTERVAL")
 	if (envstr != "") {
 		tps,err := strconv.Atoi(envstr)
@@ -353,6 +387,7 @@ func main() {
 			logger.Log.Errorf("Invalid value of PCS_POWER_SAMPLE_INTERVAL, defaulting to %d",
 				pwrSampleInterval)
 		} else {
+			logger.Log.Infof("Using PCS_POWER_SAMPLE_INTERVAL: %v", tps)
 			pwrSampleInterval = tps
 		}
 	}
@@ -363,17 +398,19 @@ func main() {
 			logger.Log.Errorf("Invalid value of PCS_DISTLOCK_TIMEOUT, defaulting to %d",
 				dlockTimeout)
 		} else {
+			logger.Log.Infof("Using PCS_DISTLOCK_TIMEOUT: %v", tps)
 			dlockTimeout = tps
 		}
 	}
-	envstr = os.Getenv("PCS_STATUS_HTTP_TIMEOUT")
+	envstr = os.Getenv("PCS_STATUS_TIMEOUT")
 	if (envstr != "") {
 		tps,err := strconv.Atoi(envstr)
 		if (err != nil) {
-			logger.Log.Errorf("Invalid value of PCS_STATUS_HTTP_TIMEOUT, defaulting to %d",
-				statusHttpTimeout)
+			logger.Log.Errorf("Invalid value of PCS_STATUS_TIMEOUT, defaulting to %d",
+				statusTimeout)
 		} else {
-			statusHttpTimeout = tps
+			logger.Log.Infof("Using PCS_STATUS_TIMEOUT: %v", tps)
+			statusTimeout = tps
 		}
 	}
 	envstr = os.Getenv("PCS_STATUS_HTTP_RETRIES")
@@ -383,13 +420,37 @@ func main() {
 			logger.Log.Errorf("Invalid value of PCS_STATUS_HTTP_RETRIES, defaulting to %d",
 				statusHttpRetries)
 		} else {
+			logger.Log.Infof("Using PCS_STATUS_HTTP_RETRIES: %v", tps)
 			statusHttpRetries = tps
+		}
+	}
+	envstr = os.Getenv("PCS_MAX_IDLE_CONNS")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_MAX_IDLE_CONNS, defaulting to %d",
+				maxIdleConns)
+		} else {
+			logger.Log.Infof("Using PCS_MAX_IDLE_CONNS: %v", tps)
+			maxIdleConns = tps
+		}
+	}
+	envstr = os.Getenv("PCS_MAX_IDLE_CONNS_PER_HOST")
+	if (envstr != "") {
+		tps,err := strconv.Atoi(envstr)
+		if (err != nil) {
+			logger.Log.Errorf("Invalid value of PCS_MAX_IDLE_CONNS_PER_HOST, defaulting to %d",
+				maxIdleConnsPerHost)
+		} else {
+			logger.Log.Infof("Using PCS_MAX_IDLE_CONNS_PER_HOST: %v", tps)
+			maxIdleConnsPerHost = tps
 		}
 	}
 
 	domain.PowerStatusMonitorInit(&domainGlobals,
 		(time.Duration(dlockTimeout)*time.Second),
-		logger.Log,(time.Duration(pwrSampleInterval)*time.Second), statusHttpTimeout, statusHttpRetries)
+		logger.Log,(time.Duration(pwrSampleInterval)*time.Second),
+		statusTimeout, statusHttpRetries, maxIdleConns, maxIdleConnsPerHost)
 
 	domain.StartRecordsReaper()
 

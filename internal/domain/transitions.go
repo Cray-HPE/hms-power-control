@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -267,29 +267,35 @@ func doTransition(transitionID uuid.UUID) {
 		waitForever     bool
 	)
 
+	fname := "doTransition"
+
 	tr, err := (*GLOB.DSP).GetTransition(transitionID)
 	if err != nil {
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Cannot retrieve transition, cannot generate tasks")
 		return
 	}
 
-	defer logger.Log.Infof("Transition %s Completed", tr.TransitionID.String())
+	defer logger.Log.Infof("Transition %s Completed (%s)",
+						   tr.TransitionID.String(), GLOB.PodName)
 
 	// Restarting a transition
 	if tr.Status != model.TransitionStatusNew {
-		logger.Log.Infof("Restarting Transition %s", tr.TransitionID.String())
+		logger.Log.Infof("Restarting Transition %s (%s)",
+						 tr.TransitionID.String(), GLOB.PodName)
 		if tr.Status == model.TransitionStatusCompleted ||
 		   tr.Status == model.TransitionStatusAborted {
 			// Shouldn't pick up completed Transitions anyway
 			return
 		}
 	} else {
-		logger.Log.Infof("Starting Transition %s", tr.TransitionID.String())
+		logger.Log.Infof("Starting Transition %s (%s)",
+						 tr.TransitionID.String(), GLOB.PodName)
 	}
 
 	// Start the Keep Alive thread
 	cancelChan := make(chan bool)
 	go transitionKeepAlive(tr.TransitionID, cancelChan)
+	// TODO: Where to close channel?
 
 	if tr.Operation == model.Operation_SoftOff {
 		isSoft = true
@@ -728,6 +734,13 @@ func doTransition(transitionID uuid.UUID) {
 			}
 		}
 
+		// Repeated and frequent power transitions to the same BMCs is not
+		// common so we use the default TRS configuration provided by the
+		// default BaseTRSTask task prototype.  It may be beneficial to
+		// consider sharing the PCS TRS client in the future as requesting
+		// power state transitions generally shares the same set of BMC targets
+		// we want to talk to
+
 		// Create TRS task list
 		trsTaskMap := make(map[uuid.UUID]*TransitionComponent)
 		trsTaskList := (*GLOB.RFTloc).CreateTaskList(GLOB.BaseTRSTask, len(compList))
@@ -762,7 +775,7 @@ func doTransition(transitionID uuid.UUID) {
 			comp.Task.State = model.TaskState_Sending
 			comp.Task.Operation = powerActionOp
 			trsTaskMap[trsTaskList[trsTaskIdx].GetID()] = comp
-			trsTaskList[trsTaskIdx].RetryPolicy.Retries = 3
+			trsTaskList[trsTaskIdx].CPolicy.Retry.Retries = 3
 			trsTaskList[trsTaskIdx].Request, _ = http.NewRequest("POST", "https://" + comp.HSMData.RfFQDN + comp.HSMData.PowerActionURI, bytes.NewBuffer([]byte(payload)))
 			trsTaskList[trsTaskIdx].Request.Header.Set("Content-Type", "application/json")
 			trsTaskList[trsTaskIdx].Request.Header.Add("HMS-Service", GLOB.BaseTRSTask.ServiceName)
@@ -787,6 +800,11 @@ func doTransition(transitionID uuid.UUID) {
 
 		// Launch the TRS tasks and wait to hear back
 		if len(trsTaskList) > 0 {
+			logger.Log.Infof("%s: Initiating %d/%d transition requests to " +
+							 "BMCs (timeout %v) (%s)",fname, trsTaskIdx,
+							 len(compList), GLOB.BaseTRSTask.Timeout,
+							 GLOB.PodName)
+
 			rchan, err := (*GLOB.RFTloc).Launch(&trsTaskList)
 			if err != nil {
 				logrus.Error(err)
@@ -799,22 +817,39 @@ func doTransition(transitionID uuid.UUID) {
 
 					if *tdone.Err != nil {
 						taskErr = *tdone.Err
+
+						// Must always drain and close response bodies even if we don't use them
+						if tdone.Request.Response != nil && tdone.Request.Response.Body != nil {
+							_, _ = io.Copy(io.Discard, tdone.Request.Response.Body)
+							tdone.Request.Response.Body.Close()
+						}
+
 						break
 					}
 					if tdone.Request.Response.StatusCode < 200 && tdone.Request.Response.StatusCode >= 300 {
 						taskErr = errors.New("bad status code: " + strconv.Itoa(tdone.Request.Response.StatusCode))
+
+						// Must always drain and close response bodies even if we don't use them
+						if tdone.Request.Response != nil && tdone.Request.Response.Body != nil {
+							_, _ = io.Copy(io.Discard, tdone.Request.Response.Body)
+							tdone.Request.Response.Body.Close()
+						}
+
 						break
 					}
 					if tdone.Request.Response.Body == nil {
 						taskErr = errors.New("empty body")
 						break
 					}
-					_, err := ioutil.ReadAll(tdone.Request.Response.Body)
+					_, err := io.ReadAll(tdone.Request.Response.Body)
+
+					// Must always close response bodies
+					tdone.Request.Response.Body.Close()
+
 					if err != nil {
 						taskErr = err
 						break
 					}
-
 				}
 				if taskErr != nil {
 					comp.Task.Status = model.TransitionTaskStatusFailed
@@ -845,6 +880,12 @@ func doTransition(transitionID uuid.UUID) {
 					logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing transition task")
 				}
 			}
+			(*GLOB.RFTloc).Close(&trsTaskList)
+			close(rchan)
+			logger.Log.Infof("%s: Done processing BMC responses (%s)",
+							 fname, GLOB.PodName)
+		} else {
+			// Free up this memory
 			(*GLOB.RFTloc).Close(&trsTaskList)
 		}
 

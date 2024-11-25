@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2022-2024] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -23,7 +23,7 @@
 # Dockerfile for building hms-power-control.
 
 # Build base just has the packages installed we need.
-FROM artifactory.algol60.net/docker.io/library/golang:1.17-alpine AS build-base
+FROM artifactory.algol60.net/docker.io/library/golang:1.23-alpine AS build-base
 
 RUN set -ex \
     && apk -U upgrade \
@@ -43,7 +43,7 @@ COPY .version $GOPATH/src/github.com/Cray-HPE/hms-power-control/.version
 ### Build Stage ###
 FROM base AS builder
 
-RUN set -ex && go build -v -i -tags musl -o /usr/local/bin/hms-power-control github.com/Cray-HPE/hms-power-control/cmd/hms-power-control
+RUN set -ex && go build -v -tags musl -o /usr/local/bin/hms-power-control github.com/Cray-HPE/hms-power-control/cmd/hms-power-control
 
 ### Final Stage ###
 

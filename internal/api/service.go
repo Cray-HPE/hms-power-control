@@ -24,10 +24,17 @@ package api
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 )
 
 func Index(w http.ResponseWriter, r *http.Request) {
+	// Drain and close request body to ensure connection reuse
+	if (r.Body != nil) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		r.Body.Close()
+	}
+
 	fmt.Fprintf(w, "hms-power-control")
 	w.WriteHeader(http.StatusOK)
 }

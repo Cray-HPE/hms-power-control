@@ -28,7 +28,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -138,18 +138,25 @@ func (b *HSMv2) Ping() (err error) {
 		return
 	}
 
-	reqContext, _ := context.WithTimeout(context.Background(), time.Second*5)
+	reqContext, reqCtxCancel := context.WithTimeout(context.Background(), time.Second*5)
+
 	req = req.WithContext(reqContext)
+
+	rsp, err := b.HSMGlobals.SVCHttpClient.Do(req)
+
+	// Always drain response bodies and close even if not looking at body
+	if rsp != nil && rsp.Body != nil {
+		_, _ = io.Copy(io.Discard, rsp.Body)
+		rsp.Body.Close()
+	}
+
+	reqCtxCancel() // Release resources and signal context timeout to stop
+
 	if err != nil {
 		b.HSMGlobals.Logger.Error(err)
 		return
 	}
 
-	_, err = b.HSMGlobals.SVCHttpClient.Do(req)
-	if err != nil {
-		b.HSMGlobals.Logger.Error(err)
-		return
-	}
 	return
 }
 
@@ -383,15 +390,32 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 				smurl, err)
 		}
 
-		reqContext, _ := context.WithTimeout(context.Background(), 40 * time.Second)
+		reqContext, reqCtxCancel := context.WithTimeout(context.Background(), 40 * time.Second)
+
 		req = req.WithContext(reqContext)
 
 		rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
 		if rsperr != nil {
+			// Always drain and close response bodies
+			if rsp != nil && rsp.Body != nil {
+				_, _ = io.Copy(io.Discard, rsp.Body)
+				rsp.Body.Close()
+			}
+
+			reqCtxCancel() // Release resources and signal context timeout to stop
+
 			return fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 		}
 
-		body, bderr := ioutil.ReadAll(rsp.Body)
+		body, bderr := io.ReadAll(rsp.Body)
+
+		// Always close response bodies
+		if rsp != nil && rsp.Body != nil {
+			rsp.Body.Close()
+		}
+
+		reqCtxCancel() // Release resources and signal context timeout to stop
+
 		if bderr != nil {
 			return fmt.Errorf("Error reading response body for '%s': %v",
 				smurl, bderr)
@@ -565,15 +589,32 @@ func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error)
 			smurl, err)
 	}
 
-	reqContext, _ := context.WithTimeout(context.Background(), 40 * time.Second)
+	reqContext, reqCtxCancel := context.WithTimeout(context.Background(), 40 * time.Second)
+
 	req = req.WithContext(reqContext)
 
 	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
 	if rsperr != nil {
+		// Always drain and close response bodies
+		if rsp != nil && rsp.Body != nil {
+			_, _ = io.Copy(io.Discard, rsp.Body)
+			rsp.Body.Close()
+		}
+
+		reqCtxCancel() // Release resources and signal context timeout to stop
+
 		return retData, fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 	}
 
-	body, bderr := ioutil.ReadAll(rsp.Body)
+	body, bderr := io.ReadAll(rsp.Body)
+
+	// Always close response bodies
+	if rsp != nil && rsp.Body != nil {
+		rsp.Body.Close()
+	}
+
+	reqCtxCancel() // Release resources and signal context timeout to stop
+
 	if bderr != nil {
 		return retData, fmt.Errorf("Error reading response body for '%s': %v",
 			smurl, bderr)
@@ -599,15 +640,32 @@ func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
 		return fmt.Errorf("ERROR creating HTTP request for '%s': %v", smurl, err)
 	}
 
-	reqContext, _ := context.WithTimeout(context.Background(), 40 * time.Second)
+	reqContext, reqCtxCancel := context.WithTimeout(context.Background(), 40 * time.Second)
+
 	req = req.WithContext(reqContext)
 
 	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
 	if rsperr != nil {
+		// Always drain and close response bodies
+		if rsp != nil && rsp.Body != nil {
+			_, _ = io.Copy(io.Discard, rsp.Body)
+			rsp.Body.Close()
+		}
+
+		reqCtxCancel() // Release resources and signal context timeout to stop
+
 		return fmt.Errorf("Error in http request '%s': %v", smurl, rsperr)
 	}
 
-	body, bderr := ioutil.ReadAll(rsp.Body)
+	body, bderr := io.ReadAll(rsp.Body)
+
+	// Always close response bodies
+	if rsp != nil && rsp.Body != nil {
+		rsp.Body.Close()
+	}
+
+	reqCtxCancel() // Release resources and signal context timeout to stop
+
 	if bderr != nil {
 		return fmt.Errorf("Error reading response body for '%s': %v", smurl, bderr)
 	}

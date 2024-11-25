@@ -1,17 +1,17 @@
 // MIT License
-// 
-// (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
-// 
+//
+// (C) Copyright [2022-2024] Hewlett Packard Enterprise Development LP
+//
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
 // to deal in the Software without restriction, including without limitation
 // the rights to use, copy, modify, merge, publish, distribute, sublicense,
 // and/or sell copies of the Software, and to permit persons to whom the
 // Software is furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included
 // in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
@@ -26,14 +26,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
+
+	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
 	"github.com/Cray-HPE/hms-xname/xnametypes"
-	"github.com/Cray-HPE/hms-base"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/suite"
 )
@@ -157,10 +158,22 @@ func doHTTP(url string, method string, pld []byte) ([]byte,int,error) {
 
 	rsp,perr := svcClient.Do(req)
 	if (perr != nil) {
+		// Always drain and close response bodies
+		if rsp != nil && rsp.Body != nil {
+			_, _ = io.Copy(io.Discard, rsp.Body)
+			rsp.Body.Close()
+		}
+
 		return rdata,0,fmt.Errorf("Error performing http %s: %v",method,perr)
 	}
 
-	rdata,err = ioutil.ReadAll(rsp.Body)
+	rdata,err = io.ReadAll(rsp.Body)
+
+	// Always close response bodies
+	if rsp != nil && rsp.Body != nil {
+		rsp.Body.Close()
+	}
+
 	if (err != nil) {
 		return rdata,0,fmt.Errorf("Error reading http rsp body: %v",err)
 	}

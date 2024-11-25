@@ -27,7 +27,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math"
 	"net/http"
 	"net/url"
@@ -387,6 +387,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 	var xnames []string
 	goodOps := make([]model.PowerCapOperation, 0)
 	patchParametersMap := make(map[string]map[string]int)
+	fname := "doPowerCapTask"
 
 	task, err := (*GLOB.DSP).GetPowerCapTask(taskID)
 	if err != nil {
@@ -394,10 +395,12 @@ func doPowerCapTask(taskID uuid.UUID) {
 		return
 	}
 
-	defer logger.Log.Infof("Power Capping Task %s Completed", task.TaskID.String())
+	defer logger.Log.Infof("Power Capping Task %s Completed (%s)",
+						   task.TaskID.String(), GLOB.PodName)
 
 	if task.Type == model.PowerCapTaskTypePatch {
-		logger.Log.Infof("Starting Power Capping Patch Task %s - %v", task.TaskID.String(), *task.PatchParameters)
+		logger.Log.Infof("Starting Power Capping Patch Task %s - %v (%s)",
+						 task.TaskID.String(), *task.PatchParameters, GLOB.PodName)
 		taskIsPatch = true
 		for _, param := range task.PatchParameters.Components {
 			xnames = append(xnames, param.Xname)
@@ -411,7 +414,8 @@ func doPowerCapTask(taskID uuid.UUID) {
 			patchParametersMap[param.Xname] = ctlMap
 		}
 	} else {
-		logger.Log.Infof("Starting Power Capping Snapshot Task %s - %v", task.TaskID.String(), *task.SnapshotParameters)
+		logger.Log.Infof("Starting Power Capping Snapshot Task %s - %v (%s)",
+						 task.TaskID.String(), *task.SnapshotParameters, GLOB.PodName)
 		xnames = task.SnapshotParameters.Xnames
 	}
 
@@ -659,13 +663,23 @@ func doPowerCapTask(taskID uuid.UUID) {
 		logger.Log.WithFields(logrus.Fields{"ERROR": err}).Error("Error storing power capping task")
 	}
 
+	// Repeated and frequent power caps to the same BMCs is not
+	// common so we use the default TRS configuration provided by the
+	// default BaseTRSTask task prototype.  It may be beneficial to
+	// consider sharing the PCS TRS client in the future as power capping
+	// generally shares the same set of BMC targets we want to talk to.
+	//
+	// SPC does initiatefrequent repeated http requests to BMCs so when
+	// it is added to CSM for formal release, we should consider adding
+	// a new client or sharing (and enlarging) the PCS TRS client.
+
 	// Create TRS task list
 	trsTaskMap := make(map[uuid.UUID]model.PowerCapOperation)
 	trsTaskList := (*GLOB.RFTloc).CreateTaskList(GLOB.BaseTRSTask, len(goodOps))
 	trsTaskIdx := 0
 	for _, op := range goodOps {
 		trsTaskMap[trsTaskList[trsTaskIdx].GetID()] = op
-		trsTaskList[trsTaskIdx].RetryPolicy.Retries = 3
+		trsTaskList[trsTaskIdx].CPolicy.Retry.Retries = 3
 		if taskIsPatch {
 			var method string
 			var path string
@@ -698,6 +712,10 @@ func doPowerCapTask(taskID uuid.UUID) {
 	}
 
 	if len(trsTaskList) > 0 {
+		logger.Log.Infof("%s: Initiating %d/%d power cap requests to BMCs " +
+						 "(timeout %v) (%s)", fname, trsTaskIdx, len(goodOps),
+						 GLOB.BaseTRSTask.Timeout, GLOB.PodName)
+
 		rchan, err := (*GLOB.RFTloc).Launch(&trsTaskList)
 		if err != nil {
 			logrus.Error(err)
@@ -711,17 +729,35 @@ func doPowerCapTask(taskID uuid.UUID) {
 
 				if *tdone.Err != nil {
 					taskErr = *tdone.Err
+
+					// Must always drain and close response bodies even if we don't use them
+					if tdone.Request.Response != nil && tdone.Request.Response.Body != nil {
+						_, _ = io.Copy(io.Discard, tdone.Request.Response.Body)
+						tdone.Request.Response.Body.Close()
+					}
+
 					break
 				}
 				if tdone.Request.Response.StatusCode < 200 && tdone.Request.Response.StatusCode >= 300 {
 					taskErr = errors.New("bad status code: " + strconv.Itoa(tdone.Request.Response.StatusCode))
+
+					// Must always drain and close response bodies even if we don't use them
+					if tdone.Request.Response != nil && tdone.Request.Response.Body != nil {
+						_, _ = io.Copy(io.Discard, tdone.Request.Response.Body)
+						tdone.Request.Response.Body.Close()
+					}
+
 					break
 				}
 				if tdone.Request.Response.Body == nil {
 					taskErr = errors.New("empty body")
 					break
 				}
-				body, err := ioutil.ReadAll(tdone.Request.Response.Body)
+				body, err := io.ReadAll(tdone.Request.Response.Body)
+
+				// Must always close response bodies
+				tdone.Request.Response.Body.Close()
+
 				if err != nil {
 					taskErr = err
 					break
@@ -773,6 +809,9 @@ func doPowerCapTask(taskID uuid.UUID) {
 			}
 		}
 		(*GLOB.RFTloc).Close(&trsTaskList)
+		close(rchan)
+		logger.Log.Infof("%s: Done processing BMC responses (%s)",
+						 fname, GLOB.PodName)
 	}
 
 	// Task Complete

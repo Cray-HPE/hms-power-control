@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,7 @@
 
 # This file only exists as a means to run tests in an automated fashion.
 
-FROM artifactory.algol60.net/docker.io/library/golang:1.17-alpine
+FROM artifactory.algol60.net/docker.io/library/golang:1.23-alpine
 
 RUN set -ex \
     && apk -U upgrade \

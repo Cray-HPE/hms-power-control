@@ -39,7 +39,7 @@ import (
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/Cray-HPE/hms-power-control/internal/storage"
 	base "github.com/Cray-HPE/hms-base"
-	trsapi "github.com/Cray-HPE/hms-trs-app-api/v2/pkg/trs_http_api"
+	trsapi "github.com/Cray-HPE/hms-trs-app-api/v3/pkg/trs_http_api"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 )
@@ -131,7 +131,7 @@ func (ts *Transitions_TS) SetupSuite() {
 
 	domainGlobals.NewGlobals(&BaseTRSTask, &TLOC_rf, &TLOC_svc, nil, svcClient,
 	                         rfClientLock, &Running, &DSP, &HSM, enableVault, &CS,
-	                         &DLOCK, 20000, 1440)
+	                         &DLOCK, 20000, 1440, "transitions_test-pod")
 	Init(&domainGlobals)
 
 	// Calling PowerStatusMonitorInit() is required to initialize the

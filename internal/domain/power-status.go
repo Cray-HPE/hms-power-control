@@ -27,7 +27,7 @@ package domain
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -38,7 +38,7 @@ import (
 	pcsmodel "github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/Cray-HPE/hms-power-control/internal/storage"
 	rf "github.com/Cray-HPE/hms-smd/v2/pkg/redfish"
-	trsapi "github.com/Cray-HPE/hms-trs-app-api/v2/pkg/trs_http_api"
+	trsapi "github.com/Cray-HPE/hms-trs-app-api/v3/pkg/trs_http_api"
 	"github.com/Cray-HPE/hms-xname/xnametypes"
 
 	"github.com/sirupsen/logrus"
@@ -87,8 +87,10 @@ var distLockMaxTime time.Duration
 var pstateMonitorRunning bool
 var serviceRunning *bool
 var vaultEnabled = false
-var httpTimeout = 30
+var statusTimeout = 30      // context timeout for an entire task list status request
 var httpRetries = 3
+var maxIdleConns = 4000     // maximum number of idle connections in the TRS pool
+var maxIdleConnsPerHost = 4 // maximum number of idle connections per host in the TRS pool
 var isPowerStatusMaster = false
 var powerStatusMasterInterval = 15
 
@@ -109,8 +111,11 @@ func PowerStatusMonitorInit(domGlb *DOMAIN_GLOBALS,
                             distLockMaxTimeIn time.Duration,
                             loggerIn *logrus.Logger,
                             sampleInterval time.Duration,
-                            httpTimeoutOverride int,
-                            httpRetriesOverride int) error {
+                            statusTimeoutOverride int,
+                            httpRetriesOverride int,
+                            maxIdleConnsOverride int,
+                            maxIdleConnsPerHostOverride int) error {
+
 	if loggerIn == nil {
 		glogger = logrus.New()
 	} else {
@@ -150,8 +155,10 @@ func PowerStatusMonitorInit(domGlb *DOMAIN_GLOBALS,
 	pmSampleInterval = sampleInterval
 	serviceRunning = domGlb.Running
 	vaultEnabled = domGlb.VaultEnabled
-	httpTimeout = httpTimeoutOverride
+	statusTimeout = statusTimeoutOverride
 	httpRetries = httpRetriesOverride
+	maxIdleConns = maxIdleConnsOverride
+	maxIdleConnsPerHost = maxIdleConnsPerHostOverride
 
 	go monitorHW()
 	return nil
@@ -186,6 +193,9 @@ func GetPowerStatus(xnames []string,
 	//match the xnames in the passed-in array.  Grab pertinent data and create
 	//a pcsmodel.PowerStatus object 'pstatus', and return it.
 
+	// TODO: We should consider the performance and scaling impact of
+	// retrieving status for every single component in the system if the
+	// caller only wants the status of a few components.
 	statusObj, err := (*kvStore).GetAllPowerStatus()
 	if err != nil {
 		//TODO: we don't have an HTTP status code from a failed 
@@ -436,12 +446,32 @@ func getHWStatesFromHW() error {
 	hashCType := http.CanonicalHeaderKey("CType")
 	hashFQDN  := http.CanonicalHeaderKey("FQDN")
 
+	// IdleConnTimeout is the time after which idle connections are closed.
+	// For these big status operations in PCS, we want connections in the
+	// connection pool to stay open between polling intervals so they
+	// can be reused for the next poll.  Thus, we set it to the worst case
+	// time it takes for one poll (statusTimeout) plus the time until
+	// the next poll (pmSampleInterval).  We then add an additional 50% to
+	// that sum for a buffer (ie. multiply by 150%).
+
+	idleConnTimeout := (statusTimeout + int(pmSampleInterval / time.Second)) * 15 / 10
+
 	sourceTL := trsapi.HttpTask {
-						Timeout: time.Duration(httpTimeout) * time.Second,
-						RetryPolicy: trsapi.RetryPolicy{
-							Retries: httpRetries,
-						},
-					}
+		Timeout: time.Duration(statusTimeout) * time.Second,
+		CPolicy: trsapi.ClientPolicy {
+			Retry:
+				trsapi.RetryPolicy {
+					Retries: httpRetries,
+				},
+			Tx:
+				trsapi.HttpTxPolicy {
+					Enabled:             true,
+					MaxIdleConns:        maxIdleConns,
+					MaxIdleConnsPerHost: maxIdleConnsPerHost,
+					IdleConnTimeout:     time.Duration(idleConnTimeout) * time.Second,
+				},
+		},
+	}
 
 	//Get vault creds where needed
 
@@ -484,6 +514,11 @@ func getHWStatesFromHW() error {
 					taskList[taskIX].Request, _ = http.NewRequest(http.MethodGet, url, nil)
 					taskList[taskIX].Request.SetBasicAuth(v.BmcUsername, v.BmcPassword)
 					taskList[taskIX].Request.Header.Set("Accept", "*/*")
+
+					// Set keep-alive in case target BMCs are HTTP/1.0 or
+					// HTTP/1.1 configured non-default.
+					taskList[taskIX].Request.Header.Set("Connection","keep-alive")
+
 					//Hack alert: set the xname and comp type in the req header 
 					//so we can use it when processing the responses.
 					taskList[taskIX].Request.Header.Add(hashXName, k)
@@ -502,10 +537,15 @@ func getHWStatesFromHW() error {
 
 	if activeTasks == 0 {
 		glogger.Warnf("%s: No TRS tasks to launch", fname)
+		(*tloc).Close(&taskList)
 		return nil
 	}
 
 	//Launch
+
+	glogger.Infof("%s: Initiating %d/%d status requests to BMCs " +
+				  "(timeout %v) (%s)",
+				 fname, activeTasks, taskIX, statusTimeout, GLOB.PodName)
 
 	rchan,err := (*tloc).Launch(&taskList)
 	if err != nil {
@@ -516,7 +556,6 @@ func getHWStatesFromHW() error {
 
 	rspMap := make(map[string]*rspStuff)
 	nDone := 0
-	glogger.Tracef("%s: Waiting for %d/%d tasks.", fname, activeTasks, taskIX)
 
 	for {
 		task := <-rchan
@@ -531,31 +570,53 @@ func getHWStatesFromHW() error {
 		if xname == "" {
 			glogger.Errorf("%s: INTERNAL ERROR: xname not found in task headers! Can't process response.",
 			               fname)
+
+			// Still need to drain and close the response body
+			if task.Request.Response.Body != nil {
+				_, _ = io.Copy(io.Discard, task.Request.Response.Body)
+				task.Request.Response.Body.Close()
+			}
 		} else {
 			rmp := rspStuff{task: task}
 
-			glogger.Tracef("%s: Task %d complete, xname: %s, FQDN: %s, URL: '%s', status code: %d",
-			               fname, nDone + 1, xname, fqdn, task.Request.URL.Path, getStatusCode(task))
+			glogger.Tracef("%s: Task %d complete, xname: %s, FQDN: %s, " +
+						   "URL: '%s', status code: %d (rchan status: %d/%d)",
+			               fname, nDone + 1, xname, fqdn,
+						   task.Request.URL.Path, getStatusCode(task),
+						    len(rchan), cap(rchan))
 
 			if task.Request.Response != nil {
 				glogger.Tracef("%s: Response received from %s,%s,%s, status: %d",
 				               fname, xname, fqdn, task.Request.URL.Path,
-					task.Request.Response.StatusCode)
+				               task.Request.Response.StatusCode)
 
 				//TODO: an optimization would be to unmarshall stuff here.
 				//But, that makes the code quite a bit messier and scattered.
-				rmp.body, rspErr = ioutil.ReadAll(task.Request.Response.Body)
+				rmp.body, rspErr = io.ReadAll(task.Request.Response.Body)
+
+				// Close the response body now that we've copied it
+				if task.Request.Response.Body != nil {
+					task.Request.Response.Body.Close()
+				}
+
+				// If there was an error reading the response body, log it and
+				// free up the entire response structure.  This prevents it
+				// from attempting to be unmarshalled later
 				if rspErr != nil {
 					glogger.Errorf("%s: ERROR reading response body for '%s' '%s' '%s': %v",
 					               fname, xname, fqdn, task.Request.URL.Path, rspErr)
+					rmp.body = nil
+					task.Request.Response = nil
 				}
 			} else {
 				rspErr = nil
 				if task.Err != nil {
 					rspErr = *task.Err
 				}
-				glogger.Errorf("%s: ERROR no response body for '%s' '%s' '%s', err: %v",
-				               fname, xname, fqdn, task.Request.URL.Path, rspErr)
+				glogger.Errorf("%s: ERROR no response body for '%s' '%s' " +
+							   "'%s', err: %v (rchan status: %d/%d)",
+							   fname, xname, fqdn, task.Request.URL.Path,
+							   rspErr, len(rchan), cap(rchan))
 			}
 			rspMap[xname] = &rmp
 		}
@@ -566,7 +627,9 @@ func getHWStatesFromHW() error {
 		}
 	}
 	(*tloc).Close(&taskList)
-	glogger.Tracef("%s: DONE Waiting for tasks.", fname)
+	close(rchan)
+
+	glogger.Infof("%s: Processing BMC status responses (%s)", fname, GLOB.PodName)
 
 	//For each response, get the XName via Request.Header["XName"].
 	//Get it's type via Request.Header["CType"].
@@ -582,6 +645,8 @@ func getHWStatesFromHW() error {
 		ctypeArr := v.task.Request.Header[hashCType]
 		fqdnArr  := v.task.Request.Header[hashFQDN]
 		if len(ctypeArr) == 0 || len(fqdnArr) == 0 {
+			// TODO: Probably not good to leave all the other responses
+			// unprocessed
 			return fmt.Errorf("Internal error: response headers for xname/ctype/fqdn are empty: '%v', '%v'",
 			                  ctypeArr, fqdnArr)
 		}
@@ -733,6 +798,8 @@ func getHWStatesFromHW() error {
 				              "Unknown component type")
 		}
 	}
+
+	glogger.Infof("%s: Done processing BMC responses (%s)", fname, GLOB.PodName)
 
 	return nil
 }

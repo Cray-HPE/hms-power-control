@@ -137,7 +137,7 @@ services:
   # that fit this criteria. Otherwise test failures may occur.
   #
   emulator-loader:
-    image: artifactory.algol60.net/docker.io/library/golang:1.17-alpine
+    image: artifactory.algol60.net/docker.io/library/golang:1.23-alpine
     command: >
       sh -c "apk add curl && sleep 10 &&
       curl -X POST -d '{\"RedfishEndpoints\":[{

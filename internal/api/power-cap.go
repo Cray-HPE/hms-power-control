@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,13 +25,14 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
+
 	"github.com/Cray-HPE/hms-power-control/internal/domain"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
-	"net/http"
 )
 
 // The API layer is responsible for Json Unmarshaling and Marshaling,
@@ -45,7 +46,10 @@ func SnapshotPowerCap(w http.ResponseWriter, req *http.Request) {
 	var pb model.Passback
 	var parameters model.PowerCapSnapshotParameter
 	if req.Body != nil {
-		body, err := ioutil.ReadAll(req.Body)
+		body, err := io.ReadAll(req.Body)
+
+		req.Body.Close()  // Close body to ensure connection reuse
+
 		logger.Log.WithFields(logrus.Fields{"body": string(body)}).Trace("Printing request body")
 
 		if err != nil {
@@ -96,7 +100,11 @@ func PatchPowerCap(w http.ResponseWriter, req *http.Request) {
 	var pb model.Passback
 	var parameters model.PowerCapPatchParameter
 	if req.Body != nil {
-		body, err := ioutil.ReadAll(req.Body)
+		body, err := io.ReadAll(req.Body)
+
+		// Not necessarily needed, but close request body anyways
+		req.Body.Close()
+
 		logger.Log.WithFields(logrus.Fields{"body": string(body)}).Trace("Printing request body")
 
 		if err != nil {
@@ -160,6 +168,12 @@ func PatchPowerCap(w http.ResponseWriter, req *http.Request) {
 
 // GetPowerCap - Get PowerCap tasks array
 func GetPowerCap(w http.ResponseWriter, req *http.Request) {
+	// Drain and close request body to ensure connection reuse
+	if (req.Body != nil) {
+		_, _ = io.Copy(io.Discard, req.Body)
+		req.Body.Close()
+	}
+
 	var pb model.Passback
 	pb = domain.GetPowerCap()
 	WriteHeaders(w, pb)
@@ -169,6 +183,13 @@ func GetPowerCap(w http.ResponseWriter, req *http.Request) {
 // GetPowerCapQuery - Get PowerCap information by ID
 func GetPowerCapQuery(w http.ResponseWriter, req *http.Request) {
 	pb := GetUUIDFromVars("taskID", req)
+
+	// Drain and close request body to ensure connection reuse
+	if (req.Body != nil) {
+		_, _ = io.Copy(io.Discard, req.Body)	// drain in case only partially read
+		req.Body.Close()
+	}
+
 	if pb.IsError {
 		WriteHeaders(w, pb)
 		return

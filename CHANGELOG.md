@@ -5,9 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2024-11-25
+
+### Fixed
+
+- Updated hms-trs-app-api vendor code (bug fixes and enhancements)
+- Passed PCS's log level through to TRS to match PCS's
+- Configured TRS to use connection pools for status requests to BMCs
+- Renamed PCS_STATUS_HTTP_TIMEOUT to PCS_STATUS_TIMEOUT as it is not an
+  http timeout
+- Added PCS_MAX_IDLE_CONNS and PCS_MAX_IDLE_CONNS_PER_HOST env variables
+  which allow overriding PCS's connection pool settings in TRS
+- Added PCS_BASE_TRS_TASK_TIMEOUT env variable which allows the timeout
+  for power transitions and capping to be configured
+- The above variables are configurable on PCS's helm chart
+- At PCS start time, log all env variables that were set
+- Added PodName global to facilitate easier debug of log messages
+- Log start and end of large batched requests to BMCs
+- Fixed many resource leaks associated with making http requests and using TRS
+- Update required version of Go to 1.23 to avoid
+  https://github.com/golang/go/issues/59017
+
 ## [2.5.0] - 2024-10-25
 
 ### Changed
+### Fixed
 
 - Added ability to configure http status timeout and retries with
   PCS_STATUS_HTTP_TIMEOUT and PCS_STATUS_HTTP_RETRIES env variables
