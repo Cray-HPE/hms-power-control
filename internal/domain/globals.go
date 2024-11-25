@@ -33,7 +33,7 @@ import (
 	"github.com/Cray-HPE/hms-power-control/internal/hsm"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/storage"
-	"github.com/Cray-HPE/hms-trs-app-api/v2/pkg/trs_http_api"
+	"github.com/Cray-HPE/hms-trs-app-api/v3/pkg/trs_http_api"
 )
 
 var GLOB *DOMAIN_GLOBALS
