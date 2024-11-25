@@ -310,6 +310,9 @@ func drainAndCloseBody(resp *http.Response) {
 // CloseIdleConnections() wrapper is called, it skips calling the lower
 // level system version that actually closes idle connections.
 
+type retryKey string	// avoids compiler warning
+var trsRetryCountKey retryKey = "trsRetryCount"
+
 func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response, err error) (bool, error) {
 	//wrapperLogger.Errorf("trsCheckRetry: err=%v errType=%T", err, err)
 
@@ -440,22 +443,22 @@ func createClient(task *HttpTask, tloc *TRSHTTPLocal, clientType string) (client
 		tr.ResponseHeaderTimeout = httpTxPolicy.ResponseHeaderTimeout // if 0 defaults to no timeout
 		tr.TLSHandshakeTimeout   = httpTxPolicy.TLSHandshakeTimeout   // if 0 defaults to 10s
 		tr.DisableKeepAlives	 = httpTxPolicy.DisableKeepAlives     // if 0 defaults to false
+
+		// TODO: REMOVE IF DOESN"T WORK
+		tr.ForceAttemptHTTP2 = true
 	}
 
 	// Wrap base transport with retryablehttp
-// XXXX
-//	retryabletr := &trsRoundTripper{
-//		transport:                             tr,
-//		closeIdleConnectionsFn:                tr.CloseIdleConnections,
-//		timeLastClosedOrReachedZeroCloseCount: time.Now(),
-//	}
+	retryabletr := &trsRoundTripper{
+		transport:                             tr,
+		closeIdleConnectionsFn:                tr.CloseIdleConnections,
+		timeLastClosedOrReachedZeroCloseCount: time.Now(),
+	}
 
 	// Create the httpretryable client and start configuring it
 	client = retryablehttp.NewClient()
 
-// XXXX
-//	client.HTTPClient.Transport = retryabletr
-client.HTTPClient.Transport = tr
+	client.HTTPClient.Transport = retryabletr
 
 	// We could set a global http timeout for all users of the client but
 	// that's a bit inflexible.  Let's keep it at the default (unlimited)
@@ -466,8 +469,7 @@ client.HTTPClient.Transport = tr
 	//client.HTTPClient.Timeout   = task.Timeout * 9 / 10
 
 	// Wrap httpretryable's DefaultRetryPolicy() so we can override
-// XXXX
-//	client.CheckRetry = retryabletr.trsCheckRetry
+	client.CheckRetry = retryabletr.trsCheckRetry
 
 	// Configure the httpretryable client retry count
 	if (task.CPolicy.Retry.Retries >= 0) {
@@ -508,9 +510,6 @@ client.HTTPClient.Transport = tr
 
 	return client
 }
-
-type retryKey string	// avoids compiler warning
-var trsRetryCountKey retryKey = "trsRetryCount"
 
 //	Reference:  https://pkg.go.dev/github.com/hashicorp/go-retryablehttp
 
@@ -567,23 +566,19 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 	// Wrap the request so trsCheckRetry() can keep its own retry count
 	// We'll attach this to the context further below so that it has access
 	// to it
-// XXXX
-//	trsWR := &trsWrappedReq{
-//		orig:       tct.task.Request,        // Core request
-//		retryCount: 0,                       // Counter for CLIC()
-//		retryMax:   cpack.insecure.RetryMax, // CLIC() will need access to this
-//		                                     // same for both secure & insecure
-//	}
+	trsWR := &trsWrappedReq{
+		orig:       tct.task.Request,        // Core request
+		retryCount: 0,                       // Counter for CLIC()
+		retryMax:   cpack.insecure.RetryMax, // CLIC() will need access to this
+		                                     // same for both secure & insecure
+	}
 
 	// Create child context with timeout and our own retry counter
 
 	baseCtx, cancel := context.WithTimeout(tloc.ctx, tct.task.Timeout)
-// XXXX
-//	ctxWithValue := context.WithValue(baseCtx, trsRetryCountKey, trsWR)
+	ctxWithValue := context.WithValue(baseCtx, trsRetryCountKey, trsWR)
 
-// XXXX
-//	tct.task.context = ctxWithValue
-tct.task.context = baseCtx
+	tct.task.context = ctxWithValue
 	tct.task.contextCancel = cancel
 
 	// Create a retryablehttp request using the caller's request
