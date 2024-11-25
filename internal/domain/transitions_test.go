@@ -131,7 +131,7 @@ func (ts *Transitions_TS) SetupSuite() {
 
 	domainGlobals.NewGlobals(&BaseTRSTask, &TLOC_rf, &TLOC_svc, nil, svcClient,
 	                         rfClientLock, &Running, &DSP, &HSM, enableVault, &CS,
-	                         &DLOCK, 20000, 1440)
+	                         &DLOCK, 20000, 1440, "transitions_test-pod")
 	Init(&domainGlobals)
 
 	// Calling PowerStatusMonitorInit() is required to initialize the

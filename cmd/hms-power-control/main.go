@@ -155,6 +155,7 @@ func main() {
 			baseTrsTaskTimeout = tps
 		}
 	}
+
 	var BaseTRSTask trsapi.HttpTask
 	BaseTRSTask.ServiceName = serviceName
 	BaseTRSTask.Timeout = time.Duration(baseTrsTaskTimeout) * time.Second
@@ -283,11 +284,17 @@ func main() {
 		CS.Init(&credStoreGlob)
 	}
 
+	// Capture hostname, which is the name of the pod
+	podName, err := os.Hostname()
+	if err != nil {
+		podName = "unknown_pod_name"
+	}
+
 	//DOMAIN CONFIGURATION
 	var domainGlobals domain.DOMAIN_GLOBALS
 	domainGlobals.NewGlobals(&BaseTRSTask, &TLOC_rf, &TLOC_svc, rfClient, svcClient,
 	                         rfClientLock, &Running, &DSP, &HSM, VaultEnabled,
-	                         &CS, &DLOCK, maxNumCompleted, expireTimeMins)
+	                         &CS, &DLOCK, maxNumCompleted, expireTimeMins, podName)
 
 	//Wait for vault PKI to respond for CA bundle.  Once this happens, re-do
 	//the globals.  This goroutine will run forever checking if the CA trust

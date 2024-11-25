@@ -797,8 +797,10 @@ func doTransition(transitionID uuid.UUID) {
 
 		// Launch the TRS tasks and wait to hear back
 		if len(trsTaskList) > 0 {
-			logger.Log.Infof("%s: Initiating %d/%d transition requests to BMCs (timeout %v)",
-						     fname, trsTaskIdx, len(compList), GLOB.BaseTRSTask.Timeout)
+			logger.Log.Infof("%s: Initiating %d/%d transition requests to " +
+							 "BMCs (timeout %v) (%s)",fname, trsTaskIdx,
+							 len(compList), GLOB.BaseTRSTask.Timeout,
+							 GLOB.PodName)
 
 			rchan, err := (*GLOB.RFTloc).Launch(&trsTaskList)
 			if err != nil {
@@ -877,7 +879,8 @@ func doTransition(transitionID uuid.UUID) {
 			}
 			(*GLOB.RFTloc).Close(&trsTaskList)
 			close(rchan)
-			logger.Log.Infof("%s: Done processing BMC responses", fname)
+			logger.Log.Infof("%s: Done processing BMC responses (%s)",
+							 fname, GLOB.PodName)
 		} else {
 			// Free up this memory
 			(*GLOB.RFTloc).Close(&trsTaskList)

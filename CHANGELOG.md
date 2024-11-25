@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for power transitions and capping to be configured
 - The above variables are configurable on PCS's helm chart
 - At PCS start time, log all env variables that were set
+- Added PodName global to facilitate easier debug of log messages
 - Log start and end of large batched requests to BMCs
 - Fixed many resource leaks associated with making http requests and using TRS
 - Update required version of Go to 1.23 to avoid

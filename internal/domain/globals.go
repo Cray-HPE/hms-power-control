@@ -25,15 +25,15 @@
 package domain
 
 import (
-	"time"
 	"sync"
+	"time"
 
+	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
 	"github.com/Cray-HPE/hms-power-control/internal/credstore"
 	"github.com/Cray-HPE/hms-power-control/internal/hsm"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/storage"
 	"github.com/Cray-HPE/hms-trs-app-api/v2/pkg/trs_http_api"
-	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
 )
 
 var GLOB *DOMAIN_GLOBALS
@@ -59,6 +59,7 @@ type DOMAIN_GLOBALS struct {
 	DistLock          *storage.DistributedLockProvider
 	MaxNumCompleted   int
 	ExpireTimeMins    int
+	PodName           string
 }
 
 func (g *DOMAIN_GLOBALS) NewGlobals(base *trs_http_api.HttpTask,
@@ -71,7 +72,8 @@ func (g *DOMAIN_GLOBALS) NewGlobals(base *trs_http_api.HttpTask,
                                     hsm *hsm.HSMProvider, vaultEnabled bool,
                                     credStore *credstore.CredStoreProvider,
                                     distLock *storage.DistributedLockProvider,
-                                    maxNumCompleted int, expireTimeMins int) {
+                                    maxNumCompleted int, expireTimeMins int,
+									podName string) {
 	g.BaseTRSTask = base
 	g.RFTloc = tlocRF
 	g.HSMTloc = tlocSVC
@@ -86,6 +88,7 @@ func (g *DOMAIN_GLOBALS) NewGlobals(base *trs_http_api.HttpTask,
 	g.DistLock = distLock
 	g.MaxNumCompleted = maxNumCompleted
 	g.ExpireTimeMins = expireTimeMins
+	g.PodName = podName
 }
 
 // Periodically runs functions to prune expired transitions and power-capping

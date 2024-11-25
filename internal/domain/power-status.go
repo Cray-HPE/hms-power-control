@@ -543,8 +543,9 @@ func getHWStatesFromHW() error {
 
 	//Launch
 
-	glogger.Infof("%s: Initiating %d/%d status requests to BMCs (timeout %v)",
-				 fname, activeTasks, taskIX, statusTimeout)
+	glogger.Infof("%s: Initiating %d/%d status requests to BMCs " +
+				  "(timeout %v) (%s)",
+				 fname, activeTasks, taskIX, statusTimeout, GLOB.PodName,
 
 	rchan,err := (*tloc).Launch(&taskList)
 	if err != nil {
@@ -628,7 +629,7 @@ func getHWStatesFromHW() error {
 	(*tloc).Close(&taskList)
 	close(rchan)
 
-	glogger.Infof("%s: Processing BMC status responses", fname)
+	glogger.Infof("%s: Processing BMC status responses (%s)", fname, GLOB.PodName)
 
 	//For each response, get the XName via Request.Header["XName"].
 	//Get it's type via Request.Header["CType"].
@@ -798,7 +799,7 @@ func getHWStatesFromHW() error {
 		}
 	}
 
-	glogger.Infof("%s: Done processing BMC responses", fname)
+	glogger.Infof("%s: Done processing BMC responses (%s)", fname, GLOB.PodName)
 
 	return nil
 }
