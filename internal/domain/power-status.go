@@ -543,7 +543,8 @@ func getHWStatesFromHW() error {
 
 	//Launch
 
-	glogger.Infof("%s: Initiating %d/%d status requests to BMCs", fname, activeTasks, taskIX)
+	glogger.Infof("%s: Initiating %d/%d status requests to BMCs (timeout %v)",
+				 fname, activeTasks, taskIX, statusTimeout)
 
 	rchan,err := (*tloc).Launch(&taskList)
 	if err != nil {

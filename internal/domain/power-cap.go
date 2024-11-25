@@ -709,8 +709,8 @@ func doPowerCapTask(taskID uuid.UUID) {
 	}
 
 	if len(trsTaskList) > 0 {
-		logger.Log.Infof("%s: Initiating %d/%d power cap requests to BMCs",
-					     fname, trsTaskIdx, len(goodOps))
+		logger.Log.Infof("%s: Initiating %d/%d power cap requests to BMCs (timeout %v)",
+					     fname, trsTaskIdx, len(goodOps), GLOB.BaseTRSTask.Timeout)
 
 		rchan, err := (*GLOB.RFTloc).Launch(&trsTaskList)
 		if err != nil {
