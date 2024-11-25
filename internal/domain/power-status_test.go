@@ -107,7 +107,8 @@ func glbInit() {
 		DLOCK.Init(tlogger)
 
 		domGlb.NewGlobals(nil, &TLOC_rf, nil, nil, svcClient, &sync.RWMutex{},
-			&running, &DSP, &HSM, vaultEnabled, &CS, &DLOCK, 20000, 1440)
+			&running, &DSP, &HSM, vaultEnabled, &CS, &DLOCK, 20000, 1440,
+			"power-status_test-pod")
 
 tlogger.Errorf("DLOCK: '%v', Globals: '%v'",DLOCK,domGlb)
 		domGlbInit = true
