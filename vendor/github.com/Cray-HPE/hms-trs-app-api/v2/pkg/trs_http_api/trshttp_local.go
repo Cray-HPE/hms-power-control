@@ -318,6 +318,14 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 
 			//wrapperLogger.Errorf("trsCheckRetry: skipCloseCount now %v (http timeout)", c.skipCloseCount)
 
+			// The retryablehttp documentation states that if a custom
+			// CheckRetry() wrapper decides not to retry (ie. return false),
+			// it is responsible for draining and closing the response body.
+			if resp != nil && resp.Body != nil {
+				_, _ = io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+			}
+
 			return false, err	// skip it
 		}
 
@@ -328,6 +336,14 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 			c.skipCloseMutex.Unlock()
 
 			//wrapperLogger.Errorf("trsCheckRetry: skipCloseCount now %v (ctx timeout)", c.skipCloseCount)
+
+			// The retryablehttp documentation states that if a custom
+			// CheckRetry() wrapper decides not to retry (ie. return false),
+			// it is responsible for draining and closing the response body.
+			if resp != nil && resp.Body != nil {
+				_, _ = io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+			}
 
 			return false, err	// skip it
 		}
@@ -376,7 +392,6 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 			// The retryablehttp documentation states that if a custom
 			// CheckRetry() wrapper decides not to retry (ie. return false),
 			// it is responsible for draining and closing the response body.
-
 			if resp != nil && resp.Body != nil {
 				_, _ = io.Copy(io.Discard, resp.Body)
 				resp.Body.Close()
