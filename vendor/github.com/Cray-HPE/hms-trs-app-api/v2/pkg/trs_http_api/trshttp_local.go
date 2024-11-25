@@ -294,6 +294,16 @@ type trsWrappedReq struct {
 	retryCount  int           // retry count for this request
 }
 
+// drainAndCloseBody is a simple helper function reused in many places
+
+func drainAndCloseBody(resp *http.Response) {
+    if resp != nil && resp.Body != nil {
+        _, _ = io.Copy(io.Discard, resp.Body) // Drain the body
+        resp.Body.Close()                     // Close the body
+        resp.Body = nil                       // Prevent double-handling
+    }
+}
+
 // Our wrapper around retryablehttp's CheckRetry().  if we detect an http
 // timeout, context timeout, or a retry limit exceeded for a request, then
 // we decrement the skipCloseCount counter so that the next time our
@@ -308,9 +318,7 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 	if err != nil {
 		c.skipCloseMutex.Lock()
 
-		// Skip retries for HTTPClient.Timeout (set by TRS).  It was
-		// purposely set to be 95% of the context timeout so there's
-		// no reason to retry
+		// Skip retries for HTTPClient.Timeout
 		if err.Error() == "net/http: request canceled" {
 			c.skipCloseCount++
 
@@ -318,13 +326,7 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 
 			//wrapperLogger.Errorf("trsCheckRetry: skipCloseCount now %v (http timeout)", c.skipCloseCount)
 
-			// The retryablehttp documentation states that if a custom
-			// CheckRetry() wrapper decides not to retry (ie. return false),
-			// it is responsible for draining and closing the response body.
-			if resp != nil && resp.Body != nil {
-				_, _ = io.Copy(io.Discard, resp.Body)
-				resp.Body.Close()
-			}
+			// retryablehttp will close any response bodies on retry skip + error
 
 			return false, err	// skip it
 		}
@@ -337,13 +339,7 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 
 			//wrapperLogger.Errorf("trsCheckRetry: skipCloseCount now %v (ctx timeout)", c.skipCloseCount)
 
-			// The retryablehttp documentation states that if a custom
-			// CheckRetry() wrapper decides not to retry (ie. return false),
-			// it is responsible for draining and closing the response body.
-			if resp != nil && resp.Body != nil {
-				_, _ = io.Copy(io.Discard, resp.Body)
-				resp.Body.Close()
-			}
+			// retryablehttp will close any response bodies on retry skip + error
 
 			return false, err	// skip it
 		}
@@ -360,6 +356,8 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 		//     c.skipCloseMutex.Unlock()
 		//
 		//     wrapperLogger.Errorf("trsCheckRetry: skipCloseCount now %v (ctx timeout)", c.skipCloseCount)
+		//
+		//     // retryablehttp will close any response bodies on retry skip + error
 		//
 		//     return false, err  // skip it
 		// }
@@ -389,14 +387,6 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 		// that our CloseIdleConnections() wrapper skips the next one
 
 		if trsWR.retryCount > trsWR.retryMax {
-			// The retryablehttp documentation states that if a custom
-			// CheckRetry() wrapper decides not to retry (ie. return false),
-			// it is responsible for draining and closing the response body.
-			if resp != nil && resp.Body != nil {
-				_, _ = io.Copy(io.Discard, resp.Body)
-				resp.Body.Close()
-			}
-
 			// If no error present, let's give the caller the underlying
 			// reason why retries were exhausted, if we can determine it
 			if err == nil {
@@ -414,6 +404,8 @@ func (c *trsRoundTripper) trsCheckRetry(ctx context.Context, resp *http.Response
 			c.skipCloseMutex.Unlock()
 
 			//wrapperLogger.Errorf("trsCheckRetry: skipCloseCount now %v and err is %v", c.skipCloseCount, err)
+
+			// retryablehttp will close any response bodies on retry skip + error
 
 			return false, err
 		}
@@ -474,7 +466,7 @@ func createClient(task *HttpTask, tloc *TRSHTTPLocal, clientType string) (client
 	client.CheckRetry = retryabletr.trsCheckRetry
 
 	// Configure the httpretryable client retry count
-	if (task.CPolicy.Retry.Retries > 0) {
+	if (task.CPolicy.Retry.Retries >= 0) {
 		client.RetryMax = task.CPolicy.Retry.Retries
 	} else {
 		client.RetryMax = DFLT_RETRY_MAX
@@ -584,7 +576,7 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 	ctxWithValue := context.WithValue(baseCtx, trsRetryCountKey, trsWR)
 
 	tct.task.context = ctxWithValue
-	tct.task.ContextCancel = cancel
+	tct.task.contextCancel = cancel
 
 	// Create a retryablehttp request using the caller's request
 	req, err := retryablehttp.FromRequest(tct.task.Request)
@@ -612,10 +604,7 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 		if tmpError != nil && tct.task.context.Err() == nil {
 			// But first make sure we drain/close the body of the failed
 			// response, if there was one
-			if tct.task.Request.Response != nil && tct.task.Request.Response.Body != nil {
-				_, _ = io.Copy(io.Discard, tct.task.Request.Response.Body)
-				tct.task.Request.Response.Body.Close()
-			}
+			drainAndCloseBody(tct.task.Request.Response)
 
 			tloc.Logger.Warnf("TLS request failed, retrying using INSECURE client (TLS failure: '%v')", tmpError)
 			tct.task.Request.Response, tmpError = cpack.insecure.Do(req)
@@ -741,7 +730,7 @@ func (tloc *TRSHTTPLocal) Alive() (bool, error) {
 func (tloc *TRSHTTPLocal) Cancel(taskList *[]HttpTask) {
 	for _, v := range *taskList {
 		if (v.Ignore == false) {
-			v.ContextCancel()
+			v.contextCancel()
 		}
 	}
 	tloc.Logger.Tracef("Cancel() completed")
@@ -755,6 +744,12 @@ func (tloc *TRSHTTPLocal) Cancel(taskList *[]HttpTask) {
 func (tloc *TRSHTTPLocal) Close(taskList *[]HttpTask) {
 	for _, v := range *taskList {
 		if (v.Ignore == false) {
+			// The caller should have closed the response body, but we'll also
+			// do it here to prevent resource leaks.  Note that if that was
+			// the case, that connection was closed by the above cancel.
+
+			drainAndCloseBody(v.Request.Response)
+
 			// All tasks must be cancelled to prevent resource leaks.  The
 			// caller may have called Cancel() to prematurely cancel the
 			// operation, but that's probably not a common thing so we will
@@ -765,17 +760,7 @@ func (tloc *TRSHTTPLocal) Close(taskList *[]HttpTask) {
 			// call cancel above in ExecuteTask() for themselves.  Doing it
 			// like that might be less error prone.
 
-			v.ContextCancel()
-
-			// The caller should have closed the response body, but we'll also
-			// do it here to prevent resource leaks.  Note that if that was
-			// the case, that connection was closed by the above cancel.
-
-			if v.Request.Response != nil && v.Request.Response.Body != nil {
-				_, _ = io.Copy(io.Discard, v.Request.Response.Body)
-				v.Request.Response.Body.Close()
-				tloc.Logger.Tracef("Response body for task %s closed", v.id)
-			}
+			v.contextCancel()
 		}
 		tloc.taskMutex.Lock()
 		delete(tloc.taskMap, v.id)
@@ -808,7 +793,7 @@ func (tloc *TRSHTTPLocal) Cleanup() {
 	//clean up task map
 	for k := range tloc.taskMap {
 		//cancel it first
-		tloc.taskMap[k].task.ContextCancel()
+		tloc.taskMap[k].task.contextCancel()
 		//close the channel
 		close(tloc.taskMap[k].taskListChannel)
 		//delete it out of the map
