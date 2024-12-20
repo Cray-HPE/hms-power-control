@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2020-2024] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2020-2025] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -43,7 +43,15 @@ COPY .version $GOPATH/src/github.com/Cray-HPE/hms-power-control/.version
 ### Build Stage ###
 FROM base AS builder
 
-RUN set -ex && go build -v -tags musl -o /usr/local/bin/hms-power-control github.com/Cray-HPE/hms-power-control/cmd/hms-power-control
+# Set profiling to disabled by default
+ENV ENABLE_PPROF=false
+
+# Conditionally build with the pprof tag if profiling is enabled
+RUN if [ "$ENABLE_PPROF" = "true" ]; then \
+        set -ex && go build -v -tags "musl pprof" -o /usr/local/bin/hms-power-control github.com/Cray-HPE/hms-power-control/cmd/hms-power-control \
+    else \
+        set -ex && go build -v -tags musl -o /usr/local/bin/hms-power-control github.com/Cray-HPE/hms-power-control/cmd/hms-power-control \
+    fi
 
 ### Final Stage ###
 
