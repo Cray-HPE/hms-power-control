@@ -36,8 +36,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-This will cause a syntax error if it is compiled
-
 func RegisterPProfHandlers(router *mux.Router) {
 	// Mount the DefaultServeMux for all pprof handlers
 	router.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
