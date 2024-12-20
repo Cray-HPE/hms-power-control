@@ -32,8 +32,6 @@
 
 package api
 
-This will cause a syntax error if it is compiled
-
 import "github.com/gorilla/mux"
 
 func RegisterPProfHandlers(router *mux.Router) { }
