@@ -1,6 +1,6 @@
-// This file contains a stub implementation of the RegisterPProfHandlers
-// function which is a noop.  We do this so that profiling is not enabled
-// in production.
+// This file contains a stub implementation of the RegisterPProfHandlers()
+// function which is a noop.  It is included in the build by default by
+// way of the 'pprof' build tag not being set in the Dockerfile.
 //
 //go:build !pprof
 
@@ -25,10 +25,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
-// We specified a 'pprof' build tag at the top of this file so that it is
-// only included when it is specified in the Dockerfile.  Otherwise,
-// profiling would be enabled in production, which is not desirable.
 
 package api
 
