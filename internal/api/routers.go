@@ -93,7 +93,7 @@ func NewRouter() *mux.Router {
 			Handler(handler)
 	}
 
-	// If the 'pprof' build tag is set, then we will register pprof handlers,
+	// If the 'pprof' build tag is set, then this will register pprof handlers,
 	// otherwise this function is stubbed and will do nothing.
 	RegisterPProfHandlers(router)
 
