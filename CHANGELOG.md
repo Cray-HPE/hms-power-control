@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added support for ppprof
-- To enable pprof, set ENABLE_PPROF to 'true' in the Dockerfile
+- Added support for ppprof builds
 
 ## [2.6.0] - 2024-11-25
 
