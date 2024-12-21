@@ -30,13 +30,27 @@
 package api
 
 import (
-	"net/http"
+	"net/http/pprof"
 	_ "net/http/pprof"
 
 	"github.com/gorilla/mux"
 )
 
 func RegisterPProfHandlers(router *mux.Router) {
-	// Mount the DefaultServeMux for all pprof handlers
-	router.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
+	// Main profiling entry point
+	router.HandleFunc("/debug/pprof/", pprof.Index) // Index listing all pprof endpoints
+
+	// Specific profiling handlers
+	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline) // Command-line arguments
+	router.HandleFunc("/debug/pprof/profile", pprof.Profile) // CPU profile (default: 30 seconds)
+	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)   // Symbol resolution for addresses
+	router.HandleFunc("/debug/pprof/trace", pprof.Trace)     // Execution trace (default: 1 second)
+
+	// Additional profiling endpoints
+	router.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))             // Heap allocation samples
+	router.Handle("/debug/pprof/block", pprof.Handler("block"))               // Goroutine blocking events
+	router.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))       // Stack traces of all goroutines
+	router.Handle("/debug/pprof/heap", pprof.Handler("heap"))                 // Memory heap profile
+	router.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))               // Mutex contention profile
+	router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate")) // Stack traces of thread creation
 }
