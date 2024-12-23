@@ -1,4 +1,4 @@
-// This file contains the code to enable pprof profiling in PCS. It is only
+// This file contains the code to enable pprof profiling. It is only
 // included in the build when the 'pprof' build tag is set in the Dockerfile.
 //
 //go:build pprof
