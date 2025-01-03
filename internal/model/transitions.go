@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -104,6 +104,15 @@ type Transition struct {
 	IsCompressed bool                 `json:"isCompressed"`
 	TaskCounts   TransitionTaskCounts `json:"taskCounts"`
 	Tasks        []TransitionTaskResp `json:"tasks,omitempty"`
+}
+
+type TransitionPage struct {
+	ID           string               `json:"ID"`
+	TransitionID uuid.UUID            `json:"transitionID"`
+	Index        int                  `json:"index"`
+	Location     []LocationParameter  `json:"location"`
+	Tasks        []TransitionTaskResp `json:"tasks,omitempty"`
+	TaskIDs      []uuid.UUID
 }
 
 type TransitionTask struct {
@@ -304,4 +313,20 @@ func (ts TaskState) String() string {
 
 func (ts TaskState) EnumIndex() int {
 	return int(ts)
+}
+
+func CopyTransition(transition Transition) Transition {
+	result := transition
+
+	result.Tasks = make([]TransitionTaskResp, 0)
+	copy(result.Tasks, transition.Tasks)
+
+	result.Location = make([]LocationParameter, 0)
+	copy(result.Location, transition.Location)
+
+	copy(result.TaskIDs, transition.TaskIDs)
+	result.TaskIDs = make([]uuid.UUID, 0)
+
+	return result
+
 }
