@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2025] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,10 +23,11 @@
 package api
 
 import (
-	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/Cray-HPE/hms-power-control/internal/logger"
 
 	"github.com/gorilla/mux"
 )
@@ -91,6 +92,10 @@ func NewRouter() *mux.Router {
 			Name(route.Name).
 			Handler(handler)
 	}
+
+	// If the 'pprof' build tag is set, then this will register pprof handlers,
+	// otherwise this function is stubbed and will do nothing.
+	RegisterPProfHandlers(router)
 
 	return router
 }
