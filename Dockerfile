@@ -43,10 +43,7 @@ COPY .version $GOPATH/src/github.com/Cray-HPE/hms-power-control/.version
 ### Build Stage ###
 FROM base AS builder
 
-# Set profiling to disabled by default
-ARG ENABLE_PPROF=true
-
-# Conditionally build with the pprof tag if profiling is enabled
+# Conditionally build with the pprof tag if profiling is enabled via the Makefile
 RUN if [ "$ENABLE_PPROF" = "true" ]; then \
         set -ex && go build -v -tags "musl pprof" -o /usr/local/bin/hms-power-control github.com/Cray-HPE/hms-power-control/cmd/hms-power-control; \
     else \
