@@ -1,4 +1,4 @@
-name: Build and Publish Docker Images
+name: Build and Publish PProf Enabled Docker Images
 on:
   - push # Perform a build of the contents from the branch
   - pull_request # Perform a build after merging with the target branch
