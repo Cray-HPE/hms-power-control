@@ -582,82 +582,82 @@ func (e *ETCDStorage) truncateTaskMessagesIfNeeded(transition *model.Transition,
 }
 
 func (e *ETCDStorage) breakIntoPagesIfNeeded(transition model.Transition, pageSize int) (model.Transition, []*model.TransitionPage) {
-	if len(transition.Tasks) > pageSize || len(transition.Location) > pageSize {
-		taskPages := e.pageTasks(transition, pageSize)
-		locationPages := e.pageLocations(transition, pageSize)
-		taskIDsPages := e.pageTaskIDs(transition, pageSize)
-
-		// pick the largest page count
-		pageCount := 0
-		if len(taskPages) > pageCount {
-			pageCount = len(taskPages)
-		}
-		if len(locationPages) > pageCount {
-			pageCount = len(locationPages)
-		}
-		if len(taskIDsPages) > pageCount {
-			pageCount = len(taskIDsPages)
-		}
-		if len(taskPages) > 0 {
-			transition.Tasks = taskPages[0]
-		} else {
-			if transition.Tasks != nil {
-				e.Logger.Errorf(
-					"Task pages empty. There should be at least one. TransitionID: %s, TaskCount: %d",
-					transition.TransitionID, len(transition.Tasks))
-			}
-		}
-		if len(locationPages) > 0 {
-			transition.Location = locationPages[0]
-		} else {
-			if transition.Location != nil {
-				e.Logger.Errorf(
-					"Location pages empty. There should be at least one. TransitionID: %s, LociationCount: %d",
-					transition.TransitionID, len(transition.Location))
-			}
-		}
-		if len(taskIDsPages) > 0 {
-			transition.TaskIDs = taskIDsPages[0]
-		} else {
-			if transition.TaskIDs != nil {
-				e.Logger.Errorf(
-					"TaskIDs pages empty. There should be at least one. TransitionID: %s, TaskIDsCount: %d",
-					transition.TransitionID, len(transition.TaskIDs))
-			}
-		}
-
-		// build pages
-		var pages []*model.TransitionPage
-		for i := 1; i < pageCount; i++ {
-			index := i - 1
-			id := fmt.Sprintf("%s_%d", transition.TransitionID.String(), index)
-			page := model.TransitionPage{
-				ID:           id,
-				TransitionID: transition.TransitionID,
-				Index:        index,
-			}
-
-			pages = append(pages, &page)
-		}
-
-		// fill in tasks on each page
-		for i := 1; i < len(taskPages); i++ {
-			pages[i-1].Tasks = taskPages[i]
-		}
-
-		// fill in locations on each page
-		for i := 1; i < len(locationPages); i++ {
-			pages[i-1].Location = locationPages[i]
-		}
-
-		// fill in task ids on each page
-		for i := 1; i < len(taskIDsPages); i++ {
-			pages[i-1].TaskIDs = taskIDsPages[i]
-		}
-		return transition, pages
-	} else {
+	if len(transition.Tasks) <= pageSize && len(transition.Location) <= pageSize && len(transition.TaskIDs) <= pageSize {
+		// The arrays fit in a single page.
 		return transition, nil
 	}
+	taskPages := e.pageTasks(transition, pageSize)
+	locationPages := e.pageLocations(transition, pageSize)
+	taskIDsPages := e.pageTaskIDs(transition, pageSize)
+
+	// pick the largest page count
+	pageCount := 0
+	if len(taskPages) > pageCount {
+		pageCount = len(taskPages)
+	}
+	if len(locationPages) > pageCount {
+		pageCount = len(locationPages)
+	}
+	if len(taskIDsPages) > pageCount {
+		pageCount = len(taskIDsPages)
+	}
+	if len(taskPages) > 0 {
+		transition.Tasks = taskPages[0]
+	} else {
+		if transition.Tasks != nil {
+			e.Logger.Errorf(
+				"Task pages empty. There should be at least one. TransitionID: %s, TaskCount: %d",
+				transition.TransitionID, len(transition.Tasks))
+		}
+	}
+	if len(locationPages) > 0 {
+		transition.Location = locationPages[0]
+	} else {
+		if transition.Location != nil {
+			e.Logger.Errorf(
+				"Location pages empty. There should be at least one. TransitionID: %s, LociationCount: %d",
+				transition.TransitionID, len(transition.Location))
+		}
+	}
+	if len(taskIDsPages) > 0 {
+		transition.TaskIDs = taskIDsPages[0]
+	} else {
+		if transition.TaskIDs != nil {
+			e.Logger.Errorf(
+				"TaskIDs pages empty. There should be at least one. TransitionID: %s, TaskIDsCount: %d",
+				transition.TransitionID, len(transition.TaskIDs))
+		}
+	}
+
+	// build pages
+	var pages []*model.TransitionPage
+	for i := 1; i < pageCount; i++ {
+		index := i - 1
+		id := fmt.Sprintf("%s_%d", transition.TransitionID.String(), index)
+		page := model.TransitionPage{
+			ID:           id,
+			TransitionID: transition.TransitionID,
+			Index:        index,
+		}
+
+		pages = append(pages, &page)
+	}
+
+	// fill in tasks on each page
+	for i := 1; i < len(taskPages); i++ {
+		pages[i-1].Tasks = taskPages[i]
+	}
+
+	// fill in locations on each page
+	for i := 1; i < len(locationPages); i++ {
+		pages[i-1].Location = locationPages[i]
+	}
+
+	// fill in task ids on each page
+	for i := 1; i < len(taskIDsPages); i++ {
+		pages[i-1].TaskIDs = taskIDsPages[i]
+	}
+	return transition, pages
 }
 
 func (e *ETCDStorage) pageTasks(transition model.Transition, pageSize int) [][]model.TransitionTaskResp {
