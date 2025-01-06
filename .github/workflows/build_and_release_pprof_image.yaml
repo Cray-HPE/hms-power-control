@@ -1,0 +1,13 @@
+name: Build and Publish Docker Images
+on:
+  - push # Perform a build of the contents from the branch
+  - pull_request # Perform a build after merging with the target branch
+  - workflow_dispatch
+jobs:
+  build_and_release:
+    uses: Cray-HPE/hms-build-image-workflows/.github/workflows/build_and_release_image.yaml@v2
+    with:
+      image-name: cray-power-control-pprof
+      docker-build-file: Dockerfile.pprof
+      enable-pr-comment: true
+    secrets: inherit

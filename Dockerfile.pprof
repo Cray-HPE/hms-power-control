@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2020-2024] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2020-2025] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,8 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-# Dockerfile for building hms-power-control.
+# Dockerfile for building hms-power-control with pprof support.
+# The only difference from primary dockerfile is building with the pprof tag
 
 # Build base just has the packages installed we need.
 FROM artifactory.algol60.net/docker.io/library/golang:1.23-alpine AS build-base
@@ -43,7 +44,7 @@ COPY .version $GOPATH/src/github.com/Cray-HPE/hms-power-control/.version
 ### Build Stage ###
 FROM base AS builder
 
-RUN set -ex && go build -v -tags musl -o /usr/local/bin/hms-power-control github.com/Cray-HPE/hms-power-control/cmd/hms-power-control
+RUN set -ex && go build -v -tags "musl pprof" -o /usr/local/bin/hms-power-control github.com/Cray-HPE/hms-power-control/cmd/hms-power-control
 
 ### Final Stage ###
 
