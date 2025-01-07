@@ -24,6 +24,7 @@ package storage
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -876,14 +877,17 @@ func (e *ETCDStorage) TASTransition(transition model.Transition, testVal model.T
 		e.Logger.Error(err)
 		return ok, err
 	}
+	var combinedErr error
 	for _, page := range newTransitionPages {
 		key = fmt.Sprintf("%s/%s/%d", keySegTransitionPage, page.TransitionID.String(), page.Index)
 		err = e.kvStore(key, page)
 		if err != nil {
 			e.Logger.Error(err)
+			errForKey := fmt.Errorf("failed to store key: %s", key)
+			combinedErr = errors.Join(combinedErr, errForKey, err)
 		}
 	}
-	return ok, err
+	return ok, combinedErr
 }
 
 func wrapError(err0 error, err1 error) error {
