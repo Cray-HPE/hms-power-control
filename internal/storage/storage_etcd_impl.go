@@ -477,7 +477,10 @@ func (e *ETCDStorage) truncateAndPageTransitionIfNeeded(transition model.Transit
 		return transition, nil
 	}
 
-	originalSize, _ := getObjectSize(transition)
+	originalSize, errObjSize := getObjectSize(transition)
+	if errObjSize != nil {
+		e.Logger.Error(errObjSize)
+	}
 	if originalSize < e.MaxEtcdObjectSize {
 		e.Logger.WithFields(logrus.Fields{
 			"TransitionID": transition.TransitionID,
@@ -488,7 +491,10 @@ func (e *ETCDStorage) truncateAndPageTransitionIfNeeded(transition model.Transit
 	}
 
 	truncatedCount := e.truncateTaskMessagesIfNeeded(&transition, originalSize)
-	truncatedSize, _ := getObjectSize(transition)
+	truncatedSize, errObjSize := getObjectSize(transition)
+	if errObjSize != nil {
+		e.Logger.Error(errObjSize)
+	}
 	if truncatedSize < e.MaxEtcdObjectSize {
 		e.Logger.WithFields(logrus.Fields{
 			"TransitionID":   transition.TransitionID,
@@ -505,7 +511,10 @@ func (e *ETCDStorage) truncateAndPageTransitionIfNeeded(transition model.Transit
 		pageSize = e.PageSize/2 + 1
 	}
 	newTranstion, pages := e.breakIntoPagesIfNeeded(transition, pageSize)
-	pagedSize, _ := getObjectSize(transition)
+	pagedSize, errObjSize := getObjectSize(transition)
+	if errObjSize != nil {
+		e.Logger.Error(errObjSize)
+	}
 	e.Logger.WithFields(logrus.Fields{
 		"TransitionID":   transition.TransitionID,
 		"maxSize":        e.MaxEtcdObjectSize,
@@ -521,6 +530,10 @@ func (e *ETCDStorage) truncateAndPageTransitionIfNeeded(transition model.Transit
 func getObjectSize(transition model.Transition) (int, error) {
 	sdata, err := json.Marshal(transition)
 	if err != nil {
+		err = errors.Join(
+			fmt.Errorf("failed to marshal json for id: %d", transition.TransitionID),
+			err,
+		)
 		return -1, err
 	}
 	size := len(sdata)
@@ -529,12 +542,7 @@ func getObjectSize(transition model.Transition) (int, error) {
 
 func (e *ETCDStorage) truncateTaskMessagesIfNeeded(transition *model.Transition, originalObjSize int) (truncatedCount int) {
 	truncatedCount = 0
-	sdata, err := json.Marshal(transition)
-	if err != nil {
-		e.Logger.WithFields(logrus.Fields{"TransitionID": transition.TransitionID, "Error": err}).Error("Error marshalling transition to json")
-	}
-	originalSize := len(sdata)
-	if originalSize > e.MaxEtcdObjectSize {
+	if originalObjSize > e.MaxEtcdObjectSize {
 		maxLogCount := 10
 		for i, task := range transition.Tasks {
 			if len(task.Error) > e.MaxMessageLen {
