@@ -455,10 +455,12 @@ type WatchTransitionCBHandle struct {
 func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 	t, tPages := e.truncateAndPageTransitionIfNeeded(transition)
 
+	var combinedErr error
 	key := fmt.Sprintf("%s/%s", keySegTransition, t.TransitionID.String())
 	err := e.kvStore(key, t)
 	if err != nil {
 		e.Logger.Error(err)
+		combinedErr = err
 	}
 
 	for _, page := range tPages {
@@ -467,9 +469,10 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 		err = e.kvStore(key, page)
 		if err != nil {
 			e.Logger.Error(err)
+			combinedErr = errors.Join(combinedErr, err)
 		}
 	}
-	return err
+	return combinedErr
 }
 
 func (e *ETCDStorage) truncateAndPageTransitionIfNeeded(transition model.Transition) (model.Transition, []*model.TransitionPage) {
