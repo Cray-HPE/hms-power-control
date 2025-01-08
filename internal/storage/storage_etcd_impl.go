@@ -469,7 +469,8 @@ func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
 		err = e.kvStore(key, page)
 		if err != nil {
 			e.Logger.Error(err)
-			combinedErr = errors.Join(combinedErr, err)
+			errForKey := fmt.Errorf("failed to store key: %s", key)
+			combinedErr = errors.Join(combinedErr, errForKey, err)
 		}
 	}
 	return combinedErr
