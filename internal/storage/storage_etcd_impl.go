@@ -772,6 +772,7 @@ func (e *ETCDStorage) GetTransitionPages(transitionId string) ([]model.Transitio
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	var pages []model.TransitionPage
+	var combinedErr error
 	keyPrefix := fmt.Sprintf("%s/%s", keySegTransitionPage, transitionId)
 	key := e.fixUpKey(keyPrefix)
 	kvList, err := e.kvHandle.GetRange(key+keyMin, key+keyMax)
@@ -782,14 +783,16 @@ func (e *ETCDStorage) GetTransitionPages(transitionId string) ([]model.Transitio
 			err = json.Unmarshal([]byte(kv.Value), &page)
 			if err != nil {
 				e.Logger.Error(err)
+				combinedErr = errors.Join(combinedErr, err)
 			} else {
 				pages = append(pages, page)
 			}
 		}
 	} else {
 		e.Logger.Error(err)
+		combinedErr = errors.Join(combinedErr, err)
 	}
-	return pages, err
+	return pages, combinedErr
 }
 
 func (e *ETCDStorage) GetTransitionTask(transitionID, taskID uuid.UUID) (model.TransitionTask, error) {
@@ -851,20 +854,20 @@ func (e *ETCDStorage) DeleteTransition(transitionID uuid.UUID) error {
 	err := e.kvDelete(key)
 	if err != nil {
 		e.Logger.Error(err)
-		combinedErr = wrapError(combinedErr, err)
+		combinedErr = errors.Join(combinedErr, err)
 	}
 	if !e.DisableSizeChecks {
 		pages, err := e.GetTransitionPages(transitionID.String())
 		if err != nil {
 			e.Logger.Error(err)
-			combinedErr = wrapError(combinedErr, err)
+			combinedErr = errors.Join(combinedErr, err)
 		}
 		for _, page := range pages {
 			key = fmt.Sprintf("%s/%s/%d", keySegTransitionPage, transitionID.String(), page.Index)
 			err = e.kvDelete(key)
 			if err != nil {
 				e.Logger.Error(err)
-				combinedErr = wrapError(combinedErr, err)
+				combinedErr = errors.Join(combinedErr, err)
 			}
 		}
 	}
@@ -899,17 +902,4 @@ func (e *ETCDStorage) TASTransition(transition model.Transition, testVal model.T
 		}
 	}
 	return ok, combinedErr
-}
-
-func wrapError(err0 error, err1 error) error {
-	if err0 != nil && err1 != nil {
-		return fmt.Errorf("%s; %w", err0, err1)
-	} else if err0 == nil && err1 != nil {
-		return err1
-	} else if err0 != nil && err1 == nil {
-		return err0
-	} else {
-		// err0 == nil && err1 == nil
-		return nil
-	}
 }
