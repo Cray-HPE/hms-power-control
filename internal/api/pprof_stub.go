@@ -1,5 +1,6 @@
-// This file is a noop stub for the pprof package that is used when
-// pprof is not enabled.
+// This file contains a stub implementation of the RegisterPProfHandlers()
+// function which is a noop.  It is included in the build by default by
+// way of the 'pprof' build tag not being set in the Dockerfile.
 //
 //go:build !pprof
 
@@ -26,3 +27,7 @@
  */
 
 package api
+
+import "github.com/gorilla/mux"
+
+func RegisterPProfHandlers(router *mux.Router) { }
