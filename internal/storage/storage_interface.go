@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2022-2023,2025] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -54,7 +54,7 @@ type StorageProvider interface {
 
 	StoreTransition(transition model.Transition) error
 	StoreTransitionTask(task model.TransitionTask) error
-	GetTransition(transitionID uuid.UUID) (model.Transition, error)
+	GetTransition(transitionID uuid.UUID) (transition model.Transition, transtiionFirstPage model.Transition, err error)
 	GetTransitionTask(transitionID uuid.UUID, taskID uuid.UUID) (model.TransitionTask, error)
 	GetAllTasksForTransition(transitionID uuid.UUID) ([]model.TransitionTask, error)
 	GetAllTransitions() ([]model.Transition, error)

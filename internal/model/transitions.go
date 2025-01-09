@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2025] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -90,20 +90,29 @@ func ToTransition(parameter TransitionParameter, expirationTimeMins int) (TR Tra
 //////////////
 
 type Transition struct {
-	TransitionID            uuid.UUID            `json:"transitionID"`
-	Operation               Operation            `json:"operation"`
-	TaskDeadline            int                  `json:"taskDeadlineMinutes"`
-	Location                []LocationParameter  `json:"location"`
-	CreateTime              time.Time            `json:"createTime"`
-	LastActiveTime          time.Time            `json:"lastActiveTime"`
-	AutomaticExpirationTime time.Time            `json:"automaticExpirationTime"`
-	Status                  string               `json:"transitionStatus"`
+	TransitionID            uuid.UUID           `json:"transitionID"`
+	Operation               Operation           `json:"operation"`
+	TaskDeadline            int                 `json:"taskDeadlineMinutes"`
+	Location                []LocationParameter `json:"location"`
+	CreateTime              time.Time           `json:"createTime"`
+	LastActiveTime          time.Time           `json:"lastActiveTime"`
+	AutomaticExpirationTime time.Time           `json:"automaticExpirationTime"`
+	Status                  string              `json:"transitionStatus"`
 	TaskIDs                 []uuid.UUID
 
 	// Only populated when the task is completed
 	IsCompressed bool                 `json:"isCompressed"`
 	TaskCounts   TransitionTaskCounts `json:"taskCounts"`
 	Tasks        []TransitionTaskResp `json:"tasks,omitempty"`
+}
+
+type TransitionPage struct {
+	ID           string               `json:"ID"`
+	TransitionID uuid.UUID            `json:"transitionID"`
+	Index        int                  `json:"index"`
+	Location     []LocationParameter  `json:"location"`
+	Tasks        []TransitionTaskResp `json:"tasks,omitempty"`
+	TaskIDs      []uuid.UUID
 }
 
 type TransitionTask struct {
@@ -167,11 +176,11 @@ type TransitionAbortResp struct {
 func ToTransitionResp(transition Transition, tasks []TransitionTask, full bool) TransitionResp {
 	// Build the response struct
 	rsp := TransitionResp{
-		TransitionID: transition.TransitionID,
-		Operation: transition.Operation.String(),
-		CreateTime: transition.CreateTime,
+		TransitionID:            transition.TransitionID,
+		Operation:               transition.Operation.String(),
+		CreateTime:              transition.CreateTime,
 		AutomaticExpirationTime: transition.AutomaticExpirationTime,
-		TransitionStatus: transition.Status,
+		TransitionStatus:        transition.Status,
 	}
 
 	// Is a compressed record
@@ -186,7 +195,7 @@ func ToTransitionResp(transition Transition, tasks []TransitionTask, full bool) 
 	counts := TransitionTaskCounts{}
 	for _, task := range tasks {
 		// Get the count of tasks with each status type.
-		switch(task.Status) {
+		switch task.Status {
 		case TransitionTaskStatusNew:
 			counts.New++
 		case TransitionTaskStatusInProgress:
@@ -202,10 +211,10 @@ func ToTransitionResp(transition Transition, tasks []TransitionTask, full bool) 
 		// Include information about individual tasks if full == true
 		if full {
 			taskRsp := TransitionTaskResp{
-				Xname: task.Xname,
-				TaskStatus: task.Status,
+				Xname:          task.Xname,
+				TaskStatus:     task.Status,
 				TaskStatusDesc: task.StatusDesc,
-				Error: task.Error,
+				Error:          task.Error,
 			}
 			rsp.Tasks = append(rsp.Tasks, taskRsp)
 		}
@@ -218,7 +227,7 @@ func ToTransitionResp(transition Transition, tasks []TransitionTask, full bool) 
 // FUNCTIONS
 //////////////
 
-func NewTransitionTask(transitionID uuid.UUID, op Operation) (TransitionTask){
+func NewTransitionTask(transitionID uuid.UUID, op Operation) TransitionTask {
 	return TransitionTask{
 		TaskID:       uuid.New(),
 		TransitionID: transitionID,
@@ -236,7 +245,7 @@ func ToOperationFilter(op string) (OP Operation, err error) {
 		return
 	}
 	operation := strings.ToLower(op)
-	switch(operation) {
+	switch operation {
 	case "on":
 		OP = Operation_On
 		err = nil
@@ -265,8 +274,8 @@ func ToOperationFilter(op string) (OP Operation, err error) {
 	return
 }
 
-//This pattern is from : https://yourbasic.org/golang/iota/
-//I think the only think we ever have to really worry about is ever changing the order of this (add/remove/re-order)
+// This pattern is from : https://yourbasic.org/golang/iota/
+// I think the only think we ever have to really worry about is ever changing the order of this (add/remove/re-order)
 type Operation int
 
 const (
@@ -291,11 +300,11 @@ func (op Operation) EnumIndex() int {
 type TaskState int
 
 const (
-	TaskState_Nil         TaskState = iota - 1
-	TaskState_GatherData            // GatherData = 0
-	TaskState_Sending               // 1 Command MAY have been sent. Can't confirm it was received.
-	TaskState_Waiting               // 2 Command received. Waiting to confirm power state
-	TaskState_Confirmed             // 3 Power state confirmed
+	TaskState_Nil        TaskState = iota - 1
+	TaskState_GatherData           // GatherData = 0
+	TaskState_Sending              // 1 Command MAY have been sent. Can't confirm it was received.
+	TaskState_Waiting              // 2 Command received. Waiting to confirm power state
+	TaskState_Confirmed            // 3 Power state confirmed
 )
 
 func (ts TaskState) String() string {
@@ -304,4 +313,20 @@ func (ts TaskState) String() string {
 
 func (ts TaskState) EnumIndex() int {
 	return int(ts)
+}
+
+func CopyTransition(transition Transition) Transition {
+	result := transition
+
+	result.Tasks = make([]TransitionTaskResp, 0)
+	copy(result.Tasks, transition.Tasks)
+
+	result.Location = make([]LocationParameter, 0)
+	copy(result.Location, transition.Location)
+
+	copy(result.TaskIDs, transition.TaskIDs)
+	result.TaskIDs = make([]uuid.UUID, 0)
+
+	return result
+
 }

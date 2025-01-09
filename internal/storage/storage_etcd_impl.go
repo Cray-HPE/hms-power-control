@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2022-2023,2025] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -24,8 +24,11 @@ package storage
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -43,25 +46,33 @@ import (
 // implementations.
 
 const (
-	kvUrlMemDefault         = "mem:"
-	kvUrlDefault            = kvUrlMemDefault //Default to in-memory implementation
-	kvRetriesDefault        = 5
-	keyPrefix               = "/pcs/"
-	keySegPowerStatusMaster = "/powerstatusmaster"
-	keySegPowerState        = "/powerstate"
-	keySegPowerCap          = "/powercaptask"
-	keySegPowerCapOp        = "/powercapop"
-	keySegTransition        = "/transition"
-	keySegTransitionTask    = "/transitiontask"
-	keySegTransitionStat    = "/transitionstat"
-	keyMin                  = " "
-	keyMax                  = "~"
+	kvUrlMemDefault          = "mem:"
+	kvUrlDefault             = kvUrlMemDefault //Default to in-memory implementation
+	kvRetriesDefault         = 5
+	keyPrefix                = "/pcs/"
+	keySegPowerStatusMaster  = "/powerstatusmaster"
+	keySegPowerState         = "/powerstate"
+	keySegPowerCap           = "/powercaptask"
+	keySegPowerCapOp         = "/powercapop"
+	keySegTransition         = "/transition"
+	keySegTransitionPage     = "/transitionpage"
+	keySegTransitionTask     = "/transitiontask"
+	keySegTransitionStat     = "/transitionstat"
+	keyMin                   = " "
+	keyMax                   = "~"
+	DefaultEtcdPageSize      = 5000 // Maximum locations (xnames) and task results to store in each etcd entry
+	DefaultMaxMessageLen     = 130  // Maximum length of Task messages and errors when over all object is too large
+	DefaultMaxEtcdObjectSize = 1570000
 )
 
 type ETCDStorage struct {
-	Logger   *logrus.Logger
-	mutex    *sync.Mutex
-	kvHandle hmetcd.Kvi
+	Logger            *logrus.Logger
+	DisableSizeChecks bool
+	PageSize          int
+	MaxMessageLen     int
+	MaxEtcdObjectSize int
+	mutex             *sync.Mutex
+	kvHandle          hmetcd.Kvi
 }
 
 func (e *ETCDStorage) fixUpKey(k string) string {
@@ -105,7 +116,25 @@ func (e *ETCDStorage) kvGet(key string, val interface{}) error {
 	return err
 }
 
-//if a key doesnt exist, etcd doesn't return an error
+func (e *ETCDStorage) sortTransitionPages(list []hmetcd.Kvi_KV) {
+	sort.Slice(list, func(i, j int) bool {
+		key0 := list[i].Key
+		key0Sufix := key0[strings.LastIndex(key0, "/")+1:]
+		key1 := list[j].Key
+		key1Sufix := key1[strings.LastIndex(key1, "/")+1:]
+		key0Int, err := strconv.Atoi(key0Sufix)
+		if err != nil {
+			e.Logger.Errorf("Expected last part to be an int in %s. %s", key0, err)
+		}
+		key1Int, err := strconv.Atoi(key1Sufix)
+		if err != nil {
+			e.Logger.Errorf("Expected last part to be an int in %s, %s", key0, err)
+		}
+		return key0Int < key1Int
+	})
+}
+
+// if a key doesnt exist, etcd doesn't return an error
 func (e *ETCDStorage) kvDelete(key string) error {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
@@ -139,6 +168,18 @@ func (e *ETCDStorage) Init(Logger *logrus.Logger) error {
 	} else {
 		e.Logger = Logger
 	}
+
+	if e.PageSize <= 0 {
+		e.PageSize = DefaultEtcdPageSize
+	}
+	if e.MaxMessageLen <= 0 {
+		e.MaxMessageLen = DefaultMaxMessageLen
+	}
+	if e.MaxEtcdObjectSize <= 0 {
+		e.MaxEtcdObjectSize = DefaultMaxEtcdObjectSize
+	}
+	e.Logger.Infof("ETCD storage maximum settings, disable_size_checks: %t, page_size: %d, message_len: %d, object_size: %d",
+		e.DisableSizeChecks, e.PageSize, e.MaxMessageLen, e.MaxEtcdObjectSize)
 
 	e.mutex = &sync.Mutex{}
 	retries := kvRetriesDefault
@@ -412,12 +453,281 @@ type WatchTransitionCBHandle struct {
 }
 
 func (e *ETCDStorage) StoreTransition(transition model.Transition) error {
-	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
-	err := e.kvStore(key, transition)
+	t, tPages := e.truncateAndPageTransitionIfNeeded(transition)
+
+	var combinedErr error
+	key := fmt.Sprintf("%s/%s", keySegTransition, t.TransitionID.String())
+	err := e.kvStore(key, t)
 	if err != nil {
 		e.Logger.Error(err)
+		combinedErr = err
 	}
-	return err
+
+	for _, page := range tPages {
+		// Task pages
+		key = fmt.Sprintf("%s/%s/%d", keySegTransitionPage, page.TransitionID.String(), page.Index)
+		err = e.kvStore(key, page)
+		if err != nil {
+			e.Logger.Error(err)
+			errForKey := fmt.Errorf("failed to store key: %s", key)
+			combinedErr = errors.Join(combinedErr, errForKey, err)
+		}
+	}
+	return combinedErr
+}
+
+func (e *ETCDStorage) truncateAndPageTransitionIfNeeded(transition model.Transition) (model.Transition, []*model.TransitionPage) {
+	if e.DisableSizeChecks {
+		return transition, nil
+	}
+
+	originalSize, errObjSize := getObjectSize(transition)
+	if errObjSize != nil {
+		e.Logger.Error(errObjSize)
+	}
+	if originalSize < e.MaxEtcdObjectSize {
+		e.Logger.WithFields(logrus.Fields{
+			"TransitionID": transition.TransitionID,
+			"maxSize":      e.MaxEtcdObjectSize,
+			"size":         originalSize,
+		}).Debug("The transition fits in a single etcd entry")
+		return transition, nil
+	}
+
+	truncatedCount := e.truncateTaskMessagesIfNeeded(&transition, originalSize)
+	truncatedSize, errObjSize := getObjectSize(transition)
+	if errObjSize != nil {
+		e.Logger.Error(errObjSize)
+	}
+	if truncatedSize < e.MaxEtcdObjectSize {
+		e.Logger.WithFields(logrus.Fields{
+			"TransitionID":   transition.TransitionID,
+			"maxSize":        e.MaxEtcdObjectSize,
+			"OriginalSize":   originalSize,
+			"truncatedSize":  truncatedSize,
+			"TruncatedCount": truncatedCount,
+		}).Info("The transition's messages were truncated.")
+		return transition, nil
+	}
+
+	pageSize := e.PageSize
+	if len(transition.Tasks) < pageSize && len(transition.Location) < pageSize {
+		pageSize = e.PageSize/2 + 1
+	}
+	newTranstion, pages := e.breakIntoPagesIfNeeded(transition, pageSize)
+	pagedSize, errObjSize := getObjectSize(transition)
+	if errObjSize != nil {
+		e.Logger.Error(errObjSize)
+	}
+	e.Logger.WithFields(logrus.Fields{
+		"TransitionID":   transition.TransitionID,
+		"maxSize":        e.MaxEtcdObjectSize,
+		"size":           originalSize,
+		"truncateSize":   truncatedSize,
+		"truncatedCount": truncatedCount,
+		"pagedSize":      pagedSize,
+		"pageCount":      len(pages),
+	}).Info("The transition's messages may have been truncated and it was split into pages.")
+	return newTranstion, pages
+}
+
+func getObjectSize(transition model.Transition) (int, error) {
+	sdata, err := json.Marshal(transition)
+	if err != nil {
+		err = errors.Join(
+			fmt.Errorf("failed to marshal json for id: %d", transition.TransitionID),
+			err,
+		)
+		return -1, err
+	}
+	size := len(sdata)
+	return size, nil
+}
+
+func (e *ETCDStorage) truncateTaskMessagesIfNeeded(transition *model.Transition, originalObjSize int) (truncatedCount int) {
+	truncatedCount = 0
+	if originalObjSize > e.MaxEtcdObjectSize {
+		maxLogCount := 10
+		for i, task := range transition.Tasks {
+			if len(task.Error) > e.MaxMessageLen {
+				if truncatedCount < maxLogCount {
+					e.Logger.WithFields(logrus.Fields{"TransitionID": transition.TransitionID, "Xname": task.Xname}).Infof(
+						"Truncating task error message: %s", task.Error)
+				} else {
+					e.Logger.WithFields(logrus.Fields{"TransitionID": transition.TransitionID, "Xname": task.Xname}).Debugf(
+						"Truncating task error message: %s", task.Error)
+				}
+				task.Error = task.Error[:e.MaxMessageLen] + "..."
+				transition.Tasks[i] = task
+				truncatedCount += 1
+
+				if len(task.TaskStatusDesc) > 3 {
+					if truncatedCount < maxLogCount {
+						e.Logger.WithFields(logrus.Fields{"TransitionID": transition.TransitionID, "Xname": task.Xname}).Infof(
+							"Truncating task description: %s", task.TaskStatusDesc)
+					} else {
+						e.Logger.WithFields(logrus.Fields{"TransitionID": transition.TransitionID, "Xname": task.Xname}).Debugf(
+							"Truncating task description: %s", task.TaskStatusDesc)
+					}
+					task.TaskStatusDesc = "..."
+					transition.Tasks[i] = task
+					truncatedCount += 1
+				}
+			} else {
+				remainingMessageLen := e.MaxMessageLen - len(task.Error)
+				if len(task.TaskStatusDesc) > remainingMessageLen {
+					if truncatedCount < maxLogCount {
+						e.Logger.WithFields(logrus.Fields{"TransitionID": transition.TransitionID, "Xname": task.Xname}).Infof(
+							"Truncating task description: %s", task.TaskStatusDesc)
+					} else {
+						e.Logger.WithFields(logrus.Fields{"TransitionID": transition.TransitionID, "Xname": task.Xname}).Debugf(
+							"Truncating task description: %s", task.TaskStatusDesc)
+					}
+
+					task.TaskStatusDesc = task.TaskStatusDesc[:remainingMessageLen] + "..."
+					transition.Tasks[i] = task
+					truncatedCount += 1
+				}
+			}
+		}
+	}
+	return truncatedCount
+}
+
+func (e *ETCDStorage) breakIntoPagesIfNeeded(transition model.Transition, pageSize int) (model.Transition, []*model.TransitionPage) {
+	if len(transition.Tasks) <= pageSize && len(transition.Location) <= pageSize && len(transition.TaskIDs) <= pageSize {
+		// The arrays fit in a single page.
+		return transition, nil
+	}
+	taskPages := e.pageTasks(transition, pageSize)
+	locationPages := e.pageLocations(transition, pageSize)
+	taskIDsPages := e.pageTaskIDs(transition, pageSize)
+
+	// pick the largest page count
+	pageCount := 0
+	if len(taskPages) > pageCount {
+		pageCount = len(taskPages)
+	}
+	if len(locationPages) > pageCount {
+		pageCount = len(locationPages)
+	}
+	if len(taskIDsPages) > pageCount {
+		pageCount = len(taskIDsPages)
+	}
+	if len(taskPages) > 0 {
+		transition.Tasks = taskPages[0]
+	} else {
+		if transition.Tasks != nil {
+			e.Logger.Errorf(
+				"Task pages empty. There should be at least one. TransitionID: %s, TaskCount: %d",
+				transition.TransitionID, len(transition.Tasks))
+		}
+	}
+	if len(locationPages) > 0 {
+		transition.Location = locationPages[0]
+	} else {
+		if transition.Location != nil {
+			e.Logger.Errorf(
+				"Location pages empty. There should be at least one. TransitionID: %s, LociationCount: %d",
+				transition.TransitionID, len(transition.Location))
+		}
+	}
+	if len(taskIDsPages) > 0 {
+		transition.TaskIDs = taskIDsPages[0]
+	} else {
+		if transition.TaskIDs != nil {
+			e.Logger.Errorf(
+				"TaskIDs pages empty. There should be at least one. TransitionID: %s, TaskIDsCount: %d",
+				transition.TransitionID, len(transition.TaskIDs))
+		}
+	}
+
+	// build pages
+	var pages []*model.TransitionPage
+	for i := 1; i < pageCount; i++ {
+		index := i - 1
+		id := fmt.Sprintf("%s_%d", transition.TransitionID.String(), index)
+		page := model.TransitionPage{
+			ID:           id,
+			TransitionID: transition.TransitionID,
+			Index:        index,
+		}
+
+		pages = append(pages, &page)
+	}
+
+	// fill in tasks on each page
+	for i := 1; i < len(taskPages); i++ {
+		pages[i-1].Tasks = taskPages[i]
+	}
+
+	// fill in locations on each page
+	for i := 1; i < len(locationPages); i++ {
+		pages[i-1].Location = locationPages[i]
+	}
+
+	// fill in task ids on each page
+	for i := 1; i < len(taskIDsPages); i++ {
+		pages[i-1].TaskIDs = taskIDsPages[i]
+	}
+	return transition, pages
+}
+
+func (e *ETCDStorage) pageTasks(transition model.Transition, pageSize int) [][]model.TransitionTaskResp {
+	if transition.Tasks == nil {
+		return nil
+	}
+	var pages [][]model.TransitionTaskResp
+	if len(transition.Tasks) > pageSize {
+		for i := 0; i < len(transition.Tasks); i += e.PageSize {
+			end := i + pageSize
+			if end > len(transition.Tasks) {
+				end = len(transition.Tasks)
+			}
+			pages = append(pages, transition.Tasks[i:end])
+		}
+	} else {
+		pages = append(pages, transition.Tasks)
+	}
+	return pages
+}
+
+func (e *ETCDStorage) pageLocations(transition model.Transition, pageSize int) [][]model.LocationParameter {
+	if transition.Location == nil {
+		return nil
+	}
+	var pages [][]model.LocationParameter
+	if len(transition.Location) > pageSize {
+		for i := 0; i < len(transition.Location); i += pageSize {
+			end := i + pageSize
+			if end > len(transition.Location) {
+				end = len(transition.Location)
+			}
+			pages = append(pages, transition.Location[i:end])
+		}
+	} else {
+		pages = append(pages, transition.Location)
+	}
+	return pages
+}
+
+func (e *ETCDStorage) pageTaskIDs(transition model.Transition, pageSize int) [][]uuid.UUID {
+	if transition.TaskIDs == nil {
+		return nil
+	}
+	var pages [][]uuid.UUID
+	if len(transition.TaskIDs) > pageSize {
+		for i := 0; i < len(transition.TaskIDs); i += pageSize {
+			end := i + pageSize
+			if end > len(transition.TaskIDs) {
+				end = len(transition.TaskIDs)
+			}
+			pages = append(pages, transition.TaskIDs[i:end])
+		}
+	} else {
+		pages = append(pages, transition.TaskIDs)
+	}
+	return pages
 }
 
 func (e *ETCDStorage) StoreTransitionTask(task model.TransitionTask) error {
@@ -431,15 +741,59 @@ func (e *ETCDStorage) StoreTransitionTask(task model.TransitionTask) error {
 	return err
 }
 
-func (e *ETCDStorage) GetTransition(transitionID uuid.UUID) (model.Transition, error) {
-	var transition model.Transition
+func (e *ETCDStorage) GetTransition(transitionID uuid.UUID) (transition model.Transition, transitionFirstPage model.Transition, err error) {
 	key := fmt.Sprintf("%s/%s", keySegTransition, transitionID.String())
 
-	err := e.kvGet(key, &transition)
+	err = e.kvGet(key, &transition)
 	if err != nil {
 		e.Logger.Error(err)
+		return transition, transition, err
 	}
-	return transition, err
+
+	if !e.DisableSizeChecks {
+		pages, err := e.GetTransitionPages(transition.TransitionID.String())
+		if err != nil {
+			e.Logger.Error(err)
+		}
+		if len(pages) > 0 {
+			transitionFirstPage = model.CopyTransition(transition)
+			for _, page := range pages {
+				transition.Tasks = append(transition.Tasks, page.Tasks...)
+				transition.Location = append(transition.Location, page.Location...)
+				transition.TaskIDs = append(transition.TaskIDs, page.TaskIDs...)
+			}
+			return transition, transitionFirstPage, err
+		}
+	}
+
+	return transition, transition, err
+}
+
+func (e *ETCDStorage) GetTransitionPages(transitionId string) ([]model.TransitionPage, error) {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	var pages []model.TransitionPage
+	var combinedErr error
+	keyPrefix := fmt.Sprintf("%s/%s", keySegTransitionPage, transitionId)
+	key := e.fixUpKey(keyPrefix)
+	kvList, err := e.kvHandle.GetRange(key+keyMin, key+keyMax)
+	if err == nil {
+		e.sortTransitionPages(kvList)
+		for _, kv := range kvList {
+			var page model.TransitionPage
+			err = json.Unmarshal([]byte(kv.Value), &page)
+			if err != nil {
+				e.Logger.Error(err)
+				combinedErr = errors.Join(combinedErr, err)
+			} else {
+				pages = append(pages, page)
+			}
+		}
+	} else {
+		e.Logger.Error(err)
+		combinedErr = errors.Join(combinedErr, err)
+	}
+	return pages, combinedErr
 }
 
 func (e *ETCDStorage) GetTransitionTask(transitionID, taskID uuid.UUID) (model.TransitionTask, error) {
@@ -497,11 +851,28 @@ func (e *ETCDStorage) GetAllTransitions() ([]model.Transition, error) {
 
 func (e *ETCDStorage) DeleteTransition(transitionID uuid.UUID) error {
 	key := fmt.Sprintf("%s/%s", keySegTransition, transitionID.String())
+	var combinedErr error
 	err := e.kvDelete(key)
 	if err != nil {
 		e.Logger.Error(err)
+		combinedErr = errors.Join(combinedErr, err)
 	}
-	return err
+	if !e.DisableSizeChecks {
+		pages, err := e.GetTransitionPages(transitionID.String())
+		if err != nil {
+			e.Logger.Error(err)
+			combinedErr = errors.Join(combinedErr, err)
+		}
+		for _, page := range pages {
+			key = fmt.Sprintf("%s/%s/%d", keySegTransitionPage, transitionID.String(), page.Index)
+			err = e.kvDelete(key)
+			if err != nil {
+				e.Logger.Error(err)
+				combinedErr = errors.Join(combinedErr, err)
+			}
+		}
+	}
+	return combinedErr
 }
 
 func (e *ETCDStorage) DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.UUID) error {
@@ -514,10 +885,22 @@ func (e *ETCDStorage) DeleteTransitionTask(transitionID uuid.UUID, taskID uuid.U
 }
 
 func (e *ETCDStorage) TASTransition(transition model.Transition, testVal model.Transition) (bool, error) {
+	newTransition, newTransitionPages := e.truncateAndPageTransitionIfNeeded(transition)
 	key := fmt.Sprintf("%s/%s", keySegTransition, transition.TransitionID.String())
-	ok, err := e.kvTAS(key, testVal, transition)
+	ok, err := e.kvTAS(key, testVal, newTransition)
 	if err != nil {
 		e.Logger.Error(err)
+		return ok, err
 	}
-	return ok, err
+	var combinedErr error
+	for _, page := range newTransitionPages {
+		key = fmt.Sprintf("%s/%s/%d", keySegTransitionPage, page.TransitionID.String(), page.Index)
+		err = e.kvStore(key, page)
+		if err != nil {
+			e.Logger.Error(err)
+			errForKey := fmt.Errorf("failed to store key: %s", key)
+			combinedErr = errors.Join(combinedErr, errForKey, err)
+		}
+	}
+	return ok, combinedErr
 }

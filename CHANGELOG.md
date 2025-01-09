@@ -5,11 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.7.0] - 2025-01-08
+## [2.8.0] - 2025-01-08
 
 ### Added
 
 - Added support for ppprof builds
+
+## [2.7.0] - 2024-12-16
+
+### Fixed
+
+- Added support for storing large transitions in etcd
+- Changed to truncate long messages
+- Changed to page large transitions
 
 ## [2.6.0] - 2024-11-25
 
