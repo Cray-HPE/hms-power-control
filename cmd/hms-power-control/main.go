@@ -132,7 +132,7 @@ func main() {
 	flag.IntVar(&maxNumCompleted, "max_num_completed", defaultMaxNumCompleted, "Maximum number of completed records to keep.")
 	flag.IntVar(&expireTimeMins, "expire_time_mins", defaultExpireTimeMins, "The time, in mins, to keep completed records.")
 
-	flag.BoolVar(&etcdDisableSizeChecks, "etcd_size_checks_enabled", false, "Disables checking object size before storing and doing message truncation and paging.")
+	flag.BoolVar(&etcdDisableSizeChecks, "etcd_disable_size_checks", false, "Disables checking object size before storing and doing message truncation and paging.")
 	flag.IntVar(&etcdPageSize, "etcd_page_size", storage.DefaultEtcdPageSize, "The maximum number of records to put in each etcd entry.")
 	flag.IntVar(&maxMessageLength, "max_transition_message_length", storage.DefaultMaxMessageLen, "The maximum length of messages per task in a transition.")
 	flag.IntVar(&etcdMaxObjectSize, "etcd_max_object_size", storage.DefaultMaxEtcdObjectSize, "The maximum data size in bytes for objects in etcd.")
