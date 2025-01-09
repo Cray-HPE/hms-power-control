@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2022-2025] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -38,13 +38,17 @@ import (
 //contains an in-memory implementation already.
 
 type MEMStorage struct {
-	Logger   *logrus.Logger
-	mutex    *sync.Mutex
-	kvHandle hmetcd.Kvi
+	Logger            *logrus.Logger
+	DisableSizeChecks bool
+	PageSize          int
+	MaxMessageLen     int
+	MaxEtcdObjectSize int
+	mutex             *sync.Mutex
+	kvHandle          hmetcd.Kvi
 }
 
 func toETCDStorage(m *MEMStorage) *ETCDStorage {
-	return &ETCDStorage{Logger: m.Logger, mutex: m.mutex, kvHandle: m.kvHandle}
+	return &ETCDStorage{Logger: m.Logger, PageSize: m.PageSize, mutex: m.mutex, kvHandle: m.kvHandle}
 }
 
 func (m *MEMStorage) Init(Logger *logrus.Logger) error {
@@ -54,6 +58,10 @@ func (m *MEMStorage) Init(Logger *logrus.Logger) error {
 		m.Logger = logrus.New()
 	} else {
 		m.Logger = Logger
+	}
+
+	if m.PageSize == 0 {
+		m.PageSize = DefaultEtcdPageSize
 	}
 
 	m.mutex = &sync.Mutex{}
@@ -171,7 +179,7 @@ func (m *MEMStorage) StoreTransitionTask(op model.TransitionTask) error {
 	return e.StoreTransitionTask(op)
 }
 
-func (m *MEMStorage) GetTransition(transitionID uuid.UUID) (model.Transition, error) {
+func (m *MEMStorage) GetTransition(transitionID uuid.UUID) (transition model.Transition, transitionFirstPage model.Transition, err error) {
 	e := toETCDStorage(m)
 	return e.GetTransition(transitionID)
 }

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2025] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -108,6 +108,10 @@ func main() {
 	var credCacheDuration int = 600 //In seconds. 10 mins?
 	var maxNumCompleted int
 	var expireTimeMins int
+	var etcdDisableSizeChecks bool
+	var etcdPageSize int
+	var maxMessageLength int
+	var etcdMaxObjectSize int
 
 	srv := &http.Server{Addr: defaultPORT}
 
@@ -127,6 +131,11 @@ func main() {
 
 	flag.IntVar(&maxNumCompleted, "max_num_completed", defaultMaxNumCompleted, "Maximum number of completed records to keep.")
 	flag.IntVar(&expireTimeMins, "expire_time_mins", defaultExpireTimeMins, "The time, in mins, to keep completed records.")
+
+	flag.BoolVar(&etcdDisableSizeChecks, "etcd_disable_size_checks", false, "Disables checking object size before storing and doing message truncation and paging.")
+	flag.IntVar(&etcdPageSize, "etcd_page_size", storage.DefaultEtcdPageSize, "The maximum number of records to put in each etcd entry.")
+	flag.IntVar(&maxMessageLength, "max_transition_message_length", storage.DefaultMaxMessageLen, "The maximum length of messages per task in a transition.")
+	flag.IntVar(&etcdMaxObjectSize, "etcd_max_object_size", storage.DefaultMaxEtcdObjectSize, "The maximum data size in bytes for objects in etcd.")
 
 	flag.Parse()
 
@@ -241,7 +250,11 @@ func main() {
 	envstr = os.Getenv("STORAGE")
 	if envstr == "" || envstr == "MEMORY" {
 		tmpStorageImplementation := &storage.MEMStorage{
-			Logger: logger.Log,
+			Logger:            logger.Log,
+			DisableSizeChecks: etcdDisableSizeChecks,
+			PageSize:          etcdPageSize,
+			MaxMessageLen:     maxMessageLength,
+			MaxEtcdObjectSize: etcdMaxObjectSize,
 		}
 		DSP = tmpStorageImplementation
 		logger.Log.Info("Storage Provider: In Memory")
@@ -250,7 +263,11 @@ func main() {
 		logger.Log.Info("Distributed Lock Provider: In Memory")
 	} else if envstr == "ETCD" {
 		tmpStorageImplementation := &storage.ETCDStorage{
-			Logger: logger.Log,
+			Logger:            logger.Log,
+			DisableSizeChecks: etcdDisableSizeChecks,
+			PageSize:          etcdPageSize,
+			MaxMessageLen:     maxMessageLength,
+			MaxEtcdObjectSize: etcdMaxObjectSize,
 		}
 		DSP = tmpStorageImplementation
 		logger.Log.Info("Storage Provider: ETCD")
