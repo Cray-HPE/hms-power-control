@@ -1,4 +1,3 @@
-version: '3.7'
 #THIS environment sets up all of PCS except for the main PCS binary..
 #  All dependencies -> HSM (vault, hm-collector, kafka), RTS (red fish sims) are all setup and active.
 #  The ports are exposed to the local system.
@@ -6,7 +5,7 @@ networks:
   pcs:
 services:
   etcd:
-    image: artifactory.algol60.net/quay.io/coreos/etcd:v3.4.7
+    image: artifactory.algol60.net/quay.io/coreos/etcd:v3.5.7
     environment:
       - ALLOW_NONE_AUTHENTICATION=yes
       - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
@@ -51,7 +50,7 @@ services:
     networks:
       - pcs
   cray-smd-init:
-    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.58.0
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd/v2:2.32.0
     environment:
       - SMD_DBHOST=hmsds-postgres
       - SMD_DBPORT=5432
@@ -61,7 +60,7 @@ services:
       - pcs
     command: /entrypoint.sh smd-init
   cray-smd:
-    image: artifactory.algol60.net/csm-docker/stable/cray-smd:1.58.0
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd/v2:2.32.0
     environment:
       - POSTGRES_HOST=hmsds-postgres
       - POSTGRES_PORT=5432
@@ -111,7 +110,7 @@ services:
     networks:
       - pcs
   cray-hms-hmcollector:
-    image: artifactory.algol60.net/csm-docker/stable/hms-hmcollector:2.12.4
+    image: artifactory.algol60.net/csm-docker/stable/hms-hmcollector:2.35.0
     environment:
       - LOG_LEVEL=TRACE
       - SM_URL=http://cray-smd:27779
