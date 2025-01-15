@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2023] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2023,2025] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -51,7 +51,7 @@ stages:
       method: PATCH
       verify: !bool "{verify}"
     response:
-      status_code: 405
+      status_code: 404
 
 ---
 test_name: Verify transitions handles requests for non-present nodes
