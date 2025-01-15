@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2020-2022] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2020-2022,2025] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -30,7 +30,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/sirupsen/logrus"
 )
 

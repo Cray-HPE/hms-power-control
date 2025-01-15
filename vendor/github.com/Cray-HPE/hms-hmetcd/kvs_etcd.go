@@ -27,15 +27,16 @@ package hmetcd
 import (
 	"context"
 	"fmt"
-	"github.com/coreos/etcd/clientv3"
-	"github.com/coreos/etcd/mvcc/mvccpb"
-	"go.etcd.io/etcd/clientv3/concurrency"
 	"log"
 	"os"
 	"path"
 	"strings"
 	"sync"
 	"time"
+
+	"go.etcd.io/etcd/api/v3/mvccpb"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.etcd.io/etcd/client/v3/concurrency"
 )
 
 // Distributed lock stuff
@@ -139,12 +140,13 @@ func getAppBase() string {
 }
 
 // (ETCD) Get the value of a key.  There are several possible return scenarios:
-//   o There is an error fetching the key.  This will result in an empty key,
-//     non-nil error string and the key-exists indicator set to false.
-//   o The key exists but has an empty-string value.  The return values will
-//     be an empty string, key-exists flag set to true, and a nil error.
-//   o The key exists and has a non-empty value.  The return value will be
-//     the key's value, key-exissts flag set to true, and a nil error.
+//
+//	o There is an error fetching the key.  This will result in an empty key,
+//	  non-nil error string and the key-exists indicator set to false.
+//	o The key exists but has an empty-string value.  The return values will
+//	  be an empty string, key-exists flag set to true, and a nil error.
+//	o The key exists and has a non-empty value.  The return value will be
+//	  the key's value, key-exissts flag set to true, and a nil error.
 //
 // key(in):  Key to get the value of.
 //
@@ -163,7 +165,7 @@ func (kvs *Kvs_etcd) Get(key string) (string, bool, error) {
 		return "", false, nil
 	}
 	if kval.Count > 1 {
-		err := fmt.Errorf("WARNING: fetched %d keys for '%s', should only be 1!\n",
+		err := fmt.Errorf("WARNING: fetched %d keys for '%s', should only be 1",
 			kval.Count, key)
 		//for _,ev := range kval.Kvs {
 		//    log.Printf("Key: '%s', val: '%s'\n",ev.Key,ev.Value)
@@ -175,12 +177,13 @@ func (kvs *Kvs_etcd) Get(key string) (string, bool, error) {
 }
 
 // (MEM) Get the value of a key.  There are several possible return scenarios:
-//   o There is an error fetching the key.  This will result in an empty key,
-//     non-nil error string and the key-exists indicator set to false.
-//   o The key exists but has an empty-string value.  The return values will
-//     be an empty string, key-exists flag set to true, and a nil error.
-//   o The key exists and has a non-empty value.  The return value will be
-//     the key's value, key-exissts flag set to true, and a nil error.
+//
+//	o There is an error fetching the key.  This will result in an empty key,
+//	  non-nil error string and the key-exists indicator set to false.
+//	o The key exists but has an empty-string value.  The return values will
+//	  be an empty string, key-exists flag set to true, and a nil error.
+//	o The key exists and has a non-empty value.  The return value will be
+//	  the key's value, key-exissts flag set to true, and a nil error.
 //
 // key(in):  Key to get the value of.
 //
@@ -523,7 +526,7 @@ func (kvs *Kvs_etcd) DistTimedLock(tosec int) error {
 	var err error
 
 	if kvs.cc_session != nil {
-		err = fmt.Errorf("ERROR: distributed lock already held by this process!")
+		err = fmt.Errorf("ERROR: distributed lock already held by this process")
 		return err
 	}
 
@@ -629,10 +632,10 @@ func (kvs *Kvs_etcd) Watch(key string) (string, int) {
 	case mvccpb.PUT:
 		kcval = KVC_KEYCHANGE_PUT
 		keyval = string(ev.Kv.Value) //string(ev.PrevKv.Value)) ??
-		break
+
 	case mvccpb.DELETE:
 		kcval = KVC_KEYCHANGE_DELETE
-		break
+
 	default:
 		log.Printf("ERROR: Unknown trip type: '%s'\n",
 			string(ev.Type))
@@ -713,7 +716,7 @@ func watch_helper_etcd(hnd WatchCBHandle) {
 				hnd.cb(string(ev.Kv.Key), "", hnd.op, hnd.userdata)
 				rv = false //TODO: should we keep watching a deleted key?
 			}
-		case _ = <-hnd.killme:
+		case <-hnd.killme:
 			return
 		}
 
@@ -735,7 +738,7 @@ func watch_helper_mem(hnd WatchCBHandle) {
 	for {
 		rv = true
 		select {
-		case _ = <-hnd.killme:
+		case <-hnd.killme:
 			return
 		default:
 			val, op := mem_watch(hnd.hnd_mem, hnd.key)
@@ -763,9 +766,10 @@ func watch_helper_mem(hnd WatchCBHandle) {
 // Cancelation:
 //
 // The watcher will run until the one of the following takes place:
-//    o The key watched key is deleted,
-//    o The callback function returns 'false'
-//    o The watcher is manually cancelled by calling WatchCBCancel().
+//
+//	o The key watched key is deleted,
+//	o The callback function returns 'false'
+//	o The watcher is manually cancelled by calling WatchCBCancel().
 //
 // key(in):      Key to watch.
 //
@@ -780,7 +784,7 @@ func (kvs *Kvs_etcd) WatchWithCB(key string, op int, cb WatchCBFunc, userdata in
 	var wh = WatchCBHandle{}
 
 	if (op != KVC_KEYCHANGE_PUT) && (op != KVC_KEYCHANGE_DELETE) {
-		return wh, fmt.Errorf("Invalid key watch operation: %d", op)
+		return wh, fmt.Errorf("invalid key watch operation: %d", op)
 	}
 
 	wh = WatchCBHandle{key, op, make(chan int, 2), cb, userdata, kvs, nil}
@@ -796,9 +800,10 @@ func (kvs *Kvs_etcd) WatchWithCB(key string, op int, cb WatchCBFunc, userdata in
 // Cancelation:
 //
 // The watcher will run until the one of the following takes place:
-//    o The key watched key is deleted,
-//    o The callback function returns 'false'
-//    o The watcher is manually cancelled by calling WatchCBCancel().
+//
+//	o The key watched key is deleted,
+//	o The callback function returns 'false'
+//	o The watcher is manually cancelled by calling WatchCBCancel().
 //
 // key(in):      Key to watch.
 //
@@ -813,7 +818,7 @@ func (kvs *Kvs_etcd) WatchWithCB(key string, op int, cb WatchCBFunc, userdata in
 func (kvs *Kvs_mem) WatchWithCB(key string, op int, cb WatchCBFunc, userdata interface{}) (WatchCBHandle, error) {
 	var wh = WatchCBHandle{}
 	if (op != KVC_KEYCHANGE_PUT) && (op != KVC_KEYCHANGE_DELETE) {
-		return wh, fmt.Errorf("Invalid key watch operation: %d", op)
+		return wh, fmt.Errorf("invalid key watch operation: %d", op)
 	}
 	wh = WatchCBHandle{key, op, make(chan int, 2), cb, userdata, nil, kvs}
 	go watch_helper_mem(wh)
