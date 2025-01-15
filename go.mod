@@ -19,7 +19,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/namsral/flag v1.7.4-pre
 	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.7.2
+	github.com/stretchr/testify v1.10.0
 )
 
 require (
