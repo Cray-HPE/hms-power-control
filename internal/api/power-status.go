@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2025] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,10 +28,10 @@ import (
 	"io"
 	"net/http"
 
-	base "github.com/Cray-HPE/hms-base"
 	"github.com/Cray-HPE/hms-power-control/internal/domain"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
+	"github.com/Cray-HPE/hms-xname/xnametypes"
 	"github.com/sirupsen/logrus"
 )
 
@@ -67,7 +67,7 @@ func doGetPowerStatus(w http.ResponseWriter,
 		return
 	}
 	//validates the schema of the xname, not that the xname actually exists; that requires a HSM call.
-	xnames, badXnames := base.ValidateCompIDs(xnamesReq, true)
+	xnames, badXnames := xnametypes.ValidateCompIDs(xnamesReq, true)
 	if len(badXnames) > 0 {
 
 		errormsg := "invalid xnames detected:"

@@ -32,10 +32,11 @@ import (
 	"strings"
 	"time"
 
-	base "github.com/Cray-HPE/hms-base"
+	base "github.com/Cray-HPE/hms-base/v2"
 	"github.com/Cray-HPE/hms-power-control/internal/hsm"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
+	"github.com/Cray-HPE/hms-xname/xnametypes"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -51,7 +52,7 @@ type TransitionComponent struct {
 
 type PowerSeqElem struct {
 	Action    string
-	CompTypes []base.HMSType
+	CompTypes []xnametypes.HMSType
 	Wait      int
 }
 
@@ -63,51 +64,51 @@ type PowerSupply struct {
 var PowerSequenceFull = []PowerSeqElem{
 	{
 		Action:    "gracefulshutdown",
-		CompTypes: []base.HMSType{base.Node},
+		CompTypes: []xnametypes.HMSType{xnametypes.Node},
 	}, {
 		Action:    "forceoff",
-		CompTypes: []base.HMSType{base.Node},
+		CompTypes: []xnametypes.HMSType{xnametypes.Node},
 	}, {
 		Action:    "gracefulshutdown",
-		CompTypes: []base.HMSType{base.RouterModule, base.ComputeModule},
+		CompTypes: []xnametypes.HMSType{xnametypes.RouterModule, xnametypes.ComputeModule},
 	}, {
 		Action:    "forceoff",
-		CompTypes: []base.HMSType{base.RouterModule, base.ComputeModule},
+		CompTypes: []xnametypes.HMSType{xnametypes.RouterModule, xnametypes.ComputeModule},
 	}, {
 		Action:    "gracefulshutdown",
-		CompTypes: []base.HMSType{base.Chassis},
+		CompTypes: []xnametypes.HMSType{xnametypes.Chassis},
 	}, {
 		Action:    "forceoff",
-		CompTypes: []base.HMSType{base.Chassis},
+		CompTypes: []xnametypes.HMSType{xnametypes.Chassis},
 	}, {
 		Action:    "gracefulshutdown",
-		CompTypes: []base.HMSType{base.CabinetPDUPowerConnector},
+		CompTypes: []xnametypes.HMSType{xnametypes.CabinetPDUPowerConnector},
 	}, {
 		Action:    "forceoff",
-		CompTypes: []base.HMSType{base.CabinetPDUPowerConnector},
+		CompTypes: []xnametypes.HMSType{xnametypes.CabinetPDUPowerConnector},
 	}, {
 		Action: "gracefulrestart",
 		// Not all of these components support GracefulRestart but, if they did,
 		// since power isn't being dropped doing them all (except BMCs) at the
 		// same time should be fine.
-		CompTypes: []base.HMSType{base.Node, base.RouterModule, base.ComputeModule, base.Chassis, base.CabinetPDUPowerConnector, base.MgmtSwitch, base.MgmtHLSwitch, base.CDUMgmtSwitch},
+		CompTypes: []xnametypes.HMSType{xnametypes.Node, xnametypes.RouterModule, xnametypes.ComputeModule, xnametypes.Chassis, xnametypes.CabinetPDUPowerConnector, xnametypes.MgmtSwitch, xnametypes.MgmtHLSwitch, xnametypes.CDUMgmtSwitch},
 	}, {
 		Action: "gracefulrestart",
 		// Restart BMCs after everything else because restarting the BMC will cause
 		// redfish to temporarily become unresponsive.
-		CompTypes: []base.HMSType{base.ChassisBMC, base.NodeBMC, base.RouterBMC},
+		CompTypes: []xnametypes.HMSType{xnametypes.ChassisBMC, xnametypes.NodeBMC, xnametypes.RouterBMC},
 	}, {
 		Action:    "on",
-		CompTypes: []base.HMSType{base.CabinetPDUPowerConnector},
+		CompTypes: []xnametypes.HMSType{xnametypes.CabinetPDUPowerConnector},
 	}, {
 		Action:    "on",
-		CompTypes: []base.HMSType{base.Chassis},
+		CompTypes: []xnametypes.HMSType{xnametypes.Chassis},
 	}, {
 		Action:    "on",
-		CompTypes: []base.HMSType{base.RouterModule, base.ComputeModule},
+		CompTypes: []xnametypes.HMSType{xnametypes.RouterModule, xnametypes.ComputeModule},
 	}, {
 		Action:    "on",
-		CompTypes: []base.HMSType{base.Node},
+		CompTypes: []xnametypes.HMSType{xnametypes.Node},
 	},
 }
 
@@ -358,18 +359,18 @@ func doTransition(transitionID uuid.UUID) {
 			}
 			// Set failures for each listed xname
 			comp.Task.Status = model.TransitionTaskStatusFailed
-			compType := base.GetHMSType(xname)
-			if compType != base.Chassis &&
-				compType != base.ComputeModule &&
-				compType != base.Node &&
-				compType != base.RouterModule &&
-				compType != base.CabinetPDUPowerConnector &&
-				compType != base.ChassisBMC &&
-				compType != base.NodeBMC &&
-				compType != base.RouterBMC &&
-				compType != base.MgmtSwitch &&
-				compType != base.MgmtHLSwitch &&
-				compType != base.CDUMgmtSwitch {
+			compType := xnametypes.GetHMSType(xname)
+			if compType != xnametypes.Chassis &&
+				compType != xnametypes.ComputeModule &&
+				compType != xnametypes.Node &&
+				compType != xnametypes.RouterModule &&
+				compType != xnametypes.CabinetPDUPowerConnector &&
+				compType != xnametypes.ChassisBMC &&
+				compType != xnametypes.NodeBMC &&
+				compType != xnametypes.RouterBMC &&
+				compType != xnametypes.MgmtSwitch &&
+				compType != xnametypes.MgmtHLSwitch &&
+				compType != xnametypes.CDUMgmtSwitch {
 				comp.Task.Error = "No power control for component type " + compType.String()
 			} else {
 				comp.Task.Error = "Missing xname"
@@ -509,7 +510,7 @@ func doTransition(transitionID uuid.UUID) {
 		comp.PowerSupplies = getPowerSupplies(hData)
 
 		// Add any Rosettas if we're powering off RouterModules
-		if (base.GetHMSType(xname) == base.RouterModule) &&
+		if (xnametypes.GetHMSType(xname) == xnametypes.RouterModule) &&
 			((hData.BaseData.Class == base.ClassHill.String()) || (hData.BaseData.Class == base.ClassMountain.String())) &&
 			(tr.Operation != model.Operation_On) {
 			switchXname := xname + "e0"
@@ -963,7 +964,7 @@ func doTransition(transitionID uuid.UUID) {
 						_, hasForceOff := comp.Actions["forceoff"]
 						if powerAction == "gracefulshutdown" && !isSoft && hasForceOff {
 							// Add components that timed out to the ForceOff list (if we're doing ForceOff)
-							compType := base.GetHMSType(comp.Task.Xname)
+							compType := xnametypes.GetHMSType(comp.Task.Xname)
 							seqMap["forceoff"][compType] = append(seqMap["forceoff"][compType], comp)
 						} else {
 							// We have timed out and we have either tried ForceOff or are not doing a ForceOff.
@@ -986,16 +987,16 @@ func doTransition(transitionID uuid.UUID) {
 			// want to give their BMCs some time to become ready.
 			if powerAction == "on" {
 				for _, compType := range compTypes {
-					if compType == base.RouterModule ||
-						compType == base.ComputeModule {
+					if compType == xnametypes.RouterModule ||
+						compType == xnametypes.ComputeModule {
 						waitForBMCPower = true
 					}
 				}
 			} else if powerAction == "gracefulrestart" {
 				for _, compType := range compTypes {
-					if compType == base.ChassisBMC ||
-						compType == base.NodeBMC ||
-						compType == base.RouterBMC {
+					if compType == xnametypes.ChassisBMC ||
+						compType == xnametypes.NodeBMC ||
+						compType == xnametypes.RouterBMC {
 						waitForBMCPower = true
 					}
 				}
@@ -1161,26 +1162,26 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 	xnameMap := make(map[string]model.PowerStatusComponent)
 	for _, xname := range xnames {
 		if _, ok := xnameMap[xname]; !ok {
-			switch base.GetHMSType(xname) {
-			case base.ChassisBMC:
+			switch xnametypes.GetHMSType(xname) {
+			case xnametypes.ChassisBMC:
 				fallthrough
-			case base.NodeBMC:
+			case xnametypes.NodeBMC:
 				fallthrough
-			case base.RouterBMC:
+			case xnametypes.RouterBMC:
 				fallthrough
-			case base.Node:
+			case xnametypes.Node:
 				fallthrough
-			case base.Chassis:
+			case xnametypes.Chassis:
 				fallthrough
-			case base.ComputeModule:
+			case xnametypes.ComputeModule:
 				fallthrough
-			case base.MgmtSwitch:
+			case xnametypes.MgmtSwitch:
 				fallthrough
-			case base.MgmtHLSwitch:
+			case xnametypes.MgmtHLSwitch:
 				fallthrough
-			case base.CDUMgmtSwitch:
+			case xnametypes.CDUMgmtSwitch:
 				fallthrough
-			case base.CabinetPDUPowerConnector:
+			case xnametypes.CabinetPDUPowerConnector:
 				pState, err := (*GLOB.DSP).GetPowerStatus(xname)
 				if err != nil {
 					if strings.Contains(err.Error(), "does not exist") {
@@ -1193,7 +1194,7 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 				} else {
 					xnameMap[xname] = pState
 				}
-			case base.RouterModule:
+			case xnametypes.RouterModule:
 				found := false
 				pStates, err := (*GLOB.DSP).GetPowerStatusHierarchy(xname)
 				if err != nil {
@@ -1205,8 +1206,8 @@ func getPowerStateHierarchy(xnames []string) (map[string]model.PowerStatusCompon
 					continue
 				}
 				for _, ps := range pStates.Status {
-					switch base.GetHMSType(ps.XName) {
-					case base.RouterModule:
+					switch xnametypes.GetHMSType(ps.XName) {
+					case xnametypes.RouterModule:
 						xnameMap[ps.XName] = ps
 						// Make sure our original xname is part
 						// of the list of components found.
@@ -1274,31 +1275,31 @@ func setupTransitionTasks(tr *model.Transition) (map[string]*TransitionComponent
 		task.DeputyKey = loc.DeputyKey
 
 		// Weed out invalid xnames and components we can't power control here.
-		compType := base.GetHMSType(loc.Xname)
+		compType := xnametypes.GetHMSType(loc.Xname)
 		switch compType {
-		case base.ChassisBMC:
+		case xnametypes.ChassisBMC:
 			fallthrough
-		case base.NodeBMC:
+		case xnametypes.NodeBMC:
 			fallthrough
-		case base.RouterBMC:
+		case xnametypes.RouterBMC:
 			fallthrough
-		case base.Node:
+		case xnametypes.Node:
 			fallthrough
-		case base.Chassis:
+		case xnametypes.Chassis:
 			fallthrough
-		case base.ComputeModule:
+		case xnametypes.ComputeModule:
 			fallthrough
-		case base.RouterModule:
+		case xnametypes.RouterModule:
 			fallthrough
-		case base.MgmtSwitch:
+		case xnametypes.MgmtSwitch:
 			fallthrough
-		case base.MgmtHLSwitch:
+		case xnametypes.MgmtHLSwitch:
 			fallthrough
-		case base.CDUMgmtSwitch:
+		case xnametypes.CDUMgmtSwitch:
 			fallthrough
-		case base.CabinetPDUPowerConnector:
+		case xnametypes.CabinetPDUPowerConnector:
 			task.StatusDesc = "Gathering data"
-		case base.HMSTypeInvalid:
+		case xnametypes.HMSTypeInvalid:
 			task.Status = model.TransitionTaskStatusFailed
 			task.Error = "Invalid xname"
 			task.StatusDesc = "Failed to achieve transition"
@@ -1321,13 +1322,13 @@ func setupTransitionTasks(tr *model.Transition) (map[string]*TransitionComponent
 }
 
 // Sorts components into groups by power action then comptype so they can follow a proper power sequence.
-func sequenceComponents(operation model.Operation, xnameMap map[string]*TransitionComponent) (map[string]map[base.HMSType][]*TransitionComponent, []hsm.ReservationData) {
+func sequenceComponents(operation model.Operation, xnameMap map[string]*TransitionComponent) (map[string]map[xnametypes.HMSType][]*TransitionComponent, []hsm.ReservationData) {
 	var resData []hsm.ReservationData
-	seqMap := map[string]map[base.HMSType][]*TransitionComponent{
-		"on":               make(map[base.HMSType][]*TransitionComponent),
-		"gracefulshutdown": make(map[base.HMSType][]*TransitionComponent),
-		"forceoff":         make(map[base.HMSType][]*TransitionComponent),
-		"gracefulrestart":  make(map[base.HMSType][]*TransitionComponent),
+	seqMap := map[string]map[xnametypes.HMSType][]*TransitionComponent{
+		"on":               make(map[xnametypes.HMSType][]*TransitionComponent),
+		"gracefulshutdown": make(map[xnametypes.HMSType][]*TransitionComponent),
+		"forceoff":         make(map[xnametypes.HMSType][]*TransitionComponent),
+		"gracefulrestart":  make(map[xnametypes.HMSType][]*TransitionComponent),
 	}
 
 	for xname, comp := range xnameMap {
@@ -1347,9 +1348,9 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 			continue
 		}
 
-		compType := base.GetHMSType(xname)
+		compType := xnametypes.GetHMSType(xname)
 
-		isBMC := base.IsHMSTypeController(compType)
+		isBMC := xnametypes.IsHMSTypeController(compType)
 		supportsOp := false
 		for _, op := range comp.PState.SupportedPowerTransitions {
 			if op == operation.String() {
@@ -1438,10 +1439,10 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 					// If a parent component has also been requested and it doesn't
 					// support gracefulrestart, power will be dropped. Do an off->on
 					// if power will be dropped.
-					id := base.GetHMSCompParent(xname)
+					id := xnametypes.GetHMSCompParent(xname)
 					for {
-						parentType := base.GetHMSType(id)
-						if parentType == base.HMSTypeInvalid {
+						parentType := xnametypes.GetHMSType(id)
+						if parentType == xnametypes.HMSTypeInvalid {
 							break
 						}
 						if parent, ok := xnameMap[id]; ok {
@@ -1451,7 +1452,7 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 								parentSupportsRestart = false
 							}
 						} else {
-							id = base.GetHMSCompParent(id)
+							id = xnametypes.GetHMSCompParent(id)
 						}
 					}
 				}
@@ -1577,7 +1578,7 @@ func sequenceComponents(operation model.Operation, xnameMap map[string]*Transiti
 // value the hardware supports.
 func generateTransitionPayload(comp *TransitionComponent, action string) (string, error) {
 	var body string
-	compType := base.GetHMSType(comp.PState.XName)
+	compType := xnametypes.GetHMSType(comp.PState.XName)
 	resetType, ok := comp.Actions[action]
 	if !ok {
 		if action == "gracefulshutdown" {
@@ -1594,7 +1595,7 @@ func generateTransitionPayload(comp *TransitionComponent, action string) (string
 			return "", errors.New("Power action not supported for " + comp.PState.XName)
 		}
 	}
-	if compType == base.CabinetPDUPowerConnector {
+	if compType == xnametypes.CabinetPDUPowerConnector {
 		if !strings.Contains(comp.HSMData.RfFQDN, "rts") {
 			outlet := strings.Split(comp.PState.XName, "v")
 			if len(outlet) < 2 {
@@ -1645,9 +1646,9 @@ func getOpForPowerAction(powerAction string) model.Operation {
 // The newly failed parent components will get skipped when it is their turn.
 func failDependentComps(xnameMap map[string]*TransitionComponent, powerAction string, xname string, errMsg string) {
 	var parents []string
-	if powerAction == "gracefulshutdown" && base.GetHMSType(xname) == base.Node {
-		parent := base.GetHMSCompParent(xname) // NodeBMC
-		parent = base.GetHMSCompParent(parent) // ComputeModule
+	if powerAction == "gracefulshutdown" && xnametypes.GetHMSType(xname) == xnametypes.Node {
+		parent := xnametypes.GetHMSCompParent(xname) // NodeBMC
+		parent = xnametypes.GetHMSCompParent(parent) // ComputeModule
 		parents = append(parents, parent)
 	}
 	if len(parents) > 0 {

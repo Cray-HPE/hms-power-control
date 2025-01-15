@@ -7,14 +7,14 @@ toolchain go1.23.1
 //todo hms-base needs to be converted to hms-xname as soon as that package is available.
 
 require (
-	github.com/Cray-HPE/hms-base v1.15.1
+	github.com/Cray-HPE/hms-base/v2 v2.1.1-0.20250115145051-38c3b67dad0b
 	github.com/Cray-HPE/hms-certs v1.3.3
 	github.com/Cray-HPE/hms-compcredentials v1.11.2
 	github.com/Cray-HPE/hms-hmetcd v1.10.3
 	github.com/Cray-HPE/hms-securestorage v1.13.0
 	github.com/Cray-HPE/hms-smd/v2 v2.4.0
 	github.com/Cray-HPE/hms-trs-app-api/v3 v3.0.1
-	github.com/Cray-HPE/hms-xname v1.3.0
+	github.com/Cray-HPE/hms-xname v1.4.0
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/namsral/flag v1.7.4-pre
@@ -23,12 +23,12 @@ require (
 )
 
 require (
-	github.com/Cray-HPE/hms-base/v2 v2.0.1 // indirect
+	github.com/Cray-HPE/hms-base v1.15.1 // indirect
 	github.com/Cray-HPE/hms-trs-kafkalib/v2 v2.0.1 // indirect
 	github.com/confluentinc/confluent-kafka-go v1.8.2 // indirect
 	github.com/coreos/etcd v3.3.13+incompatible // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/fsnotify/fsnotify v1.4.9 // indirect
+	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
@@ -50,7 +50,7 @@ require (
 	go.etcd.io/etcd v3.3.13+incompatible // indirect
 	golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899 // indirect
 	golang.org/x/net v0.0.0-20200813134508-3edf25e44fcc // indirect
-	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/sys v0.29.0 // indirect
 	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	google.golang.org/genproto v0.0.0-20200815001618-f69a88009b70 // indirect
