@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2020-2023] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2020-2024] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -29,16 +29,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
 
+	base "github.com/Cray-HPE/hms-base/v2"
+	"github.com/Cray-HPE/hms-smd/v2/pkg/sm"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/sirupsen/logrus"
-	"github.com/Cray-HPE/hms-base"
-	"github.com/Cray-HPE/hms-smd/v2/pkg/sm"
 )
 
 const HSM_DEFAULT_RESERVATION_PATH = "/hsm/v2/locks/service/reservations"
@@ -46,6 +47,27 @@ const HSM_DEFAULT_SERVER = "https://api-gw-service-nmn/apis/smd"
 const DEFAULT_TERM_MINUTES = 1
 const DefaultExpirationWindow = 30
 const DefaultSleepTime = 10
+
+// Response bodies should always be drained and closed, else we leak resources
+// and fail to reuse network connections.
+// TODO: This should be moved into hms-base
+func DrainAndCloseResponseBody(resp *http.Response) {
+	if resp != nil && resp.Body != nil {
+			_, _ = io.Copy(io.Discard, resp.Body) // ok even if already drained
+			resp.Body.Close()                     // ok even if already closed
+	}
+}
+
+func DrainAndCloseResponseBodyAndCancelContext(resp *http.Response, ctxCancel context.CancelFunc) {
+	// Must always drain and close response body first
+	DrainAndCloseResponseBody(resp)
+
+	// Call context cancel function, if supplied.  This must always be done
+	// after draining and closing the response body
+	if ctxCancel != nil {
+			ctxCancel()
+	}
+}
 
 //TODO - Future Enhancements
 // * ALLOW both rigid an flexible processing -> not sure rigid release makes sense... so really just flexible on the AQUIRE
@@ -280,10 +302,11 @@ func (i *Production) doRenew(reservationKeys []Key, flex bool) (ReservationRelea
 	}
 	base.SetHTTPUserAgent(newRequest, serviceName)
 
-	reqContext, _ := context.WithTimeout(context.Background(), time.Second*40)
+	reqContext, reqCtxCancel := context.WithTimeout(context.Background(), time.Second*40)
 	req, err := retryablehttp.FromRequest(newRequest)
 	req = req.WithContext(reqContext)
 	if err != nil {
+		reqCtxCancel()
 		i.logger.WithField("error", err).Error("doRenew() - END")
 		return response, err
 	}
@@ -292,13 +315,13 @@ func (i *Production) doRenew(reservationKeys []Key, flex bool) (ReservationRelea
 
 	//make request
 	resp, err := i.httpClient.Do(req)
+	defer DrainAndCloseResponseBodyAndCancelContext(resp, reqCtxCancel)
 	if err != nil {
 		i.logger.WithField("error", err).Error("doRenew() - END")
 		return response, err
 	}
 
 	//process response
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		i.logger.WithField("error", err).Error("doRenew() - END")
@@ -351,10 +374,11 @@ func (i *Production) Aquire(xnames []string) error {
 	}
 	base.SetHTTPUserAgent(newRequest,serviceName)
 
-	reqContext, _ := context.WithTimeout(context.Background(), time.Second*40)
+	reqContext, reqCtxCancel := context.WithTimeout(context.Background(), time.Second*40)
 	req, err := retryablehttp.FromRequest(newRequest)
 	req = req.WithContext(reqContext)
 	if err != nil {
+		reqCtxCancel()
 		i.logger.WithField("error", err).Error("Aquire() - END")
 		return err
 	}
@@ -363,13 +387,13 @@ func (i *Production) Aquire(xnames []string) error {
 
 	//make request
 	resp, err := i.httpClient.Do(req)
+	defer DrainAndCloseResponseBodyAndCancelContext(resp, reqCtxCancel)
 	if err != nil {
 		i.logger.WithField("error", err).Error("Aquire() - END")
 		return err
 	}
 
 	//process response
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		i.logger.WithField("error", err).Error("Aquire() - END")
@@ -447,10 +471,11 @@ func (i *Production) FlexAquire(xnames []string) (ReservationCreateResponse,erro
 	}
 	base.SetHTTPUserAgent(newRequest,serviceName)
 
-	reqContext, _ := context.WithTimeout(context.Background(), time.Second*40)
+	reqContext, reqCtxCancel := context.WithTimeout(context.Background(), time.Second*40)
 	req, err := retryablehttp.FromRequest(newRequest)
 	req = req.WithContext(reqContext)
 	if err != nil {
+		reqCtxCancel()
 		i.logger.WithField("error", err).Error("SoftAquire() - END")
 		return resResponse,err
 	}
@@ -459,13 +484,13 @@ func (i *Production) FlexAquire(xnames []string) (ReservationCreateResponse,erro
 
 	//make request
 	resp, err := i.httpClient.Do(req)
+	defer DrainAndCloseResponseBodyAndCancelContext(resp, reqCtxCancel)
 	if err != nil {
 		i.logger.WithField("error", err).Error("SoftAquire() - END")
 		return resResponse,err
 	}
 
 	//process response
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		i.logger.WithField("error", err).Error("SoftAquire() - END")
@@ -632,10 +657,11 @@ func (i *Production) Release(xnames []string) error {
 	}
 	base.SetHTTPUserAgent(newRequest,serviceName)
 
-	reqContext, _ := context.WithTimeout(context.Background(), time.Second*40)
+	reqContext, reqCtxCancel := context.WithTimeout(context.Background(), time.Second*40)
 	req, err := retryablehttp.FromRequest(newRequest)
 	req = req.WithContext(reqContext)
 	if err != nil {
+		reqCtxCancel()
 		i.logger.WithField("error", err).Error("Release() - END")
 		return err
 	}
@@ -644,13 +670,13 @@ func (i *Production) Release(xnames []string) error {
 
 	//make request
 	resp, err := i.httpClient.Do(req)
+	defer DrainAndCloseResponseBodyAndCancelContext(resp, reqCtxCancel)
 	if err != nil {
 		i.logger.WithField("error", err).Error("Release() - END")
 		return err
 	}
 
 	//process response
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		i.logger.WithField("error", err).Error("Release() - END")
@@ -749,10 +775,11 @@ func (i *Production) FlexRelease(xnames []string) (ReservationReleaseRenewRespon
 	}
 	base.SetHTTPUserAgent(newRequest,serviceName)
 
-	reqContext, _ := context.WithTimeout(context.Background(), time.Second*40)
+	reqContext, reqCtxCancel := context.WithTimeout(context.Background(), time.Second*40)
 	req, err := retryablehttp.FromRequest(newRequest)
 	req = req.WithContext(reqContext)
 	if err != nil {
+		reqCtxCancel()
 		i.logger.WithField("error", err).Error("SoftRelease() - END")
 		return retData,err
 	}
@@ -761,13 +788,13 @@ func (i *Production) FlexRelease(xnames []string) (ReservationReleaseRenewRespon
 
 	//make request
 	resp, err := i.httpClient.Do(req)
+	defer DrainAndCloseResponseBodyAndCancelContext(resp, reqCtxCancel)
 	if err != nil {
 		i.logger.WithField("error", err).Error("SoftRelease() - END")
 		return retData,err
 	}
 
 	//process response
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		i.logger.WithField("error", err).Error("SoftRelease() - END")
@@ -851,10 +878,11 @@ func (i *Production) update() {
 	}
 	base.SetHTTPUserAgent(newRequest,serviceName)
 
-	reqContext, _ := context.WithTimeout(context.Background(), time.Second*40)
+	reqContext, reqCtxCancel := context.WithTimeout(context.Background(), time.Second*40)
 	req, err := retryablehttp.FromRequest(newRequest)
 	req = req.WithContext(reqContext)
 	if err != nil {
+		reqCtxCancel()
 		i.logger.WithField("error", err).Error("update() - END")
 		return
 	}
@@ -863,13 +891,13 @@ func (i *Production) update() {
 
 	//make request
 	resp, err := i.httpClient.Do(req)
+	defer DrainAndCloseResponseBodyAndCancelContext(resp, reqCtxCancel)
 	if err != nil {
 		i.logger.WithField("error", err).Error("update() - END")
 		return
 	}
 
 	//process response
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		i.logger.WithField("error", err).Error("update() - END")
@@ -954,10 +982,11 @@ func (i *Production) ValidateDeputyKeys(keys []Key) (ReservationCheckResponse,er
 			err)
 	}
 	req, err := retryablehttp.FromRequest(newRequest)
-	reqContext,_ := context.WithTimeout(context.Background(), 40*time.Second)
+	reqContext, reqCtxCancel := context.WithTimeout(context.Background(), 40*time.Second)
 	req = req.WithContext(reqContext)
 
 	rsp,rsperr := i.httpClient.Do(req)
+	defer DrainAndCloseResponseBodyAndCancelContext(rsp, reqCtxCancel)
 	if (rsperr != nil) {
 		return retData,fmt.Errorf("Error sending http request for deputy key check: %v",
 			rsperr)
