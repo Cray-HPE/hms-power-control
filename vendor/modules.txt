@@ -10,7 +10,7 @@ github.com/Cray-HPE/hms-certs/pkg/hms_certs
 # github.com/Cray-HPE/hms-compcredentials v1.11.2
 ## explicit; go 1.16
 github.com/Cray-HPE/hms-compcredentials
-# github.com/Cray-HPE/hms-hmetcd v1.11.0
+# github.com/Cray-HPE/hms-hmetcd v1.11.1-0.20250115230651-a066da5f7788
 ## explicit; go 1.23
 github.com/Cray-HPE/hms-hmetcd
 # github.com/Cray-HPE/hms-securestorage v1.13.0
