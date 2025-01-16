@@ -24,10 +24,13 @@
 NAME ?= cray-power-control
 VERSION ?= $(shell cat .version)
 
-all: image unittest integration snyk ct ct_image
+all: image image-pprof unittest integration snyk ct ct_image
 
 image:
 	docker build --pull ${DOCKER_ARGS} --tag '${NAME}:${VERSION}' .
+
+image-pprof:
+	docker build --pull ${DOCKER_ARGS} --tag '${NAME}-pprof:${VERSION}' -f Dockerfile.pprof .
 
 unittest:
 	./runUnitTest.sh

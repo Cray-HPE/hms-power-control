@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2021-2025] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -31,23 +31,23 @@ RUN set -ex \
     && apk add curl \
     && apk add jq
 
-ENV SMS_SERVER "http://cray-smd:27779"
-ENV LOG_LEVEL "INFO"
-ENV SERVICE_RESERVATION_VERBOSITY "ERROR"
-ENV TRS_IMPLEMENTATION "LOCAL"
-ENV STORAGE "BOTH"
-ENV ETCD_HOST "etcd"
-ENV ETCD_PORT "2379"
-ENV HSMLOCK_ENABELD "true"
+ENV SMS_SERVER="http://cray-smd:27779"
+ENV LOG_LEVEL="INFO"
+ENV SERVICE_RESERVATION_VERBOSITY="ERROR"
+ENV TRS_IMPLEMENTATION="LOCAL"
+ENV STORAGE="BOTH"
+ENV ETCD_HOST="etcd"
+ENV ETCD_PORT="2379"
+ENV HSMLOCK_ENABELD="true"
 
-ENV VAULT_TOKEN "hms"
-ENV VAULT_ENABLED "true"
+ENV VAULT_TOKEN="hms"
+ENV VAULT_ENABLED="true"
 ENV VAULT_ADDR="http://vault:8200"
 ENV VAULT_SKIP_VERIFY="true"
 ENV VAULT_KEYPATH="secret/hms-creds"
-ENV CRAY_VAULT_AUTH_PATH "auth/token/create"
-ENV CRAY_VAULT_ROLE_FILE "/go/configs/namespace"
-ENV CRAY_VAULT_JWT_FILE "/go/configs/token"
+ENV CRAY_VAULT_AUTH_PATH="auth/token/create"
+ENV CRAY_VAULT_ROLE_FILE="/go/configs/namespace"
+ENV CRAY_VAULT_JWT_FILE="/go/configs/token"
 
 RUN go env -w GO111MODULE=auto
 
@@ -58,12 +58,12 @@ COPY vendor $GOPATH/src/github.com/Cray-HPE/hms-power-control/vendor
 COPY internal $GOPATH/src/github.com/Cray-HPE/hms-power-control/internal
 COPY .version $GOPATH/src/github.com/Cray-HPE/hms-power-control/.version
 
-CMD set -ex \
+CMD ["sh", "-c", "set -ex \
     && ./scripts/wait-for-discovery.sh \
     && go version \
     && go test -cover -v -tags musl -o power-control github.com/Cray-HPE/hms-power-control/internal/domain \
     && go test -cover -v -tags musl -o power-control github.com/Cray-HPE/hms-power-control/internal/api \
     && go test -cover -v -tags musl -o power-control github.com/Cray-HPE/hms-power-control/internal/model \
     && go test -cover -v -tags musl -o power-control github.com/Cray-HPE/hms-power-control/internal/storage \
-    && go test -cover -v -tags musl -o power-control github.com/Cray-HPE/hms-power-control/internal/hsm
+    && go test -cover -v -tags musl -o power-control github.com/Cray-HPE/hms-power-control/internal/hsm"]
 
