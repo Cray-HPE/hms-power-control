@@ -11,7 +11,7 @@ require (
 	github.com/Cray-HPE/hms-hmetcd v1.12.0
 	github.com/Cray-HPE/hms-securestorage v1.13.0
 	github.com/Cray-HPE/hms-smd/v2 v2.32.0
-	github.com/Cray-HPE/hms-trs-app-api/v3 v3.0.3-0.20250115161119-969732941dcf
+	github.com/Cray-HPE/hms-trs-app-api/v3 v3.0.4
 	github.com/Cray-HPE/hms-xname v1.4.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -22,7 +22,7 @@ require (
 
 require (
 	github.com/Cray-HPE/hms-base v1.15.1 // indirect
-	github.com/Cray-HPE/hms-trs-kafkalib/v2 v2.0.2-0.20250115152934-9169af0750a9 // indirect
+	github.com/Cray-HPE/hms-trs-kafkalib/v2 v2.0.2 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/confluentinc/confluent-kafka-go/v2 v2.8.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect

@@ -24,10 +24,10 @@ github.com/Cray-HPE/hms-securestorage v1.13.0 h1:ut6z9TMtCzL902f9NPxcbtkkDuk9zbX
 github.com/Cray-HPE/hms-securestorage v1.13.0/go.mod h1:P4CMKqQVlx/lv+AdyEjNQubZw2FKNyo/IAtFNgQ3VuI=
 github.com/Cray-HPE/hms-smd/v2 v2.32.0 h1:bqSA1h12WbziicCJtV/IZZURE2JLf8xGVN8IumYIiCU=
 github.com/Cray-HPE/hms-smd/v2 v2.32.0/go.mod h1:8HB2z9n3SdhLYZUoaZw47otNvPyqhrKnrNIx4yr/KRg=
-github.com/Cray-HPE/hms-trs-app-api/v3 v3.0.3-0.20250115161119-969732941dcf h1:PsWwKhWw99dslTX7UKeJNu+TEGPxstCvzoIC43GehaI=
-github.com/Cray-HPE/hms-trs-app-api/v3 v3.0.3-0.20250115161119-969732941dcf/go.mod h1:QbQsSMt4yq4JdFt36ebRQ1004pnwjH8+tWAiHB2TSZk=
-github.com/Cray-HPE/hms-trs-kafkalib/v2 v2.0.2-0.20250115152934-9169af0750a9 h1:Rp65hQSm4h32WgeBAoeVBsS5jWV/kwQ0IUjufIF8LZI=
-github.com/Cray-HPE/hms-trs-kafkalib/v2 v2.0.2-0.20250115152934-9169af0750a9/go.mod h1:bncdeFK0qgIxk404FcJItaEbDF9DCoHF7Lo5MM5sC+s=
+github.com/Cray-HPE/hms-trs-app-api/v3 v3.0.4 h1:B+NEyED76WIkexnmxyBUvvRHlc6XiTJTP8k6hjiqt0A=
+github.com/Cray-HPE/hms-trs-app-api/v3 v3.0.4/go.mod h1:i9NhwdrF6ffq7Wh4YZ+vu9itWryYrymaaLZhcsjFIlo=
+github.com/Cray-HPE/hms-trs-kafkalib/v2 v2.0.2 h1:pxOp8exE/gUojwjbcpHIH+02ESfVvZNLIv+RcK/uY4Y=
+github.com/Cray-HPE/hms-trs-kafkalib/v2 v2.0.2/go.mod h1:aCPDa5X/zZZk1BgEKwtYkNslkiXsDZ94eGSbL4RGMt8=
 github.com/Cray-HPE/hms-xname v1.4.0 h1:i47YmE8rbSfJ64simKCCC6ZVcGid3rDIX6/jfVbISAM=
 github.com/Cray-HPE/hms-xname v1.4.0/go.mod h1:wH7t1UXYck0VdHSWjrMsxZmaCK5W1lmwgNnsYAFPTus=
 github.com/Masterminds/semver/v3 v3.2.1 h1:RN9w6+7QoMeJVGyfmbcgs28Br8cvmnucEXnY0rYXWg0=
