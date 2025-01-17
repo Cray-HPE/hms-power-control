@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2022-2024] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2022-2025] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -63,24 +63,24 @@ COPY .version /
 
 
 # Setup environment variables.
-ENV SMS_SERVER "http://cray-smd:27779"
-ENV LOG_LEVEL "INFO"
-ENV SERVICE_RESERVATION_VERBOSITY "INFO"
-ENV TRS_IMPLEMENTATION "LOCAL"
-ENV STORAGE "ETCD"
-ENV ETCD_HOST "etcd"
-ENV ETCD_PORT "2379"
-ENV HSMLOCK_ENABELD "true"
-ENV VAULT_ENABLED "true"
+ENV SMS_SERVER="http://cray-smd:27779"
+ENV LOG_LEVEL="INFO"
+ENV SERVICE_RESERVATION_VERBOSITY="INFO"
+ENV TRS_IMPLEMENTATION="LOCAL"
+ENV STORAGE="ETCD"
+ENV ETCD_HOST="etcd"
+ENV ETCD_PORT="2379"
+ENV HSMLOCK_ENABELD="true"
+ENV VAULT_ENABLED="true"
 ENV VAULT_ADDR="http://vault:8200"
 ENV VAULT_KEYPATH="secret/hms-creds"
 
 #DONT USES IN PRODUCTION; MOST WILL BREAK PROD!!!
 ENV VAULT_SKIP_VERIFY="true"
-ENV VAULT_TOKEN "hms"
-ENV CRAY_VAULT_AUTH_PATH "auth/token/create"
-ENV CRAY_VAULT_ROLE_FILE "/go/configs/namespace"
-ENV CRAY_VAULT_JWT_FILE "/go/configs/token"
+ENV VAULT_TOKEN="hms"
+ENV CRAY_VAULT_AUTH_PATH="auth/token/create"
+ENV CRAY_VAULT_ROLE_FILE="/go/configs/namespace"
+ENV CRAY_VAULT_JWT_FILE="/go/configs/token"
 
 #nobody 65534:65534
 USER 65534:65534

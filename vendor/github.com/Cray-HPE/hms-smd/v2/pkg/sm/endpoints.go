@@ -24,7 +24,7 @@ package sm
 
 import (
 	"encoding/json"
-	base "github.com/Cray-HPE/hms-base"
+	base "github.com/Cray-HPE/hms-base/v2"
 	rf "github.com/Cray-HPE/hms-smd/v2/pkg/redfish"
 )
 

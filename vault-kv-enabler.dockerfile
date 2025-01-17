@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2020-2023] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2020-2023,2025] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -30,10 +30,10 @@ RUN set -ex \
         bash
 
 # Vault
-ENV VAULT_ADDR http://localhost:8200
+ENV VAULT_ADDR=http://localhost:8200
 
 # Default KV Store
-ENV KV_STORES hms-creds
+ENV KV_STORES=hms-creds
 
 COPY scripts/wait-for.sh /
 COPY scripts /scripts

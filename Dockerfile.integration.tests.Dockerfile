@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2021-2023,2025] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -24,11 +24,11 @@
 
 FROM artifactory.algol60.net/docker.io/library/alpine:3 AS build-base
 
-ENV LOG_LEVEL TRACE
-ENV API_URL "http://cray-power-control"
-ENV API_SERVER_PORT ":28007"
-ENV API_BASE_PATH ""
-ENV VERIFY_SSL False
+ENV LOG_LEVEL=TRACE
+ENV API_URL="http://cray-power-control"
+ENV API_SERVER_PORT=":28007"
+ENV API_BASE_PATH=""
+ENV VERIFY_SSL=False
 
 RUN set -x \
     && apk -U upgrade \

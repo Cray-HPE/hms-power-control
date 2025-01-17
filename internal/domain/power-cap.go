@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2021-2024] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2025] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -37,10 +37,11 @@ import (
 	"strings"
 	"time"
 
-	base "github.com/Cray-HPE/hms-base"
+	base "github.com/Cray-HPE/hms-base/v2"
 	"github.com/Cray-HPE/hms-power-control/internal/hsm"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
+	"github.com/Cray-HPE/hms-xname/xnametypes"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -420,7 +421,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 	}
 
 	// Clean the xname list of invalid xnames
-	goodXnames, badXnames := base.ValidateCompIDs(xnames, true)
+	goodXnames, badXnames := xnametypes.ValidateCompIDs(xnames, true)
 	if len(badXnames) > 0 {
 		errormsg := "Invalid xnames detected "
 		for _, badxname := range badXnames {
@@ -449,7 +450,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 		return
 	}
 	// Call again to remove any duplicates
-	betterXnames, _ := base.ValidateCompIDs(goodXnames, false)
+	betterXnames, _ := xnametypes.ValidateCompIDs(goodXnames, false)
 
 	// Verify xnames exist in HSM
 	hsmData, err := (*GLOB.HSM).FillHSMData(betterXnames)
@@ -566,7 +567,7 @@ func doPowerCapTask(taskID uuid.UUID) {
 			if comp.RfFQDN == "" {
 				op.Status = model.PowerCapOpStatusFailed
 				op.Component.Error = "Missing RfFQDN"
-			} else if comp.BaseData.Type != base.Node.String() {
+			} else if comp.BaseData.Type != xnametypes.Node.String() {
 				// We only support node power capping
 				op.Status = model.PowerCapOpStatusUnsupported
 				op.Component.Error = "Type, " + comp.BaseData.Type + " unsupported for power capping"

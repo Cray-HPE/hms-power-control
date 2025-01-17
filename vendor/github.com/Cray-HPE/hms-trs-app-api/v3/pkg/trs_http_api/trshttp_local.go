@@ -698,10 +698,12 @@ func (tloc *TRSHTTPLocal) Launch(taskList *[]HttpTask) (chan *HttpTask, error) {
 //            Error message, if any, associated with the task run.
 
 func (tloc *TRSHTTPLocal) Check(taskList *[]HttpTask) (bool, error) {
-	for _, v := range *taskList {
-		if (v.Ignore == false) {
-			if v.Request.Response == nil && v.Err == nil {
-				return true, nil
+	if taskList != nil {
+		for _, v := range *taskList {
+			if (v.Ignore == false) {
+				if v.Request.Response == nil && v.Err == nil {
+					return true, nil
+				}
 			}
 		}
 	}
@@ -729,9 +731,11 @@ func (tloc *TRSHTTPLocal) Alive() (bool, error) {
 // taskList:  Ptr to a recently launched task list.
 
 func (tloc *TRSHTTPLocal) Cancel(taskList *[]HttpTask) {
-	for _, v := range *taskList {
-		if (v.Ignore == false) {
-			v.contextCancel()
+	if taskList != nil {
+		for _, v := range *taskList {
+			if (v.Ignore == false) {
+				v.contextCancel()
+			}
 		}
 	}
 	tloc.Logger.Tracef("Cancel() completed")
@@ -743,30 +747,32 @@ func (tloc *TRSHTTPLocal) Cancel(taskList *[]HttpTask) {
 // taskList:  Ptr to a recently launched task list.
 
 func (tloc *TRSHTTPLocal) Close(taskList *[]HttpTask) {
-	for _, v := range *taskList {
-		if (v.Ignore == false) {
-			// The caller should have closed the response body, but we'll also
-			// do it here to prevent resource leaks.  Note that if that was
-			// the case, that connection was closed by the above cancel.
+	if taskList != nil {
+		for _, v := range *taskList {
+			if (v.Ignore == false) {
+				// The caller should have closed the response body, but we'll also
+				// do it here to prevent resource leaks.  Note that if that was
+				// the case, that connection was closed by the above cancel.
 
-			drainAndCloseBody(v.Request.Response)
+				drainAndCloseBody(v.Request.Response)
 
-			// All tasks must be cancelled to prevent resource leaks.  The
-			// caller may have called Cancel() to prematurely cancel the
-			// operation, but that's probably not a common thing so we will
-			// do it here.  There is no harm in cancelling twice.  We must
-			// do this before closing the response body.
-			//
-			// TODO: We may also want to consider having each go routine
-			// call cancel above in ExecuteTask() for themselves.  Doing it
-			// like that might be less error prone.
+				// All tasks must be cancelled to prevent resource leaks.  The
+				// caller may have called Cancel() to prematurely cancel the
+				// operation, but that's probably not a common thing so we will
+				// do it here.  There is no harm in cancelling twice.  We must
+				// do this before closing the response body.
+				//
+				// TODO: We may also want to consider having each go routine
+				// call cancel above in ExecuteTask() for themselves.  Doing it
+				// like that might be less error prone.
 
-			v.contextCancel()
+				v.contextCancel()
+			}
+			tloc.taskMutex.Lock()
+			delete(tloc.taskMap, v.id)
+			tloc.taskMutex.Unlock()
+
 		}
-		tloc.taskMutex.Lock()
-		delete(tloc.taskMap, v.id)
-		tloc.taskMutex.Unlock()
-
 	}
 
 	tloc.Logger.Tracef("Close() completed")
@@ -777,32 +783,36 @@ func (tloc *TRSHTTPLocal) Close(taskList *[]HttpTask) {
 func (tloc *TRSHTTPLocal) Cleanup() {
 	//Just call the cancel func.
 	tloc.ctxCancelFunc()
+
 	//clean up client map?
-	for k := range tloc.clientMap {
-		//cancel it first
-		if (tloc.clientMap[k].insecure != nil) {
-			tloc.clientMap[k].insecure.HTTPClient.CloseIdleConnections()
+	if tloc.clientMap != nil {
+		for k := range tloc.clientMap {
+			//cancel it first
+			if (tloc.clientMap[k].insecure != nil) {
+				tloc.clientMap[k].insecure.HTTPClient.CloseIdleConnections()
+			}
+			if (tloc.clientMap[k].secure != nil) {
+				tloc.clientMap[k].secure.HTTPClient.CloseIdleConnections()
+			}
+			//delete it out of the map
+			tloc.clientMutex.Lock()
+			delete(tloc.clientMap, k)
+			tloc.clientMutex.Unlock()
 		}
-		if (tloc.clientMap[k].secure != nil) {
-			tloc.clientMap[k].secure.HTTPClient.CloseIdleConnections()
-		}
-		//delete it out of the map
-		tloc.clientMutex.Lock()
-		delete(tloc.clientMap, k)
-		tloc.clientMutex.Unlock()
 	}
 
 	//clean up task map
-	for k := range tloc.taskMap {
-		//cancel it first
-		tloc.taskMap[k].task.contextCancel()
-		//close the channel
-		close(tloc.taskMap[k].taskListChannel)
-		//delete it out of the map
-		tloc.taskMutex.Lock()
-		delete(tloc.taskMap, k)
-		tloc.taskMutex.Unlock()
-
+	if tloc.taskMap != nil {
+		for k := range tloc.taskMap {
+			//cancel it first
+			tloc.taskMap[k].task.contextCancel()
+			//close the channel
+			close(tloc.taskMap[k].taskListChannel)
+			//delete it out of the map
+			tloc.taskMutex.Lock()
+			delete(tloc.taskMap, k)
+			tloc.taskMutex.Unlock()
+		}
 	}
 	tloc.Logger.Tracef("Cleanup() completed")
 	// this really just a big red button to STOP ALL? b/c im not clearing any memory
