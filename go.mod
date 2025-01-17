@@ -5,10 +5,10 @@ go 1.23
 toolchain go1.23.1
 
 require (
-	github.com/Cray-HPE/hms-base/v2 v2.1.1-0.20250115145051-38c3b67dad0b
+	github.com/Cray-HPE/hms-base/v2 v2.2.0
 	github.com/Cray-HPE/hms-certs v1.3.3
 	github.com/Cray-HPE/hms-compcredentials v1.11.2
-	github.com/Cray-HPE/hms-hmetcd v1.11.1-0.20250115230651-a066da5f7788
+	github.com/Cray-HPE/hms-hmetcd v1.12.0
 	github.com/Cray-HPE/hms-securestorage v1.13.0
 	github.com/Cray-HPE/hms-smd/v2 v2.32.0
 	github.com/Cray-HPE/hms-trs-app-api/v3 v3.0.3-0.20250115161119-969732941dcf
