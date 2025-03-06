@@ -17,7 +17,7 @@ services:
       - pcs
   vault:
     hostname: vault
-    image: artifactory.algol60.net/docker.io/library/vault:1.5.5
+    image: artifactory.algol60.net/docker.io/library/vault:1.6.1
     environment:
       - VAULT_DEV_ROOT_TOKEN_ID=hms
       - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
@@ -29,7 +29,7 @@ services:
     networks:
       - pcs
   vault-kv-enabler:
-    image: artifactory.algol60.net/csm-docker/stable/vault-kv-enabler:1.13.4
+    image: artifactory.algol60.net/csm-docker/stable/vault-kv-enabler:1.25.0
     environment:
       - VAULT_ADDR=http://vault:8200
       - VAULT_TOKEN=hms
@@ -50,7 +50,7 @@ services:
     networks:
       - pcs
   cray-smd-init:
-    image: artifactory.algol60.net/csm-docker/stable/cray-smd:2.32.0
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd:2.34.0
     environment:
       - SMD_DBHOST=hmsds-postgres
       - SMD_DBPORT=5432
@@ -60,7 +60,7 @@ services:
       - pcs
     command: /entrypoint.sh smd-init
   cray-smd:
-    image: artifactory.algol60.net/csm-docker/stable/cray-smd:2.32.0
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd:2.34.0
     environment:
       - POSTGRES_HOST=hmsds-postgres
       - POSTGRES_PORT=5432
@@ -110,7 +110,7 @@ services:
     networks:
       - pcs
   cray-hms-hmcollector:
-    image: artifactory.algol60.net/csm-docker/stable/hms-hmcollector:2.35.0
+    image: artifactory.algol60.net/csm-docker/stable/hms-hmcollector:2.36.0
     environment:
       - LOG_LEVEL=TRACE
       - SM_URL=http://cray-smd:27779
