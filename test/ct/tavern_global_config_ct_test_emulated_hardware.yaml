@@ -7,10 +7,10 @@ variables:
   hsm_base_url: http://cray-smd:27779
   pcs_base_url: http://cray-power-control:28007
   transition_force-off_num_attempts: 62
-  transition_force-off_poll_interval: 2
+  transition_force-off_poll_interval: 5
   transition_force-off_task_deadline_minutes: 1
   transition_on_num_attempts: 62
-  transition_on_poll_interval: 2
+  transition_on_poll_interval: 5
   transition_on_task_deadline_minutes: 1
   transition_hard-restart_num_attempts: 62
   transition_hard-restart_poll_interval: 1
