@@ -20,8 +20,13 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-# 1.17
-FROM artifactory.algol60.net/csm-docker/unstable/hms-test:5.3.0-20250312171542.5dc49e9
+# 1.21 (debug)
+#FROM artifactory.algol60.net/csm-docker/unstable/hms-test:5.3.0-20250312210514.2efc4d6
+FROM artifactory.algol60.net/csm-docker/unstable/hms-test:5.3.0-20250312213320.f73e988
+# 1.17 (debug)
+#FROM artifactory.algol60.net/csm-docker/unstable/hms-test:5.3.0-20250312181320.39c41cd
+# 1.17 (no debug)
+#FROM artifactory.algol60.net/csm-docker/unstable/hms-test:5.3.0-20250312171542.5dc49e9
 # 1.16
 #FROM artifactory.algol60.net/csm-docker/unstable/hms-test:5.3.0-20250312173553.c95fef1
 # 1.15
