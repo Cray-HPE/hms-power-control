@@ -20,7 +20,12 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-FROM artifactory.algol60.net/csm-docker/unstable/hms-test:5.3.0-20250312173553.c95fef1
+# 1.17
+FROM artifactory.algol60.net/csm-docker/unstable/hms-test:5.3.0-20250312171542.5dc49e9
+# 1.16
+#FROM artifactory.algol60.net/csm-docker/unstable/hms-test:5.3.0-20250312173553.c95fef1
+# 1.15
+#FROM artifactory.algol60.net/csm-docker/unstable/hms-test:5.3.0-20250312175147.1b1f5a2
 #FROM artifactory.algol60.net/csm-docker/stable/hms-test:5.1.0
 
 COPY smoke/ /src/app
