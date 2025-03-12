@@ -21,7 +21,7 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 #FROM artifactory.algol60.net/csm-docker/unstable/hms-test:5.3.0-20250312171542.5dc49e9
-FROM artifactory.algol60.net/csm-docker/stable/hms-test:5.1
+FROM artifactory.algol60.net/csm-docker/stable/hms-test:5.1.0
 
 COPY smoke/ /src/app
 COPY api/ /src/app/api
