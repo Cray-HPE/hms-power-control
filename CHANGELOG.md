@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update module dependencies related to hms-certs
 - Updated vault override variables due to hms-certs update
-- Updated a few CT test polling interval variables to fix timing issue
 
 ## [2.9.0] - 2025-01-17
 
