@@ -1,6 +1,6 @@
 # MIT License
 #
-# (C) Copyright [2023] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2023,2025] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -194,9 +194,10 @@ stages:
                     type: int
                     required: True
               tasks:
+                # May or may not be present depending if transition was compressed yet
                 type: seq
                 matching: all
-                required: True
+                required: False
                 sequence:
                   - type: map
                     required: True
@@ -362,9 +363,10 @@ stages:
                     type: int
                     required: True
               tasks:
+                # May or may not be present depending if transition was compressed yet
                 type: seq
                 matching: all
-                required: True
+                required: False
                 sequence:
                   - type: map
                     required: True
@@ -544,9 +546,10 @@ stages:
                     type: int
                     required: True
               tasks:
+                # May or may not be present depending if transition was compressed yet
                 type: seq
                 matching: all
-                required: True
+                required: False
                 sequence:
                   - type: map
                     required: True
@@ -712,9 +715,10 @@ stages:
                     type: int
                     required: True
               tasks:
+                # May or may not be present depending if transition was compressed yet
                 type: seq
                 matching: all
-                required: True
+                required: False
                 sequence:
                   - type: map
                     required: True
@@ -895,9 +899,10 @@ stages:
                     type: int
                     required: True
               tasks:
+                # May or may not be present depending if transition was compressed yet
                 type: seq
                 matching: all
-                required: True
+                required: False
                 sequence:
                   - type: map
                     required: True
@@ -1065,9 +1070,10 @@ stages:
                     type: int
                     required: True
               tasks:
+                # May or may not be present depending if transition was compressed yet
                 type: seq
                 matching: all
-                required: True
+                required: False
                 sequence:
                   - type: map
                     required: True
@@ -1249,9 +1255,10 @@ stages:
                     type: int
                     required: True
               tasks:
+                # May or may not be present depending if transition was compressed yet
                 type: seq
                 matching: all
-                required: True
+                required: False
                 sequence:
                   - type: map
                     required: True
@@ -1417,9 +1424,10 @@ stages:
                     type: int
                     required: True
               tasks:
+                # May or may not be present depending if transition was compressed yet
                 type: seq
                 matching: all
-                required: True
+                required: False
                 sequence:
                   - type: map
                     required: True
@@ -1599,9 +1607,10 @@ stages:
                     type: int
                     required: True
               tasks:
+                # May or may not be present depending if transition was compressed yet
                 type: seq
                 matching: all
-                required: True
+                required: False
                 sequence:
                   - type: map
                     required: True
@@ -1767,9 +1776,10 @@ stages:
                     type: int
                     required: True
               tasks:
+                # May or may not be present depending if transition was compressed yet
                 type: seq
                 matching: all
-                required: True
+                required: False
                 sequence:
                   - type: map
                     required: True
@@ -1949,9 +1959,10 @@ stages:
                     type: int
                     required: True
               tasks:
+                # May or may not be present depending if transition was compressed yet
                 type: seq
                 matching: all
-                required: True
+                required: False
                 sequence:
                   - type: map
                     required: True
@@ -2141,9 +2152,10 @@ stages:
                     type: int
                     required: True
               tasks:
+                # May or may not be present depending if transition was compressed yet
                 type: seq
                 matching: all
-                required: True
+                required: False
                 sequence:
                   - type: map
                     required: True
