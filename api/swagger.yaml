@@ -3,7 +3,7 @@ info:
   title: Power Control Service (PCS)
   license:
     name: MIT
-  version: "1.1.1"
+  version: "1.1.2"
   description: >-
     The Power Control Service (PCS) performs power-related operations on 
     system components - nodes, blades, and chassis. 
@@ -564,6 +564,7 @@ components:
           $ref: '#/components/schemas/task_counts'
         tasks:
           type: array
+          description: Present if transition not yet compressed
           items:
             $ref: '#/components/schemas/transition_task_data'
     transitions_getAll:
