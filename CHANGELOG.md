@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.0] - 2025-03-14
+
+### Security
+
+- Update module dependencies related to hms-certs
+- Updated vault override variables due to hms-certs update
+- Fixed bug in CT tests related to race condition with compressed transitions
+- Updated Swagger spec to indicate transition tasks only present if not yet compressed
+
 ## [2.9.0] - 2025-01-17
 
 ### Security
