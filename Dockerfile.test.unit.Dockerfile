@@ -22,7 +22,7 @@
 
 # This file only exists as a means to run tests in an automated fashion.
 
-FROM artifactory.algol60.net/docker.io/library/golang:1.23-alpine
+FROM artifactory.algol60.net/docker.io/library/golang:1.24-alpine
 
 RUN set -ex \
     && apk -U upgrade \

@@ -145,10 +145,7 @@ func (b *HSMv2) Ping() (err error) {
 	rsp, err := b.HSMGlobals.SVCHttpClient.Do(req)
 
 	// Always drain response bodies and close even if not looking at body
-	if rsp != nil && rsp.Body != nil {
-		_, _ = io.Copy(io.Discard, rsp.Body)
-		rsp.Body.Close()
-	}
+	base.DrainAndCloseResponseBody(rsp)
 
 	reqCtxCancel() // Release resources and signal context timeout to stop
 
@@ -397,10 +394,7 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 		rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
 		if rsperr != nil {
 			// Always drain and close response bodies
-			if rsp != nil && rsp.Body != nil {
-				_, _ = io.Copy(io.Discard, rsp.Body)
-				rsp.Body.Close()
-			}
+			base.DrainAndCloseResponseBody(rsp)
 
 			reqCtxCancel() // Release resources and signal context timeout to stop
 
@@ -410,9 +404,7 @@ func (b *HSMv2) FillComponentEndpointData(hd map[string]*HsmData) error {
 		body, bderr := io.ReadAll(rsp.Body)
 
 		// Always close response bodies
-		if rsp != nil && rsp.Body != nil {
-			rsp.Body.Close()
-		}
+		base.DrainAndCloseResponseBody(rsp)
 
 		reqCtxCancel() // Release resources and signal context timeout to stop
 
@@ -596,10 +588,7 @@ func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error)
 	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
 	if rsperr != nil {
 		// Always drain and close response bodies
-		if rsp != nil && rsp.Body != nil {
-			_, _ = io.Copy(io.Discard, rsp.Body)
-			rsp.Body.Close()
-		}
+		base.DrainAndCloseResponseBody(rsp)
 
 		reqCtxCancel() // Release resources and signal context timeout to stop
 
@@ -609,9 +598,7 @@ func (b *HSMv2) GetStateComponents(xnames []string) (base.ComponentArray, error)
 	body, bderr := io.ReadAll(rsp.Body)
 
 	// Always close response bodies
-	if rsp != nil && rsp.Body != nil {
-		rsp.Body.Close()
-	}
+	base.DrainAndCloseResponseBody(rsp)
 
 	reqCtxCancel() // Release resources and signal context timeout to stop
 
@@ -647,10 +634,7 @@ func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
 	rsp, rsperr := b.HSMGlobals.SVCHttpClient.Do(req)
 	if rsperr != nil {
 		// Always drain and close response bodies
-		if rsp != nil && rsp.Body != nil {
-			_, _ = io.Copy(io.Discard, rsp.Body)
-			rsp.Body.Close()
-		}
+		base.DrainAndCloseResponseBody(rsp)
 
 		reqCtxCancel() // Release resources and signal context timeout to stop
 
@@ -660,9 +644,7 @@ func (b *HSMv2) FillPowerMapData(hd map[string]*HsmData) error {
 	body, bderr := io.ReadAll(rsp.Body)
 
 	// Always close response bodies
-	if rsp != nil && rsp.Body != nil {
-		rsp.Body.Close()
-	}
+	base.DrainAndCloseResponseBody(rsp)
 
 	reqCtxCancel() // Release resources and signal context timeout to stop
 

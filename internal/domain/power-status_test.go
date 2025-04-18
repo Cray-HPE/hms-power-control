@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2022-2024] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2022-2025] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -32,6 +32,7 @@ import (
 	"testing"
 	"time"
 
+	base "github.com/Cray-HPE/hms-base/v2"
 	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
 	"github.com/Cray-HPE/hms-power-control/internal/credstore"
 	"github.com/Cray-HPE/hms-power-control/internal/hsm"
@@ -147,23 +148,13 @@ func doHTTP(url string, method string, pld []byte, auth *bAuth) ([]byte,int,erro
 	req.Header.Set("Content-Type","application/json")
 
 	rsp,perr := svcClient.Do(req)
+	defer base.DrainAndCloseResponseBody(rsp)
 
 	if (perr != nil) {
-		// Always close response bodies
-		if rsp != nil && rsp.Body != nil {
-			_, _ = io.Copy(io.Discard, rsp.Body)
-			rsp.Body.Close()
-		}
-
 		return rdata,0,fmt.Errorf("Error performing http %s: %v",method,perr)
 	}
 
 	rdata,err = io.ReadAll(rsp.Body)
-
-	// Always close response bodies
-	if rsp != nil && rsp.Body != nil {
-		rsp.Body.Close()
-	}
 
 	if (err != nil) {
 		return rdata,0,fmt.Errorf("Error reading http rsp body: %v",err)
@@ -266,11 +257,11 @@ func printCompList(t *testing.T, hdr string, rcomp pcsmodel.PowerStatus) {
 	delim := "==========================================="
 	spc := "    "
 
-	t.Logf(delim)
+	t.Logf("%s", delim)
 	t.Logf("%s %s",spc,hdr)
 
 	for _,comp := range(rcomp.Status) {
-		t.Logf(delim)
+		t.Logf("%s", delim)
 		t.Logf("%s '%s'",spc,comp.XName)
 		t.Logf("%s PowerState: '%s'",spc,comp.PowerState)
 		t.Logf("%s ManagementState: '%s'",spc,comp.ManagementState)

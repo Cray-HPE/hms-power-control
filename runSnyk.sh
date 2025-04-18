@@ -26,7 +26,7 @@ SNYK_OPTS="--dev --show-vulnerable-paths=all --fail-on=all --severity-threshold=
 OUT=$(set -x; snyk test --all-projects --detection-depth=999 $SNYK_OPTS)
 
 PROJ_CHECK=OK
-jq .[].ok <<<"$OUT" | grep -q false && PROJ_CHECK=FAIL
+jq .ok <<<"$OUT" | grep -q false && PROJ_CHECK=FAIL
 
 echo Snyk project check: $PROJ_CHECK
 

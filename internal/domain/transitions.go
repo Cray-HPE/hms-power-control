@@ -824,10 +824,7 @@ func doTransition(transitionID uuid.UUID) {
 						taskErr = *tdone.Err
 
 						// Must always drain and close response bodies even if we don't use them
-						if tdone.Request.Response != nil && tdone.Request.Response.Body != nil {
-							_, _ = io.Copy(io.Discard, tdone.Request.Response.Body)
-							tdone.Request.Response.Body.Close()
-						}
+						base.DrainAndCloseResponseBody(tdone.Request.Response)
 
 						break
 					}
@@ -835,10 +832,7 @@ func doTransition(transitionID uuid.UUID) {
 						taskErr = errors.New("bad status code: " + strconv.Itoa(tdone.Request.Response.StatusCode))
 
 						// Must always drain and close response bodies even if we don't use them
-						if tdone.Request.Response != nil && tdone.Request.Response.Body != nil {
-							_, _ = io.Copy(io.Discard, tdone.Request.Response.Body)
-							tdone.Request.Response.Body.Close()
-						}
+						base.DrainAndCloseResponseBody(tdone.Request.Response)
 
 						break
 					}
@@ -849,7 +843,7 @@ func doTransition(transitionID uuid.UUID) {
 					_, err := io.ReadAll(tdone.Request.Response.Body)
 
 					// Must always close response bodies
-					tdone.Request.Response.Body.Close()
+					base.DrainAndCloseResponseBody(tdone.Request.Response)
 
 					if err != nil {
 						taskErr = err

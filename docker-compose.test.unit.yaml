@@ -68,7 +68,7 @@ services:
     networks:
       - pcs
   cray-smd-init:
-    image: artifactory.algol60.net/csm-docker/stable/cray-smd:2.35.0
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd:2.37.0
     environment:
       - SMD_DBHOST=hmsds-postgres
       - SMD_DBPORT=5432
@@ -78,7 +78,7 @@ services:
       - pcs
     command: /entrypoint.sh smd-init
   cray-smd:
-    image: artifactory.algol60.net/csm-docker/stable/cray-smd:2.35.0
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd:2.37.0
     environment:
       - POSTGRES_HOST=hmsds-postgres
       - POSTGRES_PORT=5432
@@ -124,7 +124,7 @@ services:
     networks:
       - pcs
   cray-hms-hmcollector:
-    image: artifactory.algol60.net/csm-docker/stable/hms-hmcollector:2.36.0
+    image: artifactory.algol60.net/csm-docker/stable/hms-hmcollector:2.37.0
     environment:
       - LOG_LEVEL=TRACE
       - SM_URL=http://cray-smd:27779
@@ -148,7 +148,7 @@ services:
   # Emulator
   #
   emulator-loader:
-    image: artifactory.algol60.net/docker.io/library/golang:1.23-alpine
+    image: artifactory.algol60.net/docker.io/library/golang:1.24-alpine
     command: >
       sh -c "apk add curl && sleep 10 &&
       curl -X POST -d '{\"RedfishEndpoints\":[{

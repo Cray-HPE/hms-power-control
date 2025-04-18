@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.0] - 2025-04-21
+
+### Update
+
+- Updated image and module dependencies to latest versions
+- Replaced a fair amount of redundant code with reference to new code built
+  into the new hms-base module
+- Update version of Go to v1.24
+- Made several code changes due to upgrade to latest version of Go
+- Fixed jq parsing issue when running local Snyk scans
+- Internal tracking ticket: CASMHMS-6482
+
 ## [2.10.0] - 2025-03-14
 
 ### Security
