@@ -134,7 +134,7 @@ services:
     networks:
       - pcs
   cray-hms-hmcollector:
-    image: artifactory.algol60.net/csm-docker/stable/hms-hmcollector:2.37.0
+    image: artifactory.algol60.net/csm-docker/stable/hms-hmcollector:2.38.0
     environment:
       - LOG_LEVEL=TRACE
       - SM_URL=http://cray-smd:27779
