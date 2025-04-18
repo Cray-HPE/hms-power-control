@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2021,2024] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2021,2024-2025] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -74,37 +74,37 @@ type HttpKafkaRx struct {
 }
 
 type RetryPolicy struct {
-	Retries        int
-	BackoffTimeout time.Duration
+	Retries        int           // number of retries to attempt (default is 3)
+	BackoffTimeout time.Duration // base backoff timeout between retries (default is 5 seconds)
 }
 
 type HttpTxPolicy struct {
-	Enabled                 bool    // Enable or disable the policy
-	MaxIdleConns            int
-	MaxIdleConnsPerHost     int
-	IdleConnTimeout         time.Duration
-	ResponseHeaderTimeout   time.Duration
-	TLSHandshakeTimeout     time.Duration
-	DisableKeepAlives       bool
+	Enabled                 bool          // policy enabled (default is false)
+	MaxIdleConns            int           // max idle connections across all hosts (default is 100)
+	MaxIdleConnsPerHost     int           // max idle connections per host (default is 2)
+	IdleConnTimeout         time.Duration // duration an idle connection remains open (default is unlimited)
+	ResponseHeaderTimeout   time.Duration // max wait time for a host's response header (default is unlimited)
+	TLSHandshakeTimeout     time.Duration // max duration for the TLS handshake (default is 10 seconds)
+	DisableKeepAlives       bool          // disable HTTP keep-alives if true (default is false)
 }
 
 type ClientPolicy struct {
-	Retry    RetryPolicy
-	Tx       HttpTxPolicy
+	Retry    RetryPolicy   // task's retry policy
+	Tx       HttpTxPolicy  // task's transport policy
 }
 
 type HttpTask struct {
-	id            uuid.UUID // message id, likely monotonically increasing
-	ServiceName   string    //name of the service
-	Request       *http.Request
-	TimeStamp     string // Time the request was created/sent RFC3339Nano
-	Err           *error
-	Timeout       time.Duration	// task's context timeout
-	CPolicy       ClientPolicy
-	Ignore        bool
-	context       context.Context
-	contextCancel context.CancelFunc
-	forceInsecure bool
+	id            uuid.UUID          // message id
+	ServiceName   string             // name of the service (defaults to TRSHTTPLocal.svcName)
+	Request       *http.Request      // the http request
+	TimeStamp     string             // time the request was created/sent RFC3339Nano
+	Err           *error             // any error associated with the request
+	Timeout       time.Duration      // task's context timeout
+	CPolicy       ClientPolicy       // task's retry and transport policies
+	Ignore        bool               // if true, trs will ignore this task
+	context       context.Context    // task's context
+	contextCancel context.CancelFunc // task's context cancellation function
+	forceInsecure bool               // if true, force insecure communication
 }
 
 type SerializedResponse struct {

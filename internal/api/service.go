@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2021-2023,2025] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,16 +24,14 @@ package api
 
 import (
 	"fmt"
-	"io"
 	"net/http"
+
+	base "github.com/Cray-HPE/hms-base/v2"
 )
 
 func Index(w http.ResponseWriter, r *http.Request) {
 	// Drain and close request body to ensure connection reuse
-	if (r.Body != nil) {
-		_, _ = io.Copy(io.Discard, r.Body)
-		r.Body.Close()
-	}
+	base.DrainAndCloseRequestBody(r)
 
 	fmt.Fprintf(w, "hms-power-control")
 	w.WriteHeader(http.StatusOK)

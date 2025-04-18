@@ -28,7 +28,7 @@ import (
 	"io"
 	"net/http"
 
-	// base "github.com/Cray-HPE/hms-base/v2"
+	base "github.com/Cray-HPE/hms-base/v2"
 	"github.com/Cray-HPE/hms-power-control/internal/domain"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
@@ -50,8 +50,7 @@ func CreateTransition(w http.ResponseWriter, req *http.Request) {
 	if req.Body != nil {
 		body, err := io.ReadAll(req.Body)
 
-		// Not necessarily needed, but close request body anyways
-		req.Body.Close()
+		base.DrainAndCloseRequestBody(req)
 
 		logger.Log.WithFields(logrus.Fields{"body": string(body)}).Trace("Printing request body")
 
@@ -105,16 +104,12 @@ func GetTransitions(w http.ResponseWriter, req *http.Request) {
 	var pb model.Passback
 	params := mux.Vars(req)
 
+	defer base.DrainAndCloseRequestBody(req)
+
 	//If actionID is not in the params, then do ALL
 	if _, ok := params["transitionID"]; ok {
 		//parse uuid and if its good then call GetTransition
 		pb = GetUUIDFromVars("transitionID", req)
-
-		// Drain and close request body to ensure connection reuse
-		if (req.Body != nil) {
-			_, _ = io.Copy(io.Discard, req.Body)	// drain in case partially read
-			req.Body.Close()
-		}
 
 		if pb.IsError {
 			WriteHeaders(w, pb)
@@ -124,12 +119,6 @@ func GetTransitions(w http.ResponseWriter, req *http.Request) {
 		pb = domain.GetTransition(transitionID)
 
 	} else {
-		// Drain and close request body to ensure connection reuse
-		if (req.Body != nil) {
-			_, _ = io.Copy(io.Discard, req.Body)
-			req.Body.Close()
-		}
-
 		pb = domain.GetTransitionStatuses()
 	}
 	WriteHeaders(w, pb)
@@ -140,11 +129,7 @@ func GetTransitions(w http.ResponseWriter, req *http.Request) {
 func AbortTransitionID(w http.ResponseWriter, req *http.Request) {
 	pb := GetUUIDFromVars("transitionID", req)
 
-	// Drain and close request body to ensure connection reuse
-	if (req.Body != nil) {
-		_, _ = io.Copy(io.Discard, req.Body)
-		req.Body.Close()
-	}
+	base.DrainAndCloseRequestBody(req)
 
 	if pb.IsError {
 		WriteHeaders(w, pb)

@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2022-2024] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2022-2025] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -32,6 +32,7 @@ import (
 	"os"
 	"testing"
 
+	base "github.com/Cray-HPE/hms-base/v2"
 	"github.com/Cray-HPE/hms-certs/pkg/hms_certs"
 	"github.com/Cray-HPE/hms-power-control/internal/credstore"
 	"github.com/Cray-HPE/hms-power-control/internal/domain"
@@ -134,22 +135,14 @@ func doHTTP(url string, method string, pld []byte) ([]byte,int,error) {
 	}
 
 	rsp,perr := svcClient.Do(req)
+	defer base.DrainAndCloseResponseBody(rsp)
+
 	if (perr != nil) {
-		// Always drain and close response bodies
-		if rsp != nil && rsp.Body != nil {
-			_, _ = io.Copy(io.Discard, rsp.Body)
-			rsp.Body.Close()
-		}
 
 		return rdata,0,fmt.Errorf("Error performing http %s: %v",method,perr)
 	}
 
 	rdata,err = io.ReadAll(rsp.Body)
-
-	// Always close response bodies
-	if rsp != nil && rsp.Body != nil {
-		rsp.Body.Close()
-	}
 
 	if (err != nil) {
 		return rdata,0,fmt.Errorf("Error reading http rsp body: %v",err)

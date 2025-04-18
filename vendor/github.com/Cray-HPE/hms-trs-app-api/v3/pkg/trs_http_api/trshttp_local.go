@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2020-2021,2024] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2020-2021,2024-2025] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -51,10 +51,13 @@ const (
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-// Initialize a local HTTP task system.
+// Initialize the local HTTP task system.
 //
-// ServiceName: Name of running service/application.
-// Return:      Error string if something went wrong.
+// serviceName: Name of the service or application
+// logger:      The logger to use; if nil, a default logger is created
+//
+// Return:      Nil on success; error string on failure
+
 func (tloc *TRSHTTPLocal) Init(serviceName string, logger *logrus.Logger) error {
 	if logger != nil {
 		tloc.Logger = logger
@@ -82,9 +85,15 @@ func (tloc *TRSHTTPLocal) Init(serviceName string, logger *logrus.Logger) error 
 	return nil
 }
 
-// Set up security parameters.  For HTTP-local operations, this is ingesting
-// the CA root bundle at the very least, and optionally the client-side
-// TLS leaf cert and TLS key.
+// Set up the local HTTP task system to use a CA cert bundle and optional
+// client cert/key data.  This is used to set up a secure connection to the
+// target system. The CA cert bundle is required.  The client cert/key data
+// is optional.
+//
+// inParams: Pointer to a TRSHTTPLocalSecurity struct containing the CA cert
+//           bundle and optional client cert/key data.
+//
+// Return:   Nil on success; error string on failure
 
 func (tloc *TRSHTTPLocal) SetSecurity(inParams interface{}) error {
 	params := inParams.(TRSHTTPLocalSecurity)
@@ -116,19 +125,27 @@ func (tloc *TRSHTTPLocal) SetSecurity(inParams interface{}) error {
 	return nil
 }
 
-// Create an array of task descriptors.  Copy data from the source task
-// into each element of the returned array.  Per-task data has to be
-// populated separately by the caller.
+// Create an array of task descriptors.  Data is copied from the source task
+// into each element of the returned array.  Per-task data should then be
+// populated by the caller after control returns.
 //
-// The message id in each task is populated regardless of the value in
-// the source.   It is generated using a pseudo-random value in the upper
-// 32 bits, which is the message group id, followed by a monotonically
-// increasing value in the lower 32 bits, starting with 0, which functions
-// as the message id.
+// A unique message id and TimeStamp in each task is populated regardless of
+// the value in the source.   It is generated using a pseudo-random value in
+// the upper 32 bits, which is the message group id, followed by a
+// monotonically increasing value in the lower 32 bits, starting with 0,
+// which functions as the message id.
 //
-// source:   Ptr to a task descriptor populated with relevant data.
-// numTasks: Number of elements in the returned array.
-// Return:   Array of populated task descriptors.
+// source:   Pounter to a task descriptor populated with relevant data.  The
+//           only fields that should be set by the caller are:
+//               - ServiceName
+//               - Request
+//               - Timeout
+//               - CPolicy
+//               - Ignore
+//               - forceInsecure
+// numTasks: Number of elements in the array to be returned
+//
+// Return:   Array of populated task descriptors
 
 func (tloc *TRSHTTPLocal) CreateTaskList(source *HttpTask, numTasks int) []HttpTask {
 	return createHTTPTaskArray(source, numTasks)
@@ -437,8 +454,8 @@ func createClient(task *HttpTask, tloc *TRSHTTPLocal, clientType string) (client
 	// Configure base transport policies if requested
 	httpTxPolicy := task.CPolicy.Tx
 	if httpTxPolicy.Enabled {
-		tr.MaxIdleConns          = httpTxPolicy.MaxIdleConns          // if 0 defaults to 2
-		tr.MaxIdleConnsPerHost   = httpTxPolicy.MaxIdleConnsPerHost   // if 0 defaults to 100
+		tr.MaxIdleConns          = httpTxPolicy.MaxIdleConns          // if 0 defaults to 100
+		tr.MaxIdleConnsPerHost   = httpTxPolicy.MaxIdleConnsPerHost   // if 0 defaults to 2
 		tr.IdleConnTimeout       = httpTxPolicy.IdleConnTimeout       // if 0 defaults to no timeout
 		tr.ResponseHeaderTimeout = httpTxPolicy.ResponseHeaderTimeout // if 0 defaults to no timeout
 		tr.TLSHandshakeTimeout   = httpTxPolicy.TLSHandshakeTimeout   // if 0 defaults to 10s
@@ -628,14 +645,20 @@ func ExecuteTask(tloc *TRSHTTPLocal, tct taskChannelTuple) {
 	tct.taskListChannel <- tct.task
 }
 
-// Launch an array of tasks.  This is non-blocking.  Use Check() to get
-// current status of the task launch.
+// Launch an array of tasks.  This is non-blocking.  The caller can use
+// either the returned Go channel or Check() to check for compleetion.  The
+// caller should close all HTTP response bodies after they are received and
+// processed and close the returned Go channel when done.
 //
-// taskList:  Ptr to a list of HTTP tasks to launch.
-// Return:    Chan of *HttpTxTask, sized by task list, which caller can
-//            use to get notified of each task completion, or safely
-//            ignore.  CALLER MUST CLOSE.
-//            Error message if something went wrong with the launch.
+// taskList:  Pointer to a list of HTTP tasks to launch
+//
+// Return:
+//
+// chan:  A Go channel of *HttpTxTask, sized by task list, which caller can
+//        use to get notified of each task's completion. The caller MUST
+//        CLOSE THE CHANNEL WHEN DONE even if using Done() to check for
+//		  completion.
+// error: Nil on success; error string on failure
 
 func (tloc *TRSHTTPLocal) Launch(taskList *[]HttpTask) (chan *HttpTask, error) {
 	if len(*taskList) == 0 {
@@ -690,12 +713,15 @@ func (tloc *TRSHTTPLocal) Launch(taskList *[]HttpTask) (chan *HttpTask, error) {
 	return taskListChannel, nil
 }
 
-// Check on the status of the most recently launched task list.  This is
-// an alternative to waiting on the task-complete chan returned by Launch().
+// Check the status of the launched task list.  This is an alternative to
+// waiting on the task-complete channel returned by Launch().
 //
-// taskList:  Ptr to a recently launched task list.
-// Return:    Task list still running: true/false
-//            Error message, if any, associated with the task run.
+// taskList:  Pointer to the task list
+//
+// Return:
+//
+// bool:  True or false if the task list is still running
+// error: Nil on success; error string on failure
 
 func (tloc *TRSHTTPLocal) Check(taskList *[]HttpTask) (bool, error) {
 	if taskList != nil {
@@ -712,8 +738,10 @@ func (tloc *TRSHTTPLocal) Check(taskList *[]HttpTask) (bool, error) {
 
 // Check the health of the local HTTP task launch system.
 //
-// Return: Alive and operational -- true/false
-//         Error message associated with non-alive/functional state
+// Return:
+//
+// bool:  True or false if alive and operational
+// error: Error message associated with non-alive/functional state
 
 func (tloc *TRSHTTPLocal) Alive() (bool, error) {
 	if tloc.taskMap == nil {
@@ -722,13 +750,13 @@ func (tloc *TRSHTTPLocal) Alive() (bool, error) {
 	return true, nil
 }
 
-// Cancel a currently-running task set.  Note that this won't (yet) kill
+// Cancel a currently-running task set.  Note that this won't kill
 // the individual in-flight tasks, but just kills the overall operation.
 // Thus, for tasks with no time-out which are hung, it could result in 
 // a resource leak.   But this can be used to at least wrestle control
 // over a task set.
 //
-// taskList:  Ptr to a recently launched task list.
+// taskList:  Pointer to the task list to cancel
 
 func (tloc *TRSHTTPLocal) Cancel(taskList *[]HttpTask) {
 	if taskList != nil {
@@ -741,10 +769,10 @@ func (tloc *TRSHTTPLocal) Cancel(taskList *[]HttpTask) {
 	tloc.Logger.Tracef("Cancel() completed")
 }
 
-// Close out a task list transaction.  The frees up a small amount of resources
-// so it should not be skipped.
+// Close out a task list transaction.  This frees up resources so it
+// should not be skipped.
 //
-// taskList:  Ptr to a recently launched task list.
+// taskList:  Pointer to the task list to close
 
 func (tloc *TRSHTTPLocal) Close(taskList *[]HttpTask) {
 	if taskList != nil {
@@ -778,7 +806,8 @@ func (tloc *TRSHTTPLocal) Close(taskList *[]HttpTask) {
 	tloc.Logger.Tracef("Close() completed")
 }
 
-// Clean up a local HTTP task system.
+// Clean up a local HTTP task system.  This is called when after it will no
+// longer be used.
 
 func (tloc *TRSHTTPLocal) Cleanup() {
 	//Just call the cancel func.

@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2020-2024] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2020-2025] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -29,7 +29,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -48,19 +47,9 @@ const DEFAULT_TERM_MINUTES = 1
 const DefaultExpirationWindow = 30
 const DefaultSleepTime = 10
 
-// Response bodies should always be drained and closed, else we leak resources
-// and fail to reuse network connections.
-// TODO: This should be moved into hms-base
-func DrainAndCloseResponseBody(resp *http.Response) {
-	if resp != nil && resp.Body != nil {
-			_, _ = io.Copy(io.Discard, resp.Body) // ok even if already drained
-			resp.Body.Close()                     // ok even if already closed
-	}
-}
-
 func DrainAndCloseResponseBodyAndCancelContext(resp *http.Response, ctxCancel context.CancelFunc) {
 	// Must always drain and close response body first
-	DrainAndCloseResponseBody(resp)
+	base.DrainAndCloseResponseBody(resp)
 
 	// Call context cancel function, if supplied.  This must always be done
 	// after draining and closing the response body

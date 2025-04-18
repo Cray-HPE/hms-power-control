@@ -1,6 +1,6 @@
 // MIT License
 //
-// (C) Copyright [2019-2024] Hewlett Packard Enterprise Development LP
+// (C) Copyright [2019-2024-2025] Hewlett Packard Enterprise Development LP
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -27,7 +27,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"path"
@@ -638,16 +637,6 @@ func NewRedfishEps(epds *RedfishEPDescriptions) (*RedfishEPs, error) {
 	return eps, savedError
 }
 
-// Response bodies should always be drained and closed, else we leak resources
-// and fail to reuse network connections.
-// TODO: This should be moved into hms-base
-func DrainAndCloseResponseBody(resp *http.Response) {
-	if resp != nil && resp.Body != nil {
-			_, _ = io.Copy(io.Discard, resp.Body) // ok even if already drained
-			resp.Body.Close()                     // ok even if already closed
-	}
-}
-
 // GET the page at the given rpath relative to the redfish hostname of
 // the given endpoint, e.g. /redfish/v1/Systems/System.Embedded.1.  Keeping
 // with Redfish style there should always be a leading slash and the
@@ -701,7 +690,7 @@ func (ep *RedfishEP) GETRelative(rpath string, optionalArgs ...int) (json.RawMes
 	for retry := 0; retry <= retryCount; retry++ {
 		rsp, err = ep.client.Do(req)
 		if err != nil {
-			DrainAndCloseResponseBody(rsp)
+			base.DrainAndCloseResponseBody(rsp)
 			if retry == retryCount {
 				errlog.Printf("GETRelative (%s) ERROR: %s, Failing after %d retries", path, err, retry)
 				return nil, err
@@ -718,7 +707,7 @@ func (ep *RedfishEP) GETRelative(rpath string, optionalArgs ...int) (json.RawMes
 	if rsp.Body != nil {
 		body, _ = ioutil.ReadAll(rsp.Body)
 	}
-	DrainAndCloseResponseBody(rsp)
+	base.DrainAndCloseResponseBody(rsp)
 
 	if rsp.StatusCode != http.StatusOK {
 		rerr := fmt.Errorf("%s", http.StatusText(rsp.StatusCode))

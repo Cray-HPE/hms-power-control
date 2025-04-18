@@ -572,10 +572,7 @@ func getHWStatesFromHW() error {
 			               fname)
 
 			// Still need to drain and close the response body
-			if task.Request.Response.Body != nil {
-				_, _ = io.Copy(io.Discard, task.Request.Response.Body)
-				task.Request.Response.Body.Close()
-			}
+			base.DrainAndCloseResponseBody(task.Request.Response)
 		} else {
 			rmp := rspStuff{task: task}
 
@@ -595,9 +592,7 @@ func getHWStatesFromHW() error {
 				rmp.body, rspErr = io.ReadAll(task.Request.Response.Body)
 
 				// Close the response body now that we've copied it
-				if task.Request.Response.Body != nil {
-					task.Request.Response.Body.Close()
-				}
+				base.DrainAndCloseResponseBody(task.Request.Response)
 
 				// If there was an error reading the response body, log it and
 				// free up the entire response structure.  This prevents it

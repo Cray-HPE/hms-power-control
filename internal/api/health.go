@@ -1,5 +1,5 @@
 /*
- * (C) Copyright [2022-2023] Hewlett Packard Enterprise Development LP
+ * (C) Copyright [2022-2023,2025] Hewlett Packard Enterprise Development LP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,12 +23,12 @@
 package api
 
 import (
-	"io"
 	"reflect"
 	"strings"
 
 	"net/http"
 
+	base "github.com/Cray-HPE/hms-base/v2"
 	"github.com/Cray-HPE/hms-power-control/internal/domain"
 	"github.com/Cray-HPE/hms-power-control/internal/logger"
 	"github.com/Cray-HPE/hms-power-control/internal/model"
@@ -51,11 +51,7 @@ type healthRsp struct {
 
 // Returns the microservice liveness indicator.  Any response means we're live.
 func GetLiveness(w http.ResponseWriter, req *http.Request) {
-	// Drain and close request body to ensure connection reuse
-	if (req.Body != nil) {
-		_, _ = io.Copy(io.Discard, req.Body)
-		req.Body.Close()
-	}
+	base.DrainAndCloseRequestBody(req)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -64,11 +60,7 @@ func GetLiveness(w http.ResponseWriter, req *http.Request) {
 func GetReadiness(w http.ResponseWriter, req *http.Request) {
 	var err error
 
-	// Drain and close request body to ensure connection reuse
-	if (req.Body != nil) {
-		_, _ = io.Copy(io.Discard, req.Body)
-		req.Body.Close()
-	}
+	base.DrainAndCloseRequestBody(req)
 
 	fname := "GetReadiness"
 	glb   := *domain.GLOB
@@ -135,11 +127,7 @@ func GetHealth(w http.ResponseWriter, req *http.Request) {
 
 	glb   := *domain.GLOB
 
-	// Drain and close request body to ensure connection reuse
-	if (req.Body != nil) {
-		_, _ = io.Copy(io.Discard, req.Body)
-		req.Body.Close()
-	}
+	base.DrainAndCloseRequestBody(req)
 
 	//Check KVStore
 
