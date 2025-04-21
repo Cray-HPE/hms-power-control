@@ -1,7 +1,7 @@
 #! /bin/bash
 # MIT License
 #
-# (C) Copyright [2021-2023] Hewlett Packard Enterprise Development LP
+# (C) Copyright [2021-2023,2025] Hewlett Packard Enterprise Development LP
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@ SNYK_OPTS="--dev --show-vulnerable-paths=all --fail-on=all --severity-threshold=
 OUT=$(set -x; snyk test --all-projects --detection-depth=999 $SNYK_OPTS)
 
 PROJ_CHECK=OK
-jq .[].ok <<<"$OUT" | grep -q false && PROJ_CHECK=FAIL
+jq .ok <<<"$OUT" | grep -q false && PROJ_CHECK=FAIL
 
 echo Snyk project check: $PROJ_CHECK
 

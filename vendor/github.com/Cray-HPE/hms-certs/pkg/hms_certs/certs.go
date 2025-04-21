@@ -24,8 +24,10 @@ package hms_certs
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -959,13 +961,17 @@ func (p *HTTPClientPair) Do(req *http.Request) (*http.Response,error) {
 	if (p.SecureClient != nil) {
 		rsp,err = p.SecureClient.Do(rtReq)
 		if (err != nil) {
-			if (p.InsecureClient != p.SecureClient) {
+			// Do not attempt insecure if context was canceled as that means we
+			// should abort and return.  Likely value in attempting insecure if
+			// context dealine exceeded on secure attempt
+			if p.InsecureClient != p.SecureClient && !errors.Is(err, context.Canceled) {
+
 				seclog_Errorf("%s: TLS-secure transport failed for '%s': %v -- trying insecure client.",
 						funcName,url,err)
 				if (p.InsecureClient == nil) {
 					emsg := fmt.Sprintf("%s: Failover to insecure transport failed: insecure client is nil.",funcName)
-					seclog_Errorf(emsg)
-					return rsp,fmt.Errorf(emsg)
+					seclog_Errorf("%s", emsg)
+					return rsp,fmt.Errorf("%s", emsg)
 				}
 
 				p.FailedOver = true
@@ -1024,13 +1030,17 @@ func (p *HTTPClientPair) Head(url string) (*http.Response,error) {
 	if (p.SecureClient != nil) {
 		rsp,err = p.SecureClient.Head(url)
 		if (err != nil) {
-			if (p.InsecureClient != p.SecureClient) {
+			// Do not attempt insecure if context was canceled as that means we
+			// should abort and return.  Likely value in attempting insecure if
+			// context dealine exceeded on secure attempt
+			if p.InsecureClient != p.SecureClient && !errors.Is(err, context.Canceled) {
+
 				seclog_Errorf("%s: TLS-secure transport failed for '%s': %v -- trying insecure client.",
 					funcName,url,err)
 				if (p.InsecureClient == nil) {
 					emsg := fmt.Sprintf("%s: Failover to insecure transport failed: insecure client is nil.",funcName)
-					seclog_Errorf(emsg)
-					return rsp,fmt.Errorf(emsg)
+					seclog_Errorf("%s", emsg)
+					return rsp,fmt.Errorf("%s", emsg)
 				}
 				p.FailedOver = true
 				rsp,err = p.InsecureClient.Head(url)
