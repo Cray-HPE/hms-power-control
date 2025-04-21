@@ -7,7 +7,7 @@ github.com/Cray-HPE/hms-certs/pkg/hms_certs
 # github.com/Cray-HPE/hms-compcredentials v1.15.0
 ## explicit; go 1.24.0
 github.com/Cray-HPE/hms-compcredentials
-# github.com/Cray-HPE/hms-hmetcd v1.12.1-0.20250418154528-4c24b7a461b0
+# github.com/Cray-HPE/hms-hmetcd v1.13.0
 ## explicit; go 1.24
 github.com/Cray-HPE/hms-hmetcd
 # github.com/Cray-HPE/hms-securestorage v1.17.0
@@ -18,7 +18,7 @@ github.com/Cray-HPE/hms-securestorage
 github.com/Cray-HPE/hms-smd/v2/pkg/redfish
 github.com/Cray-HPE/hms-smd/v2/pkg/service-reservations
 github.com/Cray-HPE/hms-smd/v2/pkg/sm
-# github.com/Cray-HPE/hms-trs-app-api/v3 v3.0.5-0.20250418142014-ff8beacef03d
+# github.com/Cray-HPE/hms-trs-app-api/v3 v3.0.5
 ## explicit; go 1.24.0
 github.com/Cray-HPE/hms-trs-app-api/v3/pkg/trs_http_api
 # github.com/Cray-HPE/hms-trs-kafkalib/v2 v2.0.2
@@ -193,8 +193,8 @@ google.golang.org/genproto/googleapis/api/annotations
 # google.golang.org/genproto/googleapis/rpc v0.0.0-20250414145226-207652e42e2e
 ## explicit; go 1.23.0
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.71.1
-## explicit; go 1.22.0
+# google.golang.org/grpc v1.72.0
+## explicit; go 1.23
 google.golang.org/grpc
 google.golang.org/grpc/attributes
 google.golang.org/grpc/backoff

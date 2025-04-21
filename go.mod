@@ -6,10 +6,10 @@ require (
 	github.com/Cray-HPE/hms-base/v2 v2.3.0
 	github.com/Cray-HPE/hms-certs v1.7.0
 	github.com/Cray-HPE/hms-compcredentials v1.15.0
-	github.com/Cray-HPE/hms-hmetcd v1.12.1-0.20250418154528-4c24b7a461b0
+	github.com/Cray-HPE/hms-hmetcd v1.13.0
 	github.com/Cray-HPE/hms-securestorage v1.17.0
 	github.com/Cray-HPE/hms-smd/v2 v2.37.0
-	github.com/Cray-HPE/hms-trs-app-api/v3 v3.0.5-0.20250418142014-ff8beacef03d
+	github.com/Cray-HPE/hms-trs-app-api/v3 v3.0.5
 	github.com/Cray-HPE/hms-xname v1.4.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -54,7 +54,7 @@ require (
 	golang.org/x/time v0.11.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250414145226-207652e42e2e // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250414145226-207652e42e2e // indirect
-	google.golang.org/grpc v1.71.1 // indirect
+	google.golang.org/grpc v1.72.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
