@@ -899,6 +899,7 @@ func updateHWState(xname string, hwState pcsmodel.PowerStateFilter,
 	psc.ManagementState = mgmtStateStr
 	psc.Error = errInfo
 	psc.SupportedPowerTransitions = comp.PSComp.SupportedPowerTransitions
+glogger.Errorf("updateHWState(): JW_DEBUG: xname=%s trnstns=%v", xname, psc.SupportedPowerTransitions)
 	psc.LastUpdated = comp.PSComp.LastUpdated
 
 	err := (*kvStore).StorePowerStatus(psc)
