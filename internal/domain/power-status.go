@@ -364,7 +364,9 @@ func updateComponentMap() error {
 						// Some components are known to miss these from time to time
 						hwStateMap[v.BaseData.ID].PSComp.SupportedPowerTransitions = toPCSPowerActions(v.AllowableActions)
 
-						glogger.Infof("%s: Updating supported power transitions for %s", fname, v.BaseData.ID)
+						glogger.Infof("%s: Updating supported power transitions for %s with in=%v out=%v",
+									  fname, v.BaseData.ID, v.AllowableActions,
+									  hwStateMap[v.BaseData.ID].PSComp.SupportedPowerTransitions)
 					}
 				}
 			default:
