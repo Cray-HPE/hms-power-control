@@ -360,8 +360,10 @@ func updateComponentMap() error {
 					hwStateMap[v.BaseData.ID] = &newComp
 				} else {
 					// This is an existing component, update if necessary
-					if v.BaseData.Type == xnametypes.NodeBMC &&
-					   len(hwStateMap[v.BaseData.ID].PSComp.SupportedPowerTransitions) == 0 {
+					if xnametypes.HMSType(v.BaseData.Type) == xnametypes.NodeBMC &&
+					   len(hwStateMap[v.BaseData.ID].PSComp.SupportedPowerTransitions) == 0 &&
+					   len(v.AllowableActions) > 0 {
+
 						// Some node BMCs require updating their supported
 						// power transitions.  Node BMCs never change power
 						// states so we must force an etcd write here using
