@@ -360,13 +360,24 @@ func updateComponentMap() error {
 					hwStateMap[v.BaseData.ID] = &newComp
 				} else {
 					// This is an existing component, update if necessary
-					if len(hwStateMap[v.BaseData.ID].PSComp.SupportedPowerTransitions) == 0 {
-						// Some components are known to miss these from time to time
-						hwStateMap[v.BaseData.ID].PSComp.SupportedPowerTransitions = toPCSPowerActions(v.AllowableActions)
+					if v.BaseData.Type == xnametypes.NodeBMC &&
+					   len(hwStateMap[v.BaseData.ID].PSComp.SupportedPowerTransitions) == 0 {
+						// Some node BMCs require updating their supported
+						// power transitions.  Node BMCs never change power
+						// states so we must force an etcd write here using
+						// "undefined" states.  The next call to
+						// getHWStatesFromHW() from monitorHW() will then
+						// force an update of the correct states.
 
-						glogger.Infof("%s: Updating supported power transitions for %s with in=%v out=%v",
-									  fname, v.BaseData.ID, v.AllowableActions,
+						bmc := v.BaseData.ID
+
+						hwStateMap[bmc].PSComp.SupportedPowerTransitions = toPCSPowerActions(v.AllowableActions)
+
+						glogger.Infof("%s: Updating supported power transitions for %s to %v",
+									  fname, bmc,
 									  hwStateMap[v.BaseData.ID].PSComp.SupportedPowerTransitions)
+
+						updateHWState(bmc, pcsmodel.PowerStateFilter_Undefined, pcsmodel.ManagementStateFilter_undefined, "")
 					}
 				}
 			default:
