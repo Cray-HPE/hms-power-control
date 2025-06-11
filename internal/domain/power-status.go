@@ -359,9 +359,8 @@ func updateComponentMap() error {
 					newComp.PSComp.LastUpdated = time.Now().Format(time.RFC3339)
 					hwStateMap[v.BaseData.ID] = &newComp
 				} else {
-glogger.Infof("JW_DEBUG: %s: xname=%s tsns=%v", fname, v.BaseData.ID, hwStateMap[v.BaseData.ID].PSComp.SupportedPowerTransitions)
 					// This is an existing component, update if necessary
-					if hwStateMap[v.BaseData.ID].PSComp.SupportedPowerTransitions == nil {
+					if len(hwStateMap[v.BaseData.ID].PSComp.SupportedPowerTransitions) == 0 {
 						// Some components are known to miss these from time to time
 						hwStateMap[v.BaseData.ID].PSComp.SupportedPowerTransitions = toPCSPowerActions(v.AllowableActions)
 
