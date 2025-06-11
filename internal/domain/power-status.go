@@ -358,6 +358,14 @@ func updateComponentMap() error {
 					newComp.HSMData.PowerCapURI = v.PowerCapURI
 					newComp.PSComp.LastUpdated = time.Now().Format(time.RFC3339)
 					hwStateMap[v.BaseData.ID] = &newComp
+				} else {
+					// This is an existing component, update if necessary
+					if hwStateMap[v.BaseData.ID].PSComp.SupportedPowerTransitions == nil {
+						// Some components are known to miss these from time to time
+						hwStateMap[v.BaseData.ID].PSComp.SupportedPowerTransitions = toPCSPowerActions(v.AllowableActions)
+
+						glogger.Infof("%s: Updating supported power transitions for %s", fname, v.BaseData.ID)
+					}
 				}
 			default:
 				glogger.Tracef("%s: Component type not handled: %s", fname, string(v.BaseData.Type))
