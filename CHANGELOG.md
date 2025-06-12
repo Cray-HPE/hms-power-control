@@ -5,10 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.13.0] - 2025-06-13
+## [2.13.0] - 2025-06-12
 
 - Fixed bug where missing supported power transitions were not getting
-  resync'd with SMD
+  resync'd with PCS for Gigabyte BMCs
 - Updated image and module dependencies to latest versions
 - Internal tracking ticket: CASMHMS-6302
 
