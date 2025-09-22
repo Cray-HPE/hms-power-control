@@ -16,7 +16,7 @@ services:
     networks:
       - pcs  
   dummy:
-    image: artifactory.algol60.net/docker.io/alpine:3.21
+    image: artifactory.algol60.net/csm-docker/stable/docker.io/library/alpine:3.22
     depends_on:
       - etcd
       - cray-smd
@@ -68,7 +68,7 @@ services:
     networks:
       - pcs
   cray-smd-init:
-    image: artifactory.algol60.net/csm-docker/stable/cray-smd:2.38.0
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd:2.43.0
     environment:
       - SMD_DBHOST=hmsds-postgres
       - SMD_DBPORT=5432
@@ -78,7 +78,7 @@ services:
       - pcs
     command: /entrypoint.sh smd-init
   cray-smd:
-    image: artifactory.algol60.net/csm-docker/stable/cray-smd:2.38.0
+    image: artifactory.algol60.net/csm-docker/stable/cray-smd:2.43.0
     environment:
       - POSTGRES_HOST=hmsds-postgres
       - POSTGRES_PORT=5432

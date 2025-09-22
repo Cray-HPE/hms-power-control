@@ -20,7 +20,7 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-FROM artifactory.algol60.net/csm-docker/stable/docker.io/library/alpine:3.21
+FROM artifactory.algol60.net/csm-docker/stable/docker.io/library/alpine:3.22
 
 RUN set -x \
     && apk -U upgrade \
