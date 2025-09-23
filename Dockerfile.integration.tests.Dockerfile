@@ -22,7 +22,7 @@
 
 # This file only exists as a means to run tests in an automated fashion.
 
-FROM artifactory.algol60.net/docker.io/library/alpine:3 AS build-base
+FROM artifactory.algol60.net/csm-docker/stable/docker.io/library/alpine:3.22 AS build-base
 
 ENV LOG_LEVEL=TRACE
 ENV API_URL="http://cray-power-control"
