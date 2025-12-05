@@ -8,7 +8,7 @@ require (
 	github.com/Cray-HPE/hms-compcredentials v1.15.0
 	github.com/Cray-HPE/hms-hmetcd v1.13.0
 	github.com/Cray-HPE/hms-securestorage v1.17.0
-	github.com/Cray-HPE/hms-smd/v2 v2.43.0
+	github.com/Cray-HPE/hms-smd/v2 v2.45.0
 	github.com/Cray-HPE/hms-trs-app-api/v3 v3.0.5
 	github.com/Cray-HPE/hms-xname v1.4.0
 	github.com/google/uuid v1.6.0
